@@ -14,8 +14,10 @@ socketio = SocketIO()
 def create_app():
     app = Flask(__name__)
 
-    # CORS設定を追加
-    CORS(app, origins=["http://localhost:3000", "http://localhost:3001"])
+    # CORS設定を環境変数から取得
+    cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:3001')
+    allowed_origins = [origin.strip() for origin in cors_origins.split(',')]
+    CORS(app, origins=allowed_origins)
 
     database_url = os.getenv("DATABASE_URL")
     if database_url and database_url.startswith("postgresql://"):
@@ -43,8 +45,8 @@ def create_app():
     
     # Socket.IO初期化（threading modeでgreenletエラーを回避）
     socketio.init_app(
-        app, 
-        cors_allowed_origins=["http://localhost:3000", "http://localhost:3001"],
+        app,
+        cors_allowed_origins=allowed_origins,
         async_mode='threading',
         logger=False,
         engineio_logger=False

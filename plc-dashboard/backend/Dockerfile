@@ -7,6 +7,7 @@ WORKDIR /app
 # システムパッケージを更新
 RUN apt-get update && apt-get install -y \
     gcc \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # requirements.txtをコピーして依存関係をインストール
