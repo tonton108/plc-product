@@ -1,0 +1,120 @@
+version: '3.8'
+
+services:
+  # PostgreSQLデータベース（全システム共通）
+  db:
+    image: postgres:15-alpine
+    container_name: plc-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-plc_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-plc_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-plc_monitor}
+      PGCLIENTENCODING: utf-8
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - plc-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-plc_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Flaskバックエンド（中央サーバーAPI）
+  backend:
+    build:
+      context: ./plc-dashboard/backend
+      dockerfile: Dockerfile
+    container_name: plc-backend
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-plc_user}:${POSTGRES_PASSWORD:-plc_pass}@db:5432/${POSTGRES_DB:-plc_monitor}
+      FLASK_APP: manage.py
+      FLASK_ENV: ${FLASK_ENV:-development}
+      SECRET_KEY: ${SECRET_KEY:-development-secret-key-change-in-production}
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./plc-dashboard/backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - plc-network
+    restart: unless-stopped
+    command: python manage_simple.py
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/equipment"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nuxt.jsフロントエンド（中央ダッシュボード）
+  frontend:
+    build:
+      context: ./plc-dashboard
+      dockerfile: Dockerfile.frontend
+    container_name: plc-frontend
+    environment:
+      NUXT_PUBLIC_API_BASE: http://backend:5000
+      NODE_ENV: ${NODE_ENV:-development}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./plc-dashboard:/app
+      - /app/node_modules
+      - /app/.nuxt
+    depends_on:
+      - backend
+    networks:
+      - plc-network
+    restart: unless-stopped
+    command: npm run dev
+
+  # Raspberry Piエージェント（PLCデータ収集）
+  # ローカルテスト用。本番環境ではRaspberry Pi上で直接実行
+  raspi-agent:
+    build:
+      context: ./plc-dashboard/raspi_agent
+      dockerfile: Dockerfile.agent
+    container_name: plc-raspi-agent
+    environment:
+      USE_DUMMY_PLC: ${USE_DUMMY_PLC:-true}
+      PLC_IP: ${PLC_IP:-192.168.1.100}
+      PLC_PORT: ${PLC_PORT:-5000}
+      PLC_MANUFACTURER: ${PLC_MANUFACTURER:-Mitsubishi}
+      LOG_INTERVAL_MS: ${LOG_INTERVAL_MS:-5000}
+      CENTRAL_SERVER_IP: ${CENTRAL_SERVER_IP:-backend}
+      CENTRAL_SERVER_PORT: ${CENTRAL_SERVER_PORT:-5000}
+      RASPI_UI_PORT: ${RASPI_UI_PORT:-5001}
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-plc_user}:${POSTGRES_PASSWORD:-plc_pass}@db:5432/${POSTGRES_DB:-plc_monitor}
+      REQUIRE_AUTH: ${REQUIRE_AUTH:-true}
+      SECRET_KEY: ${SECRET_KEY:-development-secret-key-change-in-production}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH:-e2c6ed4d94bc3d1b605cb5fe7e92e48546b26e0f1e30f97e8151af9f9abb0844}
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./plc-dashboard/raspi_agent:/app
+      - ./plc-dashboard/backend:/app/backend
+    depends_on:
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - plc-network
+    restart: unless-stopped
+    profiles:
+      - agent
+      - full
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  plc-network:
+    driver: bridge

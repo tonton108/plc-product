@@ -1,0 +1,1205 @@
+/* 🎨 ラズパイ専用シンプルCSS */
+
+/* ライト・ダークテーマ */
+:root {
+  --bg: #f5f5f5;
+  --text: #333;
+  --card: #fff;
+  --border: #ddd;
+  --primary: #2196f3;
+  --primary-hover: #1976d2;
+  --success: #4caf50;
+  --warning: #ff9800;
+  --error: #f44336;
+}
+
+body.dark {
+  --bg: #121212;
+  --text: #fff;
+  --card: #1e1e1e;
+  --border: #333;
+  --primary: #64b5f6;
+  --primary-hover: #42a5f5;
+}
+
+/* 📱 基本レイアウト（1920x1080用・スクロール完全禁止） */
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 18px; /* 少し小さめにして収める */
+  transition: all 0.3s;
+  height: 100vh;
+  overflow: hidden; /* 🚫 スクロール完全禁止 */
+  position: fixed;
+  width: 100vw;
+}
+
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start; /* 上寄せに変更 */
+  min-height: 100vh; /* height → min-height に変更 */
+  width: 100vw;
+  padding: 8px; /* パディングをさらに縮小 */
+  box-sizing: border-box;
+  overflow: hidden;
+  padding-top: 8px; /* 上部余白も縮小 */
+}
+
+/* 🔘 ボタン（修正版） */
+.btn {
+  display: inline-flex; /* inline-block から inline-flex に変更 */
+  align-items: center; /* 垂直中央揃え */
+  justify-content: center; /* 水平中央揃え */
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 140px;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.btn.primary {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3); /* 影追加 */
+}
+
+.btn.primary:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px); /* ホバー時の浮き上がり */
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+}
+
+.btn.secondary {
+  background: transparent;
+  color: var(--text);
+  border: 2px solid var(--border);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* 影追加 */
+}
+
+.btn.secondary:hover {
+  background: var(--border);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* 🎨 UI改善: カードのグラデーション */
+.monitor-card {
+  background: linear-gradient(145deg, var(--card), rgba(255,255,255,0.95));
+  border-radius: 12px; /* 角丸を少し縮小 */
+  padding: 16px; /* パディング縮小 */
+  width: calc(100vw - 16px); /* 画面幅いっぱい（余白8px×2を引く） */
+  height: calc(100vh - 16px); /* 画面高さいっぱい（余白8px×2を引く） */
+  max-width: none; /* 最大幅制限を撤廃 */
+  max-height: calc(100vh - 16px); /* 最大高さ制限を設定 */
+  box-shadow: 
+    0 8px 32px rgba(0,0,0,0.1),
+    0 2px 8px rgba(0,0,0,0.05); /* 多層シャドウ */
+  box-sizing: border-box;
+  overflow-y: auto; /* スクロール機能を追加 */
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255,255,255,0.2); /* 境界線追加 */
+}
+
+/* ダークモード用グラデーション */
+body.dark .monitor-card {
+  background: linear-gradient(145deg, var(--card), rgba(30,30,30,0.95));
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 
+    0 8px 32px rgba(0,0,0,0.3),
+    0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* 📝 フォーム（横並びレイアウトでモニタリング画面と統一） */
+.form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  align-content: start;
+  overflow-y: visible;
+  min-height: 0;
+  padding-bottom: 12px;
+}
+
+/* 基本設定セクション - 確実に横並びレイアウト（5列×2行） */
+.basic-config-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin: 8px 0;
+  width: 100%;
+}
+
+/* 下の行（6番目以降）の項目を左揃えに配置 */
+.basic-config-grid .form-group:nth-child(6) {
+  grid-column: 1;
+}
+
+.basic-config-grid .form-group:nth-child(7) {
+  grid-column: 2;
+}
+
+.basic-config-grid .form-group:nth-child(8) {
+  grid-column: 3;
+}
+
+.basic-config-grid .form-group:nth-child(9) {
+  grid-column: 4;
+}
+
+.config-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.config-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  margin: 8px 0;
+}
+
+/* フォームグループを横並び対応に */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(0,0,0,0.03);
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  transition: all 0.2s ease;
+  min-width: 0;
+  word-wrap: break-word;
+}
+
+.form-group:hover {
+  background: rgba(33, 150, 243, 0.05);
+  border-color: rgba(33, 150, 243, 0.2);
+}
+
+body.dark .form-group {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+body.dark .form-group:hover {
+  background: rgba(100, 181, 246, 0.1);
+  border-color: rgba(100, 181, 246, 0.3);
+}
+
+.form-section {
+  flex-shrink: 0;
+  margin-bottom: 12px;
+}
+
+.button-group {
+  flex-shrink: 0;
+  margin-top: auto;
+  padding-top: 16px;
+}
+
+/* レスポンシブ対応 - 基本設定グリッド */
+@media (max-width: 1400px) {
+  .basic-config-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+}
+
+@media (max-width: 1000px) {
+  .basic-config-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  .form-group {
+    padding: 12px 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  .basic-config-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .basic-config-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-group label {
+  font-weight: 600;
+  font-size: 15px; /* 少し縮小 */
+  margin-bottom: 4px;
+}
+
+.form-group input,
+.form-group select {
+  padding: 10px 12px; /* パディング調整 */
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  font-size: 18px; /* フォントサイズ拡大 */
+  background: var(--card);
+  color: var(--text);
+  min-height: 42px; /* 高さ調整 */
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* 🎨 UI改善: データアイテムのホバー効果 */
+.info-item,
+.status-item,
+.data-item {
+  padding: 12px 16px;
+  background: rgba(0,0,0,0.03); /* 薄くして洗練 */
+  border-radius: 8px;
+  font-size: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s ease; /* アニメーション追加 */
+  border: 1px solid rgba(0,0,0,0.05); /* 境界線追加 */
+}
+
+.data-item {
+  min-height: 48px;
+  cursor: default;
+}
+
+/* ホバー効果 */
+@media (hover: hover) {
+  .data-item:hover {
+    background: rgba(33, 150, 243, 0.05);
+    border-color: rgba(33, 150, 243, 0.2);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+}
+
+body.dark .info-item,
+body.dark .status-item,
+body.dark .data-item {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+body.dark .data-item:hover {
+  background: rgba(100, 181, 246, 0.1);
+  border-color: rgba(100, 181, 246, 0.3);
+}
+
+/* 🎨 UI改善: データ値のグロー効果 */
+.data-value {
+  font-weight: 700; /* より太く */
+  color: var(--primary);
+  font-size: 18px;
+  text-shadow: 0 0 8px rgba(33, 150, 243, 0.2); /* グロー効果 */
+  letter-spacing: 0.5px; /* 文字間隔 */
+}
+
+body.dark .data-value {
+  text-shadow: 0 0 8px rgba(100, 181, 246, 0.3);
+}
+
+/* 🎨 UI改善: ステータスバッジのアニメーション */
+.status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  transition: all 0.3s ease;
+  animation: pulse 2s infinite; /* パルスアニメーション */
+}
+
+.status-badge.green { 
+  background: linear-gradient(135deg, var(--success), #66bb6a);
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.status-badge.red { 
+  background: linear-gradient(135deg, var(--error), #ef5350);
+  box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
+}
+
+/* パルスアニメーション */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+/* 🎨 UI改善: タイトルの装飾 */
+h2 {
+  font-size: 26px;
+  margin: 0 0 16px 0;
+  text-align: center;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--primary), #42a5f5);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  font-weight: 700;
+}
+
+/* 🎨 UI改善: グリッド間のセパレーター */
+.info-grid::after,
+.status-grid::after {
+  content: '';
+  grid-column: 1 / -1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+  margin: 8px 0;
+}
+
+/* 🎨 UI改善: テーマ切替ボタンの強化 */
+.theme-toggle {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  background: linear-gradient(135deg, var(--primary), #42a5f5);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  font-size: 20px;
+  cursor: pointer;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+  transition: all 0.3s ease;
+}
+
+.theme-toggle:hover {
+  transform: scale(1.1) rotate(180deg);
+  box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+}
+
+/* 🎨 アクセント効果 */
+.data-grid {
+  position: relative;
+}
+
+.data-grid::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), #42a5f5);
+  border-radius: 2px;
+  opacity: 0.6;
+}
+
+/* 📊 モニタリング画面用スタイル */
+.info-grid,
+.status-grid,
+.data-grid {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.info-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.status-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.data-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0;
+  justify-content: center; /* 中央寄せ */
+}
+
+.data-item {
+  flex: 1 1 calc(33.33% - 8px); /* 3列基準 */
+  min-width: 280px; /* 最小幅設定 */
+  max-width: 350px; /* 最大幅設定 */
+  padding: 12px 16px;
+  background: rgba(0,0,0,0.05);
+  border-radius: 8px;
+  font-size: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 48px;
+}
+
+/* 最後の行の項目を中央に配置 */
+.data-item:nth-child(4),
+.data-item:nth-child(5) {
+  margin: 0 auto;
+}
+
+body.dark .info-item,
+body.dark .status-item,
+body.dark .data-item {
+  background: rgba(255,255,255,0.1);
+}
+
+.data-value {
+  font-weight: 600;
+  color: var(--primary);
+  font-size: 18px;
+}
+
+.data-label {
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* タイトル */
+h2 {
+  font-size: 24px; /* フォントサイズ縮小 */
+  margin: 0 0 16px 0; /* マージン縮小 */
+  text-align: center;
+  flex-shrink: 0; /* タイトルサイズ固定 */
+}
+
+/* 🌗 テーマ切替ボタン */
+.theme-toggle {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 48px; /* サイズ縮小 */
+  height: 48px;
+  font-size: 20px;
+  cursor: pointer;
+  z-index: 1000;
+}
+
+/* 📢 トースト */
+#toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--primary);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 1000;
+}
+
+#toast.show {
+  opacity: 1;
+}
+
+/* 🎨 モーダルスタイル */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 2000;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(5px);
+  animation: fadeIn 0.3s ease-out;
+  overflow: hidden;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-content {
+  position: relative;
+  background-color: var(--card);
+  margin: 10px auto;
+  padding: 0;
+  border-radius: 12px;
+  width: calc(100vw - 40px);
+  height: calc(100vh - 20px);
+  max-width: none;
+  max-height: calc(100vh - 20px);
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.3s ease-out;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, var(--primary), #42a5f5);
+  color: white;
+  border-radius: 12px 12px 0 0;
+  flex-shrink: 0;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: white;
+  background: none;
+  -webkit-text-fill-color: white;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 32px;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.modal-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.1);
+}
+
+.modal-body {
+  padding: 12px;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* モーダル内フォームの調整 */
+.modal-body .form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  align-content: start;
+  overflow: hidden;
+  min-height: 0;
+  height: 100%;
+}
+
+.modal-body .basic-config-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin: 6px 0 12px 0;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+/* 下の行（6番目以降）の項目を左揃えに配置 */
+.modal-body .basic-config-grid .form-group:nth-child(6) {
+  grid-column: 1;
+}
+
+.modal-body .basic-config-grid .form-group:nth-child(7) {
+  grid-column: 2;
+}
+
+.modal-body .basic-config-grid .form-group:nth-child(8) {
+  grid-column: 3;
+}
+
+.modal-body .basic-config-grid .form-group:nth-child(9) {
+  grid-column: 4;
+}
+
+.modal-body .plc-config-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+  width: 100%;
+}
+
+.modal-body .button-group {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  align-items: center;
+  margin-top: auto;
+  padding: 12px 0;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 600px;
+  flex-shrink: 0;
+}
+
+/* ダークモード用モーダル */
+body.dark .modal-content {
+  background-color: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(145deg, var(--card), rgba(30,30,30,0.95));
+  box-shadow: 
+    0 8px 32px rgba(0,0,0,0.3),
+    0 2px 8px rgba(0,0,0,0.2);
+}
+
+body.dark .modal-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+
+
+/* レスポンシブ対応 - モーダル */
+@media (max-width: 1400px) {
+  .modal-body .basic-config-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+}
+
+@media (max-width: 1000px) {
+  .modal-body .basic-config-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .modal-content {
+    width: calc(100vw - 20px);
+    height: calc(100vh - 20px);
+    margin: 0.5% auto;
+    border-radius: 8px;
+  }
+  
+  .modal-header {
+    padding: 12px 16px;
+  }
+  
+  .modal-body {
+    padding: 12px;
+  }
+  
+  .modal-body .basic-config-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  
+  .modal-body .plc-config-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-body .basic-config-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .modal-body .plc-config-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 📊 モニタリング画面用スタイル */
+.info-grid,
+.status-grid,
+.data-grid {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.info-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.status-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.data-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0;
+  justify-content: center; /* 中央寄せ */
+}
+
+.data-item {
+  flex: 1 1 calc(33.33% - 8px); /* 3列基準 */
+  min-width: 280px; /* 最小幅設定 */
+  max-width: 350px; /* 最大幅設定 */
+  padding: 12px 16px;
+  background: rgba(0,0,0,0.05);
+  border-radius: 8px;
+  font-size: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 48px;
+}
+
+/* 最後の行の項目を中央に配置 */
+.data-item:nth-child(4),
+.data-item:nth-child(5) {
+  margin: 0 auto;
+}
+
+body.dark .info-item,
+body.dark .status-item,
+body.dark .data-item {
+  background: rgba(255,255,255,0.1);
+}
+
+.data-value {
+  font-weight: 600;
+  color: var(--primary);
+  font-size: 18px;
+}
+
+.data-label {
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* タイトル */
+h2 {
+  font-size: 24px; /* フォントサイズ縮小 */
+  margin: 0 0 16px 0; /* マージン縮小 */
+  text-align: center;
+  flex-shrink: 0; /* タイトルサイズ固定 */
+}
+
+/* 🔧 PLCアドレス設定用スタイル */
+.form-section h3 {
+  font-size: 18px;
+  font-weight: 600;
+  text-align: left;
+  margin: 8px 0 6px 0;
+  padding: 0;
+  background: linear-gradient(135deg, var(--primary), #42a5f5);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.address-guide {
+  display: block; /* アドレス形式ガイドを表示 */
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: rgba(33, 150, 243, 0.1);
+  border-radius: 8px;
+  border-left: 4px solid var(--primary);
+}
+
+.address-guide p {
+  margin: 0;
+  color: var(--text);
+}
+
+#format-example {
+  color: var(--primary);
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+}
+
+body.dark .address-guide {
+  background: rgba(100, 181, 246, 0.1);
+  border-left: 4px solid var(--primary);
+}
+
+/* 古いデータ項目設定グリッドは削除済み - 新しいplc-config-gridを使用 */
+
+/* レスポンシブ対応 - PLCコンフィグ用 */
+@media (max-width: 1200px) {
+  .plc-config-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  
+  .plc-config-item {
+    padding: 10px 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .plc-config-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  
+  .plc-config-item {
+    padding: 10px;
+  }
+  
+  .plc-config-inputs input,
+  .plc-config-inputs .data-type-select {
+    font-size: 12px;
+    padding: 8px 10px;
+    min-height: 36px;
+  }
+}
+
+@media (max-width: 480px) {
+  .plc-config-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .plc-config-inputs {
+    gap: 4px;
+  }
+  
+  .plc-config-inputs input,
+  .plc-config-inputs .data-type-select {
+    font-size: 11px;
+    padding: 6px 8px;
+    min-height: 32px;
+  }
+}
+
+/* アニメーション効果 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.plc-config-item {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+/* 🖥️ 1920x1080専用：完全スクロール禁止 */
+@media (min-width: 1920px) and (min-height: 1080px) {
+  .monitor-card {
+    width: 90%;
+    height: 90%;
+    max-height: 95vh;
+    padding: 32px;
+  }
+  
+  .form-grid {
+    gap: 24px 48px;
+  }
+  
+  .form-group label {
+    font-size: 18px;
+  }
+  
+  .form-group input,
+  .form-group select {
+    padding: 14px;
+    font-size: 18px;
+    min-height: 48px;
+  }
+  
+  .btn {
+    padding: 14px 28px;
+    font-size: 18px;
+    min-height: 48px;
+  }
+  
+  h2 {
+    font-size: 28px;
+    margin: 0 0 20px 0;
+  }
+}
+
+/* モバイル・タブレット用 */
+@media (max-width: 1919px) {
+  .form-grid {
+    grid-template-columns: 1fr; /* 1列に戻す */
+  }
+  
+  .monitor-card {
+    width: 95%;
+    height: auto;
+    max-height: 90vh;
+    overflow-y: auto; /* 小さい画面のみスクロール許可 */
+  }
+}
+
+/* 🔘 ボタングループの中央配置強化 */
+.button-group {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  align-items: center;
+  margin: 20px auto 0 auto; /* 上マージン縮小、下マージンなしで確実に表示 */
+  flex-wrap: wrap;
+  width: 100%; /* 幅を明示的に100%に */
+  max-width: 600px; /* 最大幅制限で中央感を強調 */
+  flex-shrink: 0; /* ボタングループは縮小しない */
+}
+
+/* モニタリング画面専用のボタン配置 */
+.monitor-card .button-group {
+  margin: 24px auto 0 auto; /* モニタリング画面では上マージンを調整 */
+  padding: 0 20px; /* 左右にパディングを追加 */
+}
+
+/* ボタンサイズの統一 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 28px; /* パディング調整 */
+  border: none;
+  border-radius: 10px;
+  font-size: 16px; /* フォントサイズ調整 */
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 160px; /* 最小幅調整 */
+  min-height: 44px; /* 高さ調整 */
+  box-sizing: border-box;
+  flex-shrink: 0; /* ボタンサイズ固定 */
+}
+
+/* フォーム内のボタングループ（設定画面用） */
+.form-grid .button-group {
+  grid-column: 1 / -1; /* 2列をまたぐ */
+  margin: 32px auto 0 auto;
+  justify-self: center; /* グリッド内で中央配置 */
+}
+
+/* 📊 モニタリング画面のレイアウト調整 */
+.monitor-card {
+  background: linear-gradient(145deg, var(--card), rgba(255,255,255,0.95));
+  border-radius: 16px;
+  padding: 24px;
+  width: 95%;
+  height: 95%;
+  max-width: 1800px;
+  max-height: 95vh;
+  box-shadow: 
+    0 8px 32px rgba(0,0,0,0.1),
+    0 2px 8px rgba(0,0,0,0.05);
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255,255,255,0.2);
+  align-items: center; /* 全体を中央寄せ */
+}
+
+/* データグリッド部分の中央配置 */
+.data-grid {
+  position: relative;
+  width: 100%;
+  max-width: 1200px; /* 最大幅制限で中央感を強調 */
+  margin: 0 auto; /* 中央配置 */
+}
+
+/* インフォ・ステータスグリッドも中央配置 */
+.info-grid,
+.status-grid {
+  width: 100%;
+  max-width: 1200px;
+  margin: 16px auto;
+}
+
+/* PLCデータ項目設定 - 確実に横並びレイアウト（3列×2行） */
+.plc-config-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+  width: 100%;
+  height: fit-content;
+  max-height: none;
+}
+
+.plc-config-item {
+  background: rgba(0,0,0,0.03);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: all 0.2s ease;
+  min-width: 0;
+  word-wrap: break-word;
+  height: fit-content;
+}
+
+.plc-config-item:hover {
+  background: rgba(33, 150, 243, 0.05);
+  border-color: rgba(33, 150, 243, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+body.dark .plc-config-item {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+body.dark .plc-config-item:hover {
+  background: rgba(100, 181, 246, 0.1);
+  border-color: rgba(100, 181, 246, 0.3);
+}
+
+.plc-config-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  flex-shrink: 0;
+}
+
+.plc-config-toggle:hover {
+  color: var(--primary);
+}
+
+.plc-config-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+  cursor: pointer;
+  margin: 0;
+}
+
+.plc-icon {
+  font-size: 18px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.plc-config-inputs {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.plc-config-inputs input[type="text"] {
+  width: 120px;
+  flex: none;
+  padding: 10px 12px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  font-size: 18px;
+  font-family: 'Courier New', monospace;
+  background: var(--card);
+  color: var(--text);
+  transition: all 0.2s ease;
+  min-height: 42px;
+}
+
+.plc-config-inputs input[type="number"] {
+  width: 80px;
+  flex: none;
+  padding: 10px 12px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  font-size: 18px;
+  background: var(--card);
+  color: var(--text);
+  transition: all 0.2s ease;
+  min-height: 42px;
+}
+
+/* データ型選択用select */
+.plc-config-inputs .data-type-select {
+  width: 170px;
+  flex: none;
+  padding: 10px 12px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  font-size: 18px;
+  background: var(--card);
+  color: var(--text);
+  transition: all 0.2s ease;
+  min-height: 42px;
+  cursor: pointer;
+}
+
+.plc-config-inputs input:focus,
+.plc-config-inputs .data-type-select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.plc-config-inputs input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: rgba(0,0,0,0.05);
+}
+
+body.dark .plc-config-inputs input:disabled {
+  background: rgba(255,255,255,0.05);
+}
+
+/* データ項目設定セクションのスタイル調整 */
+.data-config-section {
+  margin: 16px 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+

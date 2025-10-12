@@ -1,0 +1,21 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# package.jsonとpackage-lock.jsonをコピー
+COPY package*.json ./
+
+# 依存関係をインストール
+RUN npm install
+
+# アプリケーションコードをコピー
+COPY . .
+
+# Nuxt.jsの準備
+RUN npm run postinstall || true
+
+# ポート公開
+EXPOSE 3000
+
+# 開発サーバー起動（デフォルト）
+CMD ["npm", "run", "dev"]

@@ -1,0 +1,8 @@
+{
+  "equipment_id": "FX-3",
+  "manufacturer": "\u4e09\u83f1",
+  "series": "FX",
+  "ip": "192.168.0.1",
+  "port": 25565,
+  "interval": 1000
+}
