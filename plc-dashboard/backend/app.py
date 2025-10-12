@@ -58,11 +58,15 @@ def create_app():
     # ✅ モデルとルートをここでインポート
     from db import models
     from api.routes import register_routes
+    from error_handlers import register_error_handlers
+
     register_routes(app, socketio)  # socketioを渡す
+    register_error_handlers(app)  # エラーハンドラーを登録
 
     print(f"✅ Registered tables: {db.Model.metadata.tables.keys()}")
     print(f"✅ URL Map:\n{app.url_map}")
     print(f"✅ Socket.IO initialized with threading mode")
+    print(f"✅ Error handlers registered")
 
     return app, socketio  # socketioも一緒に返す
 

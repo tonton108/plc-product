@@ -17,6 +17,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # アプリケーションコードをコピー
 COPY . .
 
+# エントリーポイントスクリプトをコピーして実行権限を付与
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 # ポート5000を公開
 EXPOSE 5000
 
@@ -24,5 +28,8 @@ EXPOSE 5000
 ENV PYTHONPATH=/app
 ENV FLASK_ENV=development
 
+# エントリーポイントを設定
+ENTRYPOINT ["/docker-entrypoint.sh"]
+
 # アプリケーションを起動
-CMD ["bash", "-c", "flask --app manage.py run --host=0.0.0.0"] 
+CMD ["python", "manage_simple.py"] 
