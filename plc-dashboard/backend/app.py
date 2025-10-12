@@ -29,11 +29,14 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
-    
-    # SQLAlchemyのエンジン設定を完全に同期モードに設定
+
+    # SQLAlchemyのエンジン設定（接続プールを最適化）
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        'pool_pre_ping': True,
-        'pool_recycle': 300,
+        'pool_pre_ping': True,      # 接続の健全性確認
+        'pool_recycle': 300,        # 300秒で接続をリサイクル
+        'pool_size': 10,            # 通常の接続プールサイズ
+        'max_overflow': 20,         # 最大追加接続数
+        'pool_timeout': 30,         # 接続タイムアウト(秒)
         'echo': False,
         'connect_args': {
             'check_same_thread': False,  # SQLite用：マルチスレッド対応

@@ -32,6 +32,8 @@ services:
       FLASK_APP: manage.py
       FLASK_ENV: ${FLASK_ENV:-development}
       SECRET_KEY: ${SECRET_KEY:-development-secret-key-change-in-production}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:3001}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:
       - "5000:5000"
     volumes:
@@ -56,7 +58,8 @@ services:
       dockerfile: Dockerfile.frontend
     container_name: plc-frontend
     environment:
-      NUXT_PUBLIC_API_BASE: http://backend:5000
+      # ブラウザからアクセス可能なURL（Dockerネットワーク内部のbackendではなくlocalhost）
+      NUXT_PUBLIC_API_BASE: ${NUXT_PUBLIC_API_BASE:-http://localhost:5000}
       NODE_ENV: ${NODE_ENV:-development}
     ports:
       - "3000:3000"
