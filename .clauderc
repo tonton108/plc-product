@@ -1,0 +1,5 @@
+[defaults]
+language = ja
+commit_language = ja
+commit_signature = off
+auto_commit = false

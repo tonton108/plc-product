@@ -12,6 +12,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - CLI出力やログ文言も、特別な理由がなければ日本語で提案すること。
 - 回答の際は、過剰な翻訳ではなく技術的な正確さを優先すること。
 
+## Git コミットルール（日本語モード）
+
+- すべてのコミットメッセージは**日本語**で書くこと。
+- 英語は使わず、要約を1行で簡潔に。
+- フォーマットは「タイプ: 概要」形式（例：`refactor: 古いディレクトリを整理し重複を解消`）。
+- Claude Codeは自動署名（🤖やCo-Authored行）を付与しないこと。
+
 ---
 
 ## プロジェクト概要

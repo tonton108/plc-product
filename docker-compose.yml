@@ -44,7 +44,7 @@ services:
     networks:
       - plc-network
     restart: unless-stopped
-    command: python manage_simple.py
+    command: python manage.py
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/api/equipment"]
       interval: 30s
