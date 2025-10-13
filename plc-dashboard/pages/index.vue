@@ -73,9 +73,12 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRuntimeConfig } from 'vue-router'
 
 const router = useRouter()
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBase
+
 const equipmentList = ref([])
 const loading = ref(true)
 const error = ref(false)
@@ -84,7 +87,7 @@ const errorMessage = ref('')
 const fetchEquipment = async () => {
   try {
     loading.value = true
-    const response = await fetch('http://localhost:5000/api/equipment')
+    const response = await fetch(`${apiBase}/api/equipment`)
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }

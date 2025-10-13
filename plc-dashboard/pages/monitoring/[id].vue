@@ -234,6 +234,8 @@ ChartJS.register(
 const route = useRoute()
 const router = useRouter()
 const { $socket } = useNuxtApp()
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBase
 
 // データ定義
 const equipmentId = route.params.id
@@ -409,7 +411,7 @@ const clearDebugLog = () => {
 const testLatestAPI = async () => {
   addDebugLog('info', 'API テスト開始: /api/logs/latest')
   try {
-    const response = await fetch(`http://localhost:5000/api/logs/${equipmentId}/latest`)
+    const response = await fetch(`${apiBase}/api/logs/${equipmentId}/latest`)
     if (response.ok) {
       const data = await response.json()
       addDebugLog('success', `API テスト成功: ${data.timestamp}`)
@@ -602,7 +604,7 @@ const updateMonitoringData = (data) => {
 
 const fetchEquipmentInfo = async () => {
   try {
-    const response = await fetch(`http://localhost:5000/api/equipment/${equipmentId}`)
+    const response = await fetch(`${apiBase}/api/equipment/${equipmentId}`)
     if (response.ok) {
       equipmentInfo.value = await response.json()
       addDebugLog('success', '設備情報取得成功')
@@ -617,15 +619,15 @@ const fetchEquipmentInfo = async () => {
 
 const fetchLatestData = async () => {
   try {
-    const response = await fetch(`http://localhost:5000/api/logs/${equipmentId}/latest`)
+    const response = await fetch(`${apiBase}/api/logs/${equipmentId}/latest`)
     if (response.ok) {
       const data = await response.json()
       addDebugLog('success', `最新データ取得成功: ${data.timestamp}`)
-      
+
       // ✅ 安全にデータ更新を実行
       updateMonitoringData(data)
       updateChartData(data)
-      
+
       // ✅ データ履歴の安全な追加
       if (dataHistory.value) {
         dataHistory.value.unshift(data)

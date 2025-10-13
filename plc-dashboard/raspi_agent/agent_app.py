@@ -543,21 +543,154 @@ def api_update_local_equipment_id():
     try:
         data = request.get_json()
         new_equipment_id = data.get("equipment_id")
-        
+
         if not new_equipment_id:
             return jsonify({"success": False, "error": "設備IDが指定されていません"}), 400
-        
+
         # ConfigManagerを使用してローカル設定を更新
         success = config.config_manager.save_equipment_id(new_equipment_id)
-        
+
         if success:
             print(f"✅ ローカル設備ID更新成功: {new_equipment_id}")
             return jsonify({"success": True, "message": "ローカル設備IDを更新しました"})
         else:
             return jsonify({"success": False, "error": "ローカル設備IDの更新に失敗しました"}), 500
-            
+
     except Exception as e:
         print(f"❌ ローカル設備ID更新エラー: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/equipment/<equipment_id>", methods=["PUT"])
+@require_auth
+def api_update_equipment(equipment_id):
+    """設備基本設定を更新（ローカル保存 + 中央サーバー転送）"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "error": "無効なリクエストデータ"}), 400
+
+        # 現在の設定を読み込み
+        current_config = config.load_plc_config()
+
+        # 基本設定を更新
+        updated_config = {
+            "equipment_id": data.get("equipment_id", equipment_id),
+            "manufacturer": data.get("manufacturer"),
+            "series": data.get("series"),
+            "plc_ip": data.get("plc_ip"),
+            "plc_port": data.get("plc_port"),
+            "modbus_port": data.get("modbus_port", 502),
+            "interval": data.get("interval"),
+            "central_server_ip": data.get("central_server_ip", config.central_server_ip),
+            "central_server_port": data.get("central_server_port", config.central_server_port),
+            "mac_address": data.get("mac_address"),
+            "cpu_serial_number": data.get("cpu_serial_number"),
+            "hostname": data.get("hostname"),
+            "raspi_ip": data.get("raspi_ip")
+        }
+
+        # data_pointsは既存の設定を保持（別のエンドポイントで更新）
+        if "data_points" in current_config:
+            updated_config["data_points"] = current_config["data_points"]
+
+        # ローカル設定を保存
+        config.save_plc_config(updated_config)
+        print(f"✅ ローカル設定保存成功: {equipment_id}")
+
+        # 中央サーバーに設備情報を送信
+        try:
+            import requests
+            api_data = {
+                "equipment_id": updated_config["equipment_id"],
+                "manufacturer": updated_config["manufacturer"],
+                "series": updated_config["series"],
+                "ip": updated_config["raspi_ip"],
+                "plc_ip": updated_config["plc_ip"],
+                "mac_address": updated_config["mac_address"],
+                "cpu_serial_number": updated_config["cpu_serial_number"],
+                "hostname": updated_config["hostname"],
+                "port": updated_config["plc_port"],
+                "modbus_port": updated_config["modbus_port"],
+                "interval": updated_config["interval"]
+            }
+
+            api_url = f"http://{updated_config['central_server_ip']}:{updated_config['central_server_port']}/api/register"
+            print(f"📡 中央サーバーに設備更新を送信: {api_url}")
+
+            response = requests.post(api_url, json=api_data, timeout=10)
+
+            if response.status_code == 200:
+                print(f"✅ 中央サーバーへの設備更新成功")
+            else:
+                print(f"⚠️ 中央サーバーへの設備更新失敗: {response.status_code}")
+
+        except Exception as e:
+            print(f"❌ 中央サーバーへの設備更新エラー: {e}")
+            # 中央サーバー転送失敗でもローカル保存は成功しているのでエラーにしない
+
+        # PLCエージェントを再起動して設定を反映
+        restart_plc_agent()
+
+        return jsonify({"success": True, "message": "設備設定を更新しました"})
+
+    except Exception as e:
+        print(f"❌ 設備設定更新エラー: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/equipment/<equipment_id>/plc_configs", methods=["PUT"])
+@require_auth
+def api_update_plc_configs(equipment_id):
+    """PLCデータ設定を更新（ローカル保存 + 中央サーバー転送）"""
+    try:
+        plc_configs = request.get_json()
+        if not isinstance(plc_configs, list):
+            return jsonify({"success": False, "error": "無効なリクエストデータ"}), 400
+
+        # 現在の設定を読み込み
+        current_config = config.load_plc_config()
+
+        # PLCデータ設定を辞書形式に変換
+        data_points = {}
+        for plc_config in plc_configs:
+            data_type = plc_config.get("data_type")
+            data_points[data_type] = {
+                "address": plc_config.get("address"),
+                "data_type": plc_config.get("plc_data_type", "word"),
+                "scale": plc_config.get("scale_factor", 1),
+                "enabled": plc_config.get("enabled", False)
+            }
+
+        # data_pointsを設定に追加
+        current_config["data_points"] = data_points
+
+        # ローカル設定を保存
+        config.save_plc_config(current_config)
+        print(f"✅ PLCデータ設定保存成功: {equipment_id}")
+
+        # 中央サーバーにPLCデータ設定を送信
+        try:
+            import requests
+            plc_config_url = f"http://{current_config.get('central_server_ip', config.central_server_ip)}:{current_config.get('central_server_port', config.central_server_port)}/api/equipment/{equipment_id}/plc_configs"
+            print(f"📡 中央サーバーにPLCデータ設定を送信: {plc_config_url}")
+
+            response = requests.put(plc_config_url, json=plc_configs, timeout=10)
+
+            if response.status_code == 200:
+                print(f"✅ 中央サーバーへのPLCデータ設定送信成功")
+            else:
+                print(f"⚠️ 中央サーバーへのPLCデータ設定送信失敗: {response.status_code}")
+
+        except Exception as e:
+            print(f"❌ 中央サーバーへのPLCデータ設定送信エラー: {e}")
+            # 中央サーバー転送失敗でもローカル保存は成功しているのでエラーにしない
+
+        # PLCエージェントを再起動して設定を反映
+        restart_plc_agent()
+
+        return jsonify({"success": True, "message": "PLCデータ設定を更新しました"})
+
+    except Exception as e:
+        print(f"❌ PLCデータ設定更新エラー: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/current-equipment-info")

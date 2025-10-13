@@ -74,20 +74,29 @@ ChartJS.register(
 )
 
 const route = useRoute()
+const config = useRuntimeConfig()
+const apiBase = config.public.apiBase
+const equipmentId = route.params.id
+
 const tab = ref(0)
 const chartData = ref(null)
 const chartOptions = ref({})
 const logsRaw = ref([])
-const selectedPeriod = ref('1h')
-const periodOptions = ['1h', '6h', '24h']
+const selectedPeriod = ref('24h')
+const periodOptions = ['1h', '6h', '24h', '7d', '30d']
+const equipment = ref(null)
 
-const equipmentList = [
-  { id: 'eq001', name: 'A装置', manufacturer: 'Mitsubishi', ip: '192.168.0.101', port: 5000 },
-  { id: 'eq002', name: 'B装置', manufacturer: 'Omron', ip: '192.168.0.102', port: 9600 },
-  { id: 'eq003', name: 'C装置', manufacturer: 'Keyence', ip: '192.168.0.103', port: 8501 },
-]
-
-const equipment = equipmentList.find(e => e.id === route.params.id)
+// 設備情報を取得
+const fetchEquipmentInfo = async () => {
+  try {
+    const response = await fetch(`${apiBase}/api/equipment/${equipmentId}`)
+    if (response.ok) {
+      equipment.value = await response.json()
+    }
+  } catch (error) {
+    console.error('設備情報取得エラー:', error)
+  }
+}
 
 const filteredLogs = computed(() => {
   const now = new Date()
@@ -141,12 +150,16 @@ const downloadCSV = () => {
   URL.revokeObjectURL(url)
 }
 
+let intervalId = null
+
 const fetchLogs = async () => {
   try {
-    const res = await fetch(`http://localhost:5000/api/logs?id=${equipment?.id}`)
-    const logs = await res.json()
-    logsRaw.value = logs
-    updateChart()
+    const res = await fetch(`${apiBase}/api/logs/${equipmentId}/history_optimized?period=${selectedPeriod.value}`)
+    if (res.ok) {
+      const data = await res.json()
+      logsRaw.value = data.logs || []
+      updateChart()
+    }
   } catch (err) {
     console.error('ログ取得失敗:', err)
   }
@@ -162,7 +175,7 @@ onMounted(async () => {
     animation: { duration: 500, easing: 'easeInOutQuad' },
     plugins: {
       legend: { position: 'top' },
-      title: { display: true, text: 'PLC D100 ログ' },
+      title: { display: true, text: 'PLCデータログ' },
       zoom: {
         zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' },
         pan: { enabled: true, mode: 'x' },
@@ -170,15 +183,14 @@ onMounted(async () => {
     },
   }
 
+  await fetchEquipmentInfo()
   await fetchLogs()
-  intervalId = setInterval(fetchLogs, 5000)
+  intervalId = setInterval(fetchLogs, 10000)
 })
 
 onBeforeUnmount(() => {
   clearInterval(intervalId)
 })
-
-let intervalId = null
 watch([selectedPeriod], updateChart)
 </script>
 

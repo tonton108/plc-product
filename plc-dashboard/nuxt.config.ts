@@ -13,4 +13,11 @@ export default defineNuxtConfig({
     '~/plugins/socket.io.client.ts'
   ],
   ssr: false, // Socket.IOクライアントはクライアントサイドのみで動作
+
+  // 環境変数設定
+  runtimeConfig: {
+    public: {
+      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:5000'
+    }
+  }
 })
