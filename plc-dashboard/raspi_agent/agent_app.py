@@ -54,14 +54,6 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 # SocketIO初期化
 socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True)
 
-# ラズパイでもローカルAPIルートを使用（フロントエンドアクセス用）
-from backend.db import init_db
-from backend.api.routes import register_routes
-
-# データベースとAPIルートを初期化
-init_db(app)
-register_routes(app, socketio)
-
 # 認証設定
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 DEFAULT_ADMIN_PASSWORD_HASH = hashlib.sha256("admin123".encode()).hexdigest()  # デフォルト: admin123
@@ -762,4 +754,4 @@ if __name__ == "__main__":
     port = int(config.raspi_ui_port)
     print(f"🌐 WebUI起動: http://0.0.0.0:{port}")
     print("📡 WebSocket機能が有効化されました")
-    socketio.run(app, debug=True, host="0.0.0.0", port=port) 
+    socketio.run(app, debug=True, host="0.0.0.0", port=port, allow_unsafe_werkzeug=True) 
