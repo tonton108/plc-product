@@ -9,7 +9,7 @@ import requests
 import time
 import random
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 import threading
 import argparse
 
@@ -41,7 +41,7 @@ class PLCDataSender:
         """デモデータを生成"""
         data = {
             "equipment_id": self.equipment_id,
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
             "production_count": self.base_values["production_count"],
             "current": round(
                 self.base_values["current"] + random.uniform(

@@ -32,4 +32,4 @@ ENV FLASK_ENV=development
 ENTRYPOINT ["/docker-entrypoint.sh"]
 
 # アプリケーションを起動
-CMD ["python", "manage_simple.py"] 
+CMD ["python", "manage.py"] 

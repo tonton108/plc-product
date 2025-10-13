@@ -81,9 +81,6 @@ def get_socketio():
     """socketioインスタンスを取得"""
     return socketio
 
-def periodic_log_fetch():
-    print("📡 periodic_log_fetch started (dummy)")
-
 def wait_for_db(session):
     import time
     from sqlalchemy import text
@@ -98,4 +95,4 @@ def wait_for_db(session):
             time.sleep(1)
             print(f"Waiting for DB... ({e})")
 
-__all__ = ["create_app", "get_socketio", "db", "periodic_log_fetch", "wait_for_db"]
+__all__ = ["create_app", "get_socketio", "db", "wait_for_db"]

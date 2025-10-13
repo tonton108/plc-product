@@ -7,7 +7,7 @@ PLCログデータ管理ツール
 import os
 import sys
 import argparse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # プロジェクトルートをパスに追加
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -55,9 +55,9 @@ def show_stats():
                 print("データがありません")
             
             # 最近の統計
-            recent_1h = Log.query.filter(Log.timestamp >= datetime.utcnow() - timedelta(hours=1)).count()
-            recent_24h = Log.query.filter(Log.timestamp >= datetime.utcnow() - timedelta(hours=24)).count()
-            recent_7d = Log.query.filter(Log.timestamp >= datetime.utcnow() - timedelta(days=7)).count()
+            recent_1h = Log.query.filter(Log.timestamp >= datetime.now(timezone.utc) - timedelta(hours=1)).count()
+            recent_24h = Log.query.filter(Log.timestamp >= datetime.now(timezone.utc) - timedelta(hours=24)).count()
+            recent_7d = Log.query.filter(Log.timestamp >= datetime.now(timezone.utc) - timedelta(days=7)).count()
             
             print(f"\n⏰ 最近のデータ:")
             print(f"1時間以内: {recent_1h:,}件")
@@ -86,7 +86,7 @@ def cleanup_old_data(days):
     app, socketio = create_app()
     
     with app.app_context():
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
         old_logs = Log.query.filter(Log.timestamp < cutoff_date)
         count = old_logs.count()
         
@@ -229,9 +229,8 @@ def create_monthly_summary_manual(year, month):
             
             daily_summaries = db.session.query(DailyLogSummary)\
                 .filter_by(equipment_id=equipment.id)\
-                .filter(text("date >= :start_date"))\
-                .filter(text("date <= :end_date"))\
-                .params(start_date=start_date, end_date=end_date)\
+                .filter(DailyLogSummary.date >= start_date)\
+                .filter(DailyLogSummary.date <= end_date)\
                 .all()
             
             if not daily_summaries:
