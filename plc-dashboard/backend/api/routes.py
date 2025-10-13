@@ -149,9 +149,8 @@ def create_monthly_summary(year, month):
                 
                 daily_summaries = db.session.query(DailyLogSummary)\
                     .filter_by(equipment_id=equipment.id)\
-                    .filter(text("date >= :start_date"))\
-                    .filter(text("date <= :end_date"))\
-                    .params(start_date=start_date, end_date=end_date)\
+                    .filter(DailyLogSummary.date >= start_date)\
+                    .filter(DailyLogSummary.date <= end_date)\
                     .all()
                 
                 if not daily_summaries:
@@ -1017,9 +1016,8 @@ def register_routes(app, socketio=None):
                 
                 summaries = db.session.query(DailyLogSummary)\
                     .filter_by(equipment_id=equipment.id)\
-                    .filter(text("date >= :start_date"))\
-                    .params(start_date=start_date)\
-                    .order_by(text("date DESC"))\
+                    .filter(DailyLogSummary.date >= start_date)\
+                    .order_by(DailyLogSummary.date.desc())\
                     .all()
                 
                 data = [{
