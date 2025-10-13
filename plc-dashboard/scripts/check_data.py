@@ -6,7 +6,7 @@ PLCデータ確認ツール
 
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # プロジェクトルートをパスに追加
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -47,7 +47,7 @@ def main():
                 print(f"📅 最新ログ: {latest_log.timestamp}")
             
             # 最近1時間のログ数
-            one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+            one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
             recent_logs = Log.query.filter(Log.timestamp >= one_hour_ago).count()
             print(f"⏰ 最近1時間: {recent_logs}件")
             

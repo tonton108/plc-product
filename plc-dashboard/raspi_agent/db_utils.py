@@ -1,7 +1,7 @@
 import os
 import requests
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 import socket
 import uuid
@@ -152,7 +152,7 @@ class DatabaseAPI:
         try:
             payload = {
                 "equipment_id": equipment_id,
-                "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
                 **log_data
             }
             response = requests.post(f"{self.base_url}/logs", json=payload, timeout=5)
