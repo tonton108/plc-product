@@ -1,5 +1,7 @@
-[defaults]
-language = ja
-commit_language = ja
-commit_signature = off
-auto_commit = false
+  language = ja
+  commit_language = ja
+  commit_signature = off
+  confirm_before_writing = true
+  auto_commit = false
+  always_show_diff = true
+  cleanup_period_days = 30
