@@ -21,12 +21,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### 統合後のプロジェクト構成
 
 **plc-dashboard（メインプロジェクト）**に以下が統合されています:
-1. **backend/**: Flask API（中央サーバー・エージェント共通）
-2. **raspi_agent/**: Raspberry Piエージェント（旧raspi_plc_ui）
+1. **backend/**: Flask API（中央サーバー）
+2. **raspi_agent/**: Raspberry Piエージェント
 3. **pages/**: Nuxt.js 3ダッシュボードUI
-4. **docker-compose.yml**: 統合Docker Compose設定
+4. **scripts/**: 開発・管理ツール
+5. **docker-compose.yml**: 統合Docker Compose設定
 
-**旧raspi_plc_uiディレクトリは参考用として保持されていますが、統合版ではplc-dashboard/raspi_agent/を使用してください。**
+**旧raspi_plc_uiディレクトリは_archive/raspi_plc_ui/にアーカイブされています。現在のシステムではplc-dashboard/raspi_agent/を使用してください。**
 
 ### システムアーキテクチャ
 
@@ -152,7 +153,10 @@ SQLAlchemyモデル:
 #### `plc-dashboard/pages/monitoring/[id].vue`
 リアルタイムモニタリングページ。Socket.IOでデータ受信、Chart.jsでグラフ表示。
 
-### raspi_plc_ui（Raspberry Piエージェント）
+#### `plc-dashboard/backend/api/scheduler.py`
+データクリーンアップと集計作成のスケジューラー。90日以上古いログの削除、日次・月次集計の自動作成を行う。
+
+### plc-dashboard/raspi_agent/（Raspberry Piエージェント）
 
 **技術スタック:**
 - Flask + Flask-SocketIO（WebUI用）
@@ -161,15 +165,15 @@ SQLAlchemyモデル:
 
 **主要ファイル:**
 
-#### `raspi_plc_ui/main.py`
+#### `plc-dashboard/raspi_agent/agent_app.py`
 Flaskアプリケーション本体。初期設定画面、モニタリング画面、認証機能を提供。PLCエージェントをバックグラウンドスレッドで起動・管理する。
 
 **重要な機能:**
-- `@app.route("/")`：デバイス情報（CPUシリアル番号）で設備を自動識別し、設定済みならモニタリング画面、未設定なら初期設定画面へ遷移
-- `start_plc_agent()`, `stop_plc_agent()`, `restart_plc_agent()`：PLCエージェントのライフサイクル管理
-- `require_auth`デコレータ：認証必須機能の保護
+- デバイス情報（CPUシリアル番号）で設備を自動識別し、設定済みならモニタリング画面、未設定なら初期設定画面へ遷移
+- PLCエージェントのライフサイクル管理（起動・停止・再起動）
+- 認証機能による保護
 
-#### `raspi_plc_ui/plc_agent.py`
+#### `plc-dashboard/raspi_agent/plc_agent.py`
 PLCデータ収集エージェント。対応メーカー: 三菱、オムロン、キーエンス、シーメンス（未実装）。
 
 **重要な関数:**
@@ -183,12 +187,20 @@ PLCデータ収集エージェント。対応メーカー: 三菱、オムロン
 - `float32`: IEEE754浮動小数点
 - `bit`: ビット値（0/1）
 
-#### `raspi_plc_ui/db_utils.py`
+#### `plc-dashboard/raspi_agent/db_utils.py`
 設定管理とデータベースAPI。DB優先、JSONフォールバックのハイブリッド設定管理を実装。
 
 **主要クラス:**
 - `ConfigManager`: ローカル設定管理（DB優先、plc_config.jsonフォールバック）
 - `DatabaseAPI`: 中央サーバーとのHTTP通信
+
+### plc-dashboard/scripts/（開発・管理ツール）
+
+**主要ツール:**
+- `check_data.py`: データベース内のログデータ確認ツール
+- `check_integration.sh`: ディレクトリ構造とファイル存在確認スクリプト
+- `init_db.py`: データベース初期化スクリプト（開発用）
+- `test_db_connection.py`: PostgreSQL接続テスト
 
 ## データベース設計
 
@@ -209,7 +221,7 @@ PLCデータ収集エージェント。対応メーカー: 三菱、オムロン
 
 ### ラズパイへの一括デプロイ
 
-1. `raspi_plc_ui/ip_list.csv`にラズパイのIPアドレスを記載:
+1. `plc-dashboard/raspi_agent/ip_list.csv`にラズパイのIPアドレスを記載:
 ```csv
 ip_address
 192.168.0.101
@@ -218,7 +230,7 @@ ip_address
 
 2. デプロイスクリプトを実行:
 ```bash
-cd raspi_plc_ui
+cd plc-dashboard/raspi_agent
 bash scp_bulk_push.sh
 ```
 
@@ -235,7 +247,7 @@ DATABASE_URL=postgresql+psycopg2://plc_user:plc_pass@localhost:5432/plc_monitor
 SECRET_KEY=your-secret-key
 ```
 
-**raspi_plc_ui（Raspberry Pi）:**
+**plc-dashboard/raspi_agent/（Raspberry Pi）:**
 ```env
 USE_DUMMY_PLC=false              # true=ダミーモード、false=実PLC接続
 PLC_IP=192.168.0.10              # PLCのIPアドレス
@@ -255,7 +267,7 @@ socketio.init_app(app, async_mode='threading')
 ```
 
 ### 設備が見つからない
-1. CPUシリアル番号を確認: `python raspi_plc_ui/test_cpu_serial.py`
+1. CPUシリアル番号を確認: `python plc-dashboard/raspi_agent/test_cpu_serial.py`
 2. 中央サーバーで設備検索: `GET /api/equipment/search?cpu_serial_number=XXX`
 3. 設備が未登録なら初期設定画面で登録
 
@@ -267,10 +279,11 @@ socketio.init_app(app, async_mode='threading')
 ### データベース接続エラー
 ```bash
 # PostgreSQL接続確認
-cd plc-dashboard/backend
-python test_db_connection.py
+cd plc-dashboard
+python scripts/test_db_connection.py
 
 # マイグレーション実行
+cd backend
 flask --app manage.py db upgrade
 ```
 
