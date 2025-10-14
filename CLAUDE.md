@@ -32,8 +32,9 @@ Claudeは以下のルールを厳守すること：
 1. **backend/**: Flask API（中央サーバー）
 2. **raspi_agent/**: Raspberry Piエージェント
 3. **pages/**: Nuxt.js 3ダッシュボードUI
-4. **scripts/**: 開発・管理ツール
-5. **docker-compose.yml**: 統合Docker Compose設定
+4. **electron/**: Electronデスクトップアプリ（中央サーバー管理用）
+5. **scripts/**: 開発・管理ツール
+6. **docker-compose.yml**: 統合Docker Compose設定
 
 **旧raspi_plc_uiディレクトリは_archive/raspi_plc_ui/にアーカイブされています。現在のシステムではplc-dashboard/raspi_agent/を使用してください。**
 
@@ -44,7 +45,14 @@ Claudeは以下のルールを厳守すること：
                             ↓ HTTP POST
                     [中央サーバー (plc-dashboard/backend)]
                             ↓ WebSocket
-                    [フロントエンド (plc-dashboard/pages)]
+                    ┌────────────────────────────────┐
+                    │  [Electronアプリ（中央PC）]   │  管理者用デスクトップアプリ
+                    │  - Docker管理                  │
+                    │  - システムトレイ常駐          │
+                    │  - ダッシュボード表示          │
+                    └────────────────────────────────┘
+                            ↓ WebSocket
+                    [Webブラウザ（複数のクライアントPC）]  閲覧専用ダッシュボード
 ```
 
 ## 開発コマンド
@@ -104,6 +112,36 @@ npm run build
 # プロダクションプレビュー
 npm run preview
 ```
+
+### Electronデスクトップアプリ（中央サーバー管理用）
+
+```bash
+cd plc-dashboard
+
+# 依存関係インストール（初回のみ）
+npm run electron:install
+
+# 開発モードで起動（Nuxt devサーバーに接続）
+npm run dev          # 別ターミナル: Nuxt開発サーバー起動
+npm run electron:dev # Electronアプリ起動
+
+# 本番用ビルド
+npm run build:electron  # Nuxt静的ファイル生成 + electron/renderer/へコピー
+cd electron
+npm run build           # Electronアプリをパッケージング（dist/に出力）
+
+# プラットフォーム別ビルド
+npm run build:mac       # macOS用
+npm run build:win       # Windows用
+npm run build:linux     # Linux用
+```
+
+**主な機能：**
+- Docker Composeサービスの起動/停止/再起動
+- システムトレイ常駐とリアルタイムステータス表示
+- デスクトップ通知（サーバー状態変更、エラー等）
+- Nuxt.jsダッシュボードの埋め込み表示
+- ログ閲覧機能
 
 ### Raspberry Piエージェント
 

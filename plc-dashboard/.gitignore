@@ -27,3 +27,9 @@ node_modules/
 .output/
 dist/
 .venv
+
+# Electron
+electron/node_modules/
+electron/dist/
+electron/renderer/
+electron/config.json
