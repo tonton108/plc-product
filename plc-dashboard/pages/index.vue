@@ -1,10 +1,32 @@
 <template>
   <v-container>
-    <v-row class="mb-4">
+    <v-row class="mb-6">
       <v-col>
-        <v-card class="pa-4" color="primary" dark>
-          <v-card-title class="text-h4">PLC リアルタイムモニタリング</v-card-title>
-          <v-card-subtitle>設備一覧からモニタリングしたい設備を選択してください</v-card-subtitle>
+        <v-card class="pa-6" color="primary" dark elevation="8">
+          <v-row align="center">
+            <v-col>
+              <v-card-title class="text-h4 mb-2">PLC リアルタイムモニタリング</v-card-title>
+              <v-card-subtitle class="text-subtitle-1">設備一覧からモニタリングしたい設備を選択してください</v-card-subtitle>
+            </v-col>
+            <v-col cols="auto">
+              <v-btn-toggle
+                v-model="viewMode"
+                mandatory
+                color="white"
+                divided
+                rounded="lg"
+              >
+                <v-btn value="card" size="large">
+                  <v-icon>mdi-view-grid</v-icon>
+                  <span class="ml-2">カード</span>
+                </v-btn>
+                <v-btn value="list" size="large">
+                  <v-icon>mdi-view-list</v-icon>
+                  <span class="ml-2">リスト</span>
+                </v-btn>
+              </v-btn-toggle>
+            </v-col>
+          </v-row>
         </v-card>
       </v-col>
     </v-row>
@@ -24,44 +46,162 @@
       </v-col>
     </v-row>
 
-    <v-row v-else>
+    <!-- カード表示 -->
+    <v-row v-else-if="viewMode === 'card'">
       <v-col
         v-for="equipment in equipmentList"
         :key="equipment.id"
         cols="12" sm="6" md="4"
       >
-        <v-card class="mx-auto" outlined hover>
-          <v-card-title class="text-h6">
-            {{ equipment.equipment_id }}
+        <v-card class="mx-auto" elevation="4" hover>
+          <v-card-title class="text-h5 d-flex align-center pa-4">
+            <span class="flex-grow-1">{{ equipment.equipment_id }}</span>
             <v-chip
               :color="getStatusColor(equipment.status)"
               text-color="white"
               size="small"
-              class="ml-2"
             >
               {{ equipment.status }}
             </v-chip>
           </v-card-title>
-          <v-card-subtitle>
+          <v-divider></v-divider>
+          <v-card-subtitle class="pt-3 pb-2">
+            <v-icon size="small" class="mr-1">mdi-factory</v-icon>
             {{ equipment.manufacturer }} - {{ equipment.series }}
           </v-card-subtitle>
-          <v-card-text>
-            <div><strong>ラズパイIP:</strong> {{ equipment.ip }}</div>
-            <div><strong>PLC IP:</strong> {{ equipment.plc_ip || 'N/A' }}</div>
-            <div><strong>ポート:</strong> {{ equipment.port }}</div>
-            <div><strong>更新間隔:</strong> {{ equipment.interval }}秒</div>
+          <v-card-text class="pb-2">
+            <v-list density="compact" class="bg-transparent">
+              <v-list-item density="compact">
+                <template v-slot:prepend>
+                  <v-icon size="small">mdi-raspberry-pi</v-icon>
+                </template>
+                <v-list-item-title class="text-body-2">
+                  <strong>ラズパイIP:</strong> {{ equipment.ip }}
+                </v-list-item-title>
+              </v-list-item>
+              <v-list-item density="compact">
+                <template v-slot:prepend>
+                  <v-icon size="small">mdi-server-network</v-icon>
+                </template>
+                <v-list-item-title class="text-body-2">
+                  <strong>PLC IP:</strong> {{ equipment.plc_ip || 'N/A' }}
+                </v-list-item-title>
+              </v-list-item>
+              <v-list-item density="compact">
+                <template v-slot:prepend>
+                  <v-icon size="small">mdi-ethernet</v-icon>
+                </template>
+                <v-list-item-title class="text-body-2">
+                  <strong>ポート:</strong> {{ equipment.port }}
+                </v-list-item-title>
+              </v-list-item>
+              <v-list-item density="compact">
+                <template v-slot:prepend>
+                  <v-icon size="small">mdi-timer-outline</v-icon>
+                </template>
+                <v-list-item-title class="text-body-2">
+                  <strong>更新間隔:</strong> {{ equipment.interval }}秒
+                </v-list-item-title>
+              </v-list-item>
+            </v-list>
           </v-card-text>
-          <v-card-actions>
-            <v-btn color="primary" @click="goToMonitoring(equipment.equipment_id)">
-              <v-icon left>mdi-monitor-dashboard</v-icon>
-              リアルタイム監視
-            </v-btn>
-            <v-btn color="secondary" @click="goToLogs(equipment.equipment_id)">
-              <v-icon left>mdi-chart-line</v-icon>
-              ログ表示
-            </v-btn>
+          <v-divider></v-divider>
+          <v-card-actions class="pa-3">
+            <v-row dense>
+              <v-col cols="6">
+                <v-tooltip text="リアルタイムモニタリング" location="bottom">
+                  <template v-slot:activator="{ props }">
+                    <v-btn
+                      v-bind="props"
+                      color="primary"
+                      variant="elevated"
+                      block
+                      size="large"
+                      @click="goToMonitoring(equipment.equipment_id)"
+                    >
+                      <v-icon class="mr-1" color="white">mdi-monitor-dashboard</v-icon>監視
+                    </v-btn>
+                  </template>
+                </v-tooltip>
+              </v-col>
+              <v-col cols="6">
+                <v-tooltip text="履歴データ・グラフ表示" location="bottom">
+                  <template v-slot:activator="{ props }">
+                    <v-btn
+                      v-bind="props"
+                      color="secondary"
+                      variant="elevated"
+                      block
+                      size="large"
+                      @click="goToLogs(equipment.equipment_id)"
+                    >
+                      <v-icon class="mr-1" color="white">mdi-chart-line</v-icon>ログ
+                    </v-btn>
+                  </template>
+                </v-tooltip>
+              </v-col>
+            </v-row>
           </v-card-actions>
         </v-card>
+      </v-col>
+    </v-row>
+
+    <!-- リスト表示 -->
+    <v-row v-else>
+      <v-col cols="12">
+        <v-data-table
+          :headers="tableHeaders"
+          :items="equipmentList"
+          item-value="equipment_id"
+          class="elevation-2"
+        >
+          <template v-slot:item.equipment_id="{ item }">
+            <strong>{{ item.equipment_id }}</strong>
+          </template>
+          <template v-slot:item.status="{ item }">
+            <v-chip
+              :color="getStatusColor(item.status)"
+              text-color="white"
+              size="small"
+            >
+              {{ item.status }}
+            </v-chip>
+          </template>
+          <template v-slot:item.manufacturer="{ item }">
+            {{ item.manufacturer }} - {{ item.series }}
+          </template>
+          <template v-slot:item.plc_ip="{ item }">
+            {{ item.plc_ip || 'N/A' }}
+          </template>
+          <template v-slot:item.interval="{ item }">
+            {{ item.interval }}秒
+          </template>
+          <template v-slot:item.actions="{ item }">
+            <v-btn
+              color="primary"
+              size="small"
+              variant="elevated"
+              class="mr-2"
+              @click="goToMonitoring(item.equipment_id)"
+            >
+              <template v-slot:prepend>
+                <v-icon size="small">mdi-monitor-dashboard</v-icon>
+              </template>
+              監視
+            </v-btn>
+            <v-btn
+              color="secondary"
+              size="small"
+              variant="elevated"
+              @click="goToLogs(item.equipment_id)"
+            >
+              <template v-slot:prepend>
+                <v-icon size="small">mdi-chart-line</v-icon>
+              </template>
+              ログ
+            </v-btn>
+          </template>
+        </v-data-table>
       </v-col>
     </v-row>
 
@@ -72,8 +212,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter, useRuntimeConfig } from 'vue-router'
+import { ref, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const config = useRuntimeConfig()
@@ -83,6 +223,21 @@ const equipmentList = ref([])
 const loading = ref(true)
 const error = ref(false)
 const errorMessage = ref('')
+
+// 表示モード（デフォルト: カード表示）
+const viewMode = ref('card')
+
+// テーブルヘッダー定義
+const tableHeaders = [
+  { title: '設備ID', key: 'equipment_id', align: 'start' },
+  { title: 'ステータス', key: 'status', align: 'center' },
+  { title: 'メーカー・シリーズ', key: 'manufacturer', align: 'start' },
+  { title: 'ラズパイIP', key: 'ip', align: 'start' },
+  { title: 'PLC IP', key: 'plc_ip', align: 'start' },
+  { title: 'ポート', key: 'port', align: 'center' },
+  { title: '更新間隔', key: 'interval', align: 'center' },
+  { title: '操作', key: 'actions', align: 'center', sortable: false }
+]
 
 const fetchEquipment = async () => {
   try {
@@ -124,8 +279,22 @@ const goToLogs = (equipmentId) => {
   router.push(`/equipment/${equipmentId}`)
 }
 
+// localStorageから表示モードを復元
 onMounted(() => {
+  if (process.client) {
+    const savedViewMode = localStorage.getItem('equipmentListViewMode')
+    if (savedViewMode) {
+      viewMode.value = savedViewMode
+    }
+  }
   fetchEquipment()
+})
+
+// 表示モードをlocalStorageに保存
+watch(viewMode, (newMode) => {
+  if (process.client) {
+    localStorage.setItem('equipmentListViewMode', newMode)
+  }
 })
 </script>
   

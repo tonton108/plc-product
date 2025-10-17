@@ -5,30 +5,37 @@
 <template>
   <v-container fluid>
     <!-- ヘッダー部分 -->
-    <v-row class="mb-4">
+    <v-row class="mb-6">
       <v-col cols="12">
-        <v-card color="primary" dark class="pa-4">
+        <v-card color="primary" dark class="pa-6" elevation="8">
           <v-row align="center">
             <v-col>
-              <v-card-title class="text-h4">
-                <v-icon large class="mr-3">mdi-monitor-dashboard</v-icon>
+              <v-card-title class="text-h4 mb-2 d-flex align-center">
+                <v-icon size="x-large" class="mr-4">mdi-monitor-dashboard</v-icon>
                 {{ equipmentInfo?.equipment_id || 'N/A' }} - リアルタイムモニタリング
               </v-card-title>
-              <v-card-subtitle>
+              <v-card-subtitle class="text-subtitle-1 d-flex align-center mt-2">
+                <v-icon size="small" class="mr-2">mdi-factory</v-icon>
                 {{ equipmentInfo?.manufacturer }} {{ equipmentInfo?.series }}
-                <v-chip 
-                  :color="connectionStatus ? 'success' : 'error'" 
-                  text-color="white" 
-                  size="small" 
-                  class="ml-2"
+                <v-chip
+                  :color="connectionStatus ? 'success' : 'error'"
+                  text-color="white"
+                  size="small"
+                  class="ml-3"
+                  variant="flat"
                 >
+                  <v-icon size="small" class="mr-1">
+                    {{ connectionStatus ? 'mdi-check-circle' : 'mdi-close-circle' }}
+                  </v-icon>
                   {{ connectionStatus ? '接続中' : '切断' }}
                 </v-chip>
               </v-card-subtitle>
             </v-col>
             <v-col cols="auto">
-              <v-btn @click="goBack" variant="outlined" color="white">
-                <v-icon left>mdi-arrow-left</v-icon>
+              <v-btn @click="goBack" variant="elevated" color="white" size="x-large">
+                <template v-slot:prepend>
+                  <v-icon>mdi-arrow-left</v-icon>
+                </template>
                 戻る
               </v-btn>
             </v-col>
@@ -38,18 +45,22 @@
     </v-row>
 
     <!-- ステータスカード -->
-    <v-row class="mb-4">
+    <v-row class="mb-6">
       <v-col cols="12" sm="6" md="2" v-for="(item, key) in monitoringData" :key="key">
-        <v-card :color="getCardColor(item.status)" class="text-center pa-3" dark>
-          <v-icon size="40" class="mb-2">{{ item.icon }}</v-icon>
-          <div class="text-h4 font-weight-bold">{{ item.value || 'N/A' }}</div>
-          <div class="text-subtitle-1">{{ item.label }}</div>
-          <div class="text-caption">{{ item.unit }}</div>
-          <v-chip 
-            size="x-small" 
+        <v-card :color="getCardColor(item.status)" class="text-center pa-4" dark elevation="6" hover>
+          <v-icon size="48" class="mb-3">{{ item.icon }}</v-icon>
+          <div class="text-h3 font-weight-bold mb-2">{{ item.value || 'N/A' }}</div>
+          <div class="text-h6 mb-1">{{ item.label }}</div>
+          <div class="text-body-2 mb-2">{{ item.unit }}</div>
+          <v-chip
+            size="small"
             :color="item.status === 'normal' ? 'success' : 'error'"
-            class="mt-1"
+            class="mt-2"
+            variant="flat"
           >
+            <v-icon size="x-small" class="mr-1">
+              {{ item.status === 'normal' ? 'mdi-check-circle' : 'mdi-alert-circle' }}
+            </v-icon>
             {{ item.status === 'normal' ? '正常' : '異常' }}
           </v-chip>
         </v-card>
@@ -79,14 +90,15 @@
     </v-row>
 
     <!-- リアルタイムグラフ -->
-    <v-row>
+    <v-row class="mb-6">
       <v-col cols="12" md="6" v-for="chart in chartConfigs" :key="chart.id">
-        <v-card class="pa-4" elevation="3">
-          <v-card-title class="text-h6">
-            <v-icon class="mr-2">{{ chart.icon }}</v-icon>
+        <v-card class="pa-6" elevation="6">
+          <v-card-title class="text-h5 mb-4 d-flex align-center">
+            <v-icon size="large" class="mr-3" color="primary">{{ chart.icon }}</v-icon>
             {{ chart.title }}
           </v-card-title>
-          <div style="height: 300px;">
+          <v-divider class="mb-4"></v-divider>
+          <div style="height: 350px;">
             <Chart
               v-if="chart.data && chart.data.datasets[0].data.length > 0"
               :data="chart.data"
@@ -94,9 +106,9 @@
               type="line"
             />
             <div v-else class="d-flex align-center justify-center" style="height: 100%;">
-              <div class="text-center text-grey">
-                <v-icon size="48" color="grey">mdi-chart-line</v-icon>
-                <div class="mt-2">データ待機中...</div>
+              <div class="text-center">
+                <v-icon size="80" color="grey-lighten-1">mdi-chart-line</v-icon>
+                <div class="text-h6 text-grey mt-4">データ待機中...</div>
               </div>
             </div>
           </div>
@@ -105,29 +117,37 @@
     </v-row>
 
     <!-- 最新データログ -->
-    <v-row class="mt-4">
+    <v-row class="mb-6">
       <v-col cols="12">
-        <v-card class="pa-4" elevation="3">
-          <v-card-title class="text-h6">
-            <v-icon class="mr-2">mdi-table</v-icon>
-            最新データ履歴（最新{{ dataHistory.length }}件）
+        <v-card class="pa-6" elevation="6">
+          <v-card-title class="text-h5 mb-4 d-flex align-center">
+            <v-icon size="large" class="mr-3" color="primary">mdi-table</v-icon>
+            最新データ履歴
+            <v-chip size="small" color="info" class="ml-3" variant="flat">
+              {{ dataHistory.length }}件
+            </v-chip>
           </v-card-title>
+          <v-divider class="mb-4"></v-divider>
           <v-data-table
             :headers="tableHeaders"
             :items="dataHistory"
-            density="compact"
-            :items-per-page="10"
-            class="mt-3"
+            density="comfortable"
+            :items-per-page="15"
+            class="elevation-0"
           >
             <template #[`item.timestamp`]="{ item }">
-              {{ formatDateTime(item.timestamp) }}
+              <span class="text-body-2">{{ formatDateTime(item.timestamp) }}</span>
             </template>
             <template #[`item.error_code`]="{ item }">
               <v-chip
                 size="small"
                 :color="item.error_code ? 'error' : 'success'"
                 text-color="white"
+                variant="flat"
               >
+                <v-icon size="x-small" class="mr-1">
+                  {{ item.error_code ? 'mdi-alert-circle' : 'mdi-check-circle' }}
+                </v-icon>
                 {{ item.error_code || '正常' }}
               </v-chip>
             </template>
@@ -137,22 +157,27 @@
     </v-row>
 
     <!-- ✅ デバッグパネル -->
-    <v-row class="mt-4" v-if="debugMode">
+    <v-row class="mb-6" v-if="debugMode">
       <v-col cols="12">
-        <v-card class="pa-4" elevation="3" color="grey-lighten-4">
-          <v-card-title class="text-h6 d-flex align-center">
-            <v-icon class="mr-2" color="info">mdi-bug</v-icon>
+        <v-card class="pa-6" elevation="6" color="grey-lighten-4">
+          <v-card-title class="text-h5 mb-4 d-flex align-center">
+            <v-icon size="large" class="mr-3" color="info">mdi-bug</v-icon>
             デバッグ情報
             <v-spacer></v-spacer>
-            <v-btn @click="testLatestAPI" size="small" color="primary">
-              <v-icon left>mdi-api</v-icon>
+            <v-btn @click="testLatestAPI" size="small" color="primary" variant="elevated" class="mr-2">
+              <template v-slot:prepend>
+                <v-icon>mdi-api</v-icon>
+              </template>
               API テスト
             </v-btn>
-            <v-btn @click="clearDebugLog" size="small" color="warning" class="ml-2">
-              <v-icon left>mdi-delete</v-icon>
+            <v-btn @click="clearDebugLog" size="small" color="warning" variant="elevated">
+              <template v-slot:prepend>
+                <v-icon>mdi-delete</v-icon>
+              </template>
               ログクリア
             </v-btn>
           </v-card-title>
+          <v-divider class="mb-4"></v-divider>
           
           <v-row>
             <v-col cols="12" md="6">
@@ -197,11 +222,12 @@
     <!-- ✅ デバッグモード切り替えボタン -->
     <v-fab
       location="bottom right"
-      size="small"
+      size="large"
       :color="debugMode ? 'success' : 'info'"
       @click="debugMode = !debugMode"
+      elevation="8"
     >
-      <v-icon>{{ debugMode ? 'mdi-bug-check' : 'mdi-bug' }}</v-icon>
+      <v-icon size="large">{{ debugMode ? 'mdi-bug-check' : 'mdi-bug' }}</v-icon>
     </v-fab>
   </v-container>
 </template>
@@ -257,94 +283,19 @@ const debugCounters = reactive({
 const socketInfo = ref({})
 const lastDataUpdate = ref(null)
 
-// モニタリングデータ
-const monitoringData = reactive({
-  production_count: {
-    label: '生産数量',
-    value: null,
-    unit: '個',
-    icon: 'mdi-counter',
-    status: 'normal'
-  },
-  current: {
-    label: '電流',
-    value: null,
-    unit: 'A',
-    icon: 'mdi-flash',
-    status: 'normal'
-  },
-  temperature: {
-    label: '温度',
-    value: null,
-    unit: '℃',
-    icon: 'mdi-thermometer',
-    status: 'normal'
-  },
-  pressure: {
-    label: '圧力',
-    value: null,
-    unit: 'MPa',
-    icon: 'mdi-gauge',
-    status: 'normal'
-  },
-  cycle_time: {
-    label: 'サイクルタイム',
-    value: null,
-    unit: 's',
-    icon: 'mdi-timer-outline',
-    status: 'normal'
-  },
-  error_code: {
-    label: 'エラーコード',
-    value: null,
-    unit: '',
-    icon: 'mdi-alert-circle-outline',
-    status: 'normal'
-  }
-})
+// ✅ PLC設定情報（動的生成用）
+const plcConfigs = ref([])
 
-// グラフ設定
-const chartConfigs = ref([
-  {
-    id: 'current',
-    title: '電流値',
-    icon: 'mdi-flash',
-    data: null,
-    options: null
-  },
-  {
-    id: 'temperature',
-    title: '温度',
-    icon: 'mdi-thermometer',
-    data: null,
-    options: null
-  },
-  {
-    id: 'pressure',
-    title: '圧力',
-    icon: 'mdi-gauge',
-    data: null,
-    options: null
-  },
-  {
-    id: 'cycle_time',
-    title: 'サイクルタイム',
-    icon: 'mdi-timer-outline',
-    data: null,
-    options: null
-  }
+// ✅ モニタリングデータ（動的生成）
+const monitoringData = ref({})
+
+// ✅ グラフ設定（動的生成）
+const chartConfigs = ref([])
+
+// ✅ テーブルヘッダー（動的生成）
+const tableHeaders = ref([
+  { title: '時刻', value: 'timestamp', width: '180' }
 ])
-
-// テーブルヘッダー
-const tableHeaders = [
-  { title: '時刻', value: 'timestamp', width: '180' },
-  { title: '生産数量', value: 'production_count', align: 'center' },
-  { title: '電流(A)', value: 'current', align: 'center' },
-  { title: '温度(℃)', value: 'temperature', align: 'center' },
-  { title: '圧力(MPa)', value: 'pressure', align: 'center' },
-  { title: 'サイクルタイム(s)', value: 'cycle_time', align: 'center' },
-  { title: 'エラーコード', value: 'error_code', align: 'center' }
-]
 
 // メソッド
 const getCardColor = (status) => {
@@ -360,7 +311,12 @@ const formatDateTime = (timestamp) => {
 }
 
 const goBack = () => {
-  router.push('/')
+  // ブラウザ履歴があれば戻る、なければトップページへ
+  if (window.history.length > 1) {
+    router.back()
+  } else {
+    router.push('/')
+  }
 }
 
 const removeAlert = (alertId) => {
@@ -458,14 +414,25 @@ const initializeCharts = () => {
       
       console.log(`📊 チャート初期化中: ${chart.id}`)
       
+      // 動的に色を割り当て（チャートのインデックスに基づく）
+      const colors = [
+        '#2196F3', // Blue
+        '#FF5722', // Deep Orange
+        '#4CAF50', // Green
+        '#FF9800', // Orange
+        '#9C27B0', // Purple
+        '#00BCD4', // Cyan
+        '#FFC107', // Amber
+        '#E91E63'  // Pink
+      ]
+      const colorIndex = index % colors.length
+
       chart.data = {
         labels: [],
         datasets: [{
           label: chart.title,
           data: [],
-          borderColor: chart.id === 'current' ? '#2196F3' : 
-                       chart.id === 'temperature' ? '#FF5722' :
-                       chart.id === 'pressure' ? '#4CAF50' : '#FF9800',
+          borderColor: colors[colorIndex],
           backgroundColor: 'transparent',
           tension: 0.4,
           pointRadius: 3,
@@ -483,9 +450,9 @@ const initializeCharts = () => {
             type: 'category'
           },
           y: {
-            title: { 
-              display: true, 
-              text: monitoringData[chart.id]?.unit || ''
+            title: {
+              display: true,
+              text: monitoringData.value[chart.id]?.unit || ''
             }
           }
         },
@@ -585,18 +552,19 @@ const updateChartData = (newData) => {
 
 const updateMonitoringData = (data) => {
   addDebugLog('info', 'モニタリングデータ更新開始')
-  
-  Object.keys(monitoringData).forEach(key => {
+
+  // refを使用しているため、.valueでアクセス
+  Object.keys(monitoringData.value).forEach(key => {
     if (data[key] !== null && data[key] !== undefined) {
-      monitoringData[key].value = data[key]
-      
+      monitoringData.value[key].value = data[key]
+
       // ステータス判定（例：エラーコードがある場合は異常）
       if (key === 'error_code') {
-        monitoringData[key].status = data[key] ? 'error' : 'normal'
+        monitoringData.value[key].status = data[key] ? 'error' : 'normal'
       } else {
-        monitoringData[key].status = 'normal'
+        monitoringData.value[key].status = 'normal'
       }
-      
+
       addDebugLog('success', `${key}を更新: ${data[key]}`)
     }
   })
@@ -614,6 +582,106 @@ const fetchEquipmentInfo = async () => {
   } catch (error) {
     console.error('設備情報取得エラー:', error)
     addDebugLog('error', `設備情報取得エラー: ${error.message}`)
+  }
+}
+
+// ✅ PLC設定を取得して動的にデータ構造を生成
+const fetchPLCConfigs = async () => {
+  try {
+    const response = await fetch(`${apiBase}/api/equipment/${equipmentId}/plc_configs`)
+    if (response.ok) {
+      plcConfigs.value = await response.json()
+      addDebugLog('success', `PLC設定取得成功: ${plcConfigs.value.length}項目`)
+      console.log('📋 PLC設定:', plcConfigs.value)
+
+      // 動的にデータ構造を生成
+      initializeDynamicStructures()
+    } else {
+      addDebugLog('error', `PLC設定取得失敗: ${response.status}`)
+    }
+  } catch (error) {
+    console.error('PLC設定取得エラー:', error)
+    addDebugLog('error', `PLC設定取得エラー: ${error.message}`)
+  }
+}
+
+// ✅ 動的データ構造の初期化
+const initializeDynamicStructures = () => {
+  try {
+    console.log('🔧 動的データ構造を初期化中...')
+    addDebugLog('info', '動的データ構造を初期化中...')
+
+    // アイコンマッピング（データ型や名前に基づいて適切なアイコンを選択）
+    const getIcon = (name, dataType) => {
+      const nameLower = name.toLowerCase()
+      if (nameLower.includes('温度') || nameLower.includes('temp')) return 'mdi-thermometer'
+      if (nameLower.includes('圧力') || nameLower.includes('press')) return 'mdi-gauge'
+      if (nameLower.includes('電流') || nameLower.includes('current')) return 'mdi-flash'
+      if (nameLower.includes('電圧') || nameLower.includes('volt')) return 'mdi-lightning-bolt'
+      if (nameLower.includes('速度') || nameLower.includes('speed')) return 'mdi-speedometer'
+      if (nameLower.includes('回転') || nameLower.includes('rpm')) return 'mdi-rotate-3d-variant'
+      if (nameLower.includes('数量') || nameLower.includes('count')) return 'mdi-counter'
+      if (nameLower.includes('時間') || nameLower.includes('time')) return 'mdi-timer-outline'
+      if (nameLower.includes('エラー') || nameLower.includes('error')) return 'mdi-alert-circle-outline'
+      return 'mdi-chart-line' // デフォルト
+    }
+
+    // 1. monitoringDataを動的生成
+    const newMonitoringData = {}
+    plcConfigs.value.forEach(config => {
+      if (config.enabled) {
+        newMonitoringData[config.data_type] = {
+          label: config.name,
+          value: null,
+          unit: config.unit || '',
+          icon: config.icon || getIcon(config.name, config.data_type),
+          status: 'normal'
+        }
+      }
+    })
+    monitoringData.value = newMonitoringData
+    console.log('✅ monitoringData初期化完了:', Object.keys(newMonitoringData))
+    addDebugLog('success', `monitoringData初期化: ${Object.keys(newMonitoringData).length}項目`)
+
+    // 2. chartConfigsを動的生成
+    const newChartConfigs = []
+    plcConfigs.value.forEach(config => {
+      if (config.enabled) {
+        newChartConfigs.push({
+          id: config.data_type,
+          title: config.name,
+          icon: config.icon || getIcon(config.name, config.data_type),
+          data: null,
+          options: null
+        })
+      }
+    })
+    chartConfigs.value = newChartConfigs
+    console.log('✅ chartConfigs初期化完了:', newChartConfigs.length, '個')
+    addDebugLog('success', `chartConfigs初期化: ${newChartConfigs.length}個`)
+
+    // 3. tableHeadersを動的生成
+    const newTableHeaders = [
+      { title: '時刻', value: 'timestamp', width: '180' }
+    ]
+    plcConfigs.value.forEach(config => {
+      if (config.enabled) {
+        newTableHeaders.push({
+          title: `${config.name}${config.unit ? '(' + config.unit + ')' : ''}`,
+          value: config.data_type,
+          align: 'center'
+        })
+      }
+    })
+    tableHeaders.value = newTableHeaders
+    console.log('✅ tableHeaders初期化完了:', newTableHeaders.length, '列')
+    addDebugLog('success', `tableHeaders初期化: ${newTableHeaders.length}列`)
+
+    console.log('✅ 全動的データ構造の初期化完了')
+    addDebugLog('success', '全動的データ構造の初期化完了')
+  } catch (error) {
+    console.error('❌ 動的データ構造初期化エラー:', error)
+    addDebugLog('error', `動的データ構造初期化エラー: ${error.message}`)
   }
 }
 
@@ -703,8 +771,11 @@ const setupWebSocket = () => {
     
     if (data.equipment_id === equipmentId) {
       console.log('🔄 PLCデータ受信 (plc_data_update):', data)
-      addDebugLog('success', `PLCデータ処理開始: 生産数=${data.production_count}`)
-      
+      // 動的なデータキーを取得してログ表示
+      const dataKeys = Object.keys(data).filter(k => k !== 'equipment_id' && k !== 'timestamp')
+      const dataPreview = dataKeys.slice(0, 2).map(k => `${k}=${data[k]}`).join(', ')
+      addDebugLog('success', `PLCデータ処理開始: ${dataPreview}`)
+
       updateMonitoringData(data)
       updateChartData(data)
       
@@ -770,31 +841,36 @@ onMounted(async () => {
   if (!debugLogs.value) {
     debugLogs.value = []
   }
-  
+
   console.log('🚀 モニタリング画面の初期化開始')
   addDebugLog('info', 'モニタリング画面の初期化開始')
-  
+
   try {
-    // ✅ 1. チャートの初期化（最優先で実行）
-    console.log('📊 チャートを初期化中...')
-    addDebugLog('info', 'チャートを初期化中...')
-    initializeCharts()
-    
-    // ✅ 2. 設備情報の取得
+    // ✅ 1. 設備情報の取得
     console.log('🔧 設備情報を取得中...')
     addDebugLog('info', '設備情報を取得中...')
     await fetchEquipmentInfo()
-    
-    // ✅ 3. 最新データの取得（チャート初期化後に実行）
+
+    // ✅ 2. PLC設定の取得と動的データ構造の初期化（最優先！）
+    console.log('📋 PLC設定を取得中...')
+    addDebugLog('info', 'PLC設定を取得中...')
+    await fetchPLCConfigs()
+
+    // ✅ 3. チャートの初期化（PLC設定取得後に実行）
+    console.log('📊 チャートを初期化中...')
+    addDebugLog('info', 'チャートを初期化中...')
+    initializeCharts()
+
+    // ✅ 4. 最新データの取得（チャート初期化後に実行）
     console.log('📥 最新データを取得中...')
     addDebugLog('info', '最新データを取得中...')
     await fetchLatestData()
-    
-    // ✅ 4. WebSocket接続の設定
+
+    // ✅ 5. WebSocket接続の設定
     console.log('🔌 WebSocket接続を設定中...')
     addDebugLog('info', 'WebSocket接続を設定中...')
     setupWebSocket()
-    
+
     console.log('✅ モニタリング画面の初期化完了')
     addDebugLog('success', 'モニタリング画面の初期化完了')
   } catch (error) {
