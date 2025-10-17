@@ -33,29 +33,87 @@ MAX_RETRY_ATTEMPTS = int(os.getenv("MAX_RETRY_ATTEMPTS", "3"))
 CONNECTION_TIMEOUT = int(os.getenv("CONNECTION_TIMEOUT", "5"))
 READ_TIMEOUT = int(os.getenv("READ_TIMEOUT", "3"))
 
+# セキュリティ設定（CLAUDE.md参照）
+# IPホワイトリスト: 許可するPLC IPアドレスのリスト
+ALLOWED_PLC_IPS = os.getenv("ALLOWED_PLC_IPS", "").split(",") if os.getenv("ALLOWED_PLC_IPS") else []
+# 読み取り専用モード: Trueの場合、PLCへの書き込みを禁止
+READ_ONLY_MODE = os.getenv("READ_ONLY_MODE", "true").lower() == "true"
+logger.info(f"🔒 セキュリティ設定: 読み取り専用モード={'有効' if READ_ONLY_MODE else '無効'}")
+if ALLOWED_PLC_IPS:
+    logger.info(f"🔒 許可されたPLC IPアドレス: {ALLOWED_PLC_IPS}")
+
 # DB対応の設定管理クラス
 config_manager = ConfigManager()
 db_api = DatabaseAPI()
 
-# グローバルエラー統計
+# グローバルパフォーマンス統計（CLAUDE.md参照）
+# 目標指標: 通信成功率95%以上、平均応答時間100ms以下、エラー率5%以下
 error_stats = {
     "connection_errors": 0,
     "read_errors": 0,
     "last_success": None,
-    "consecutive_failures": 0
+    "consecutive_failures": 0,
+    # パフォーマンス監視用の追加指標
+    "total_attempts": 0,        # 総通信試行回数
+    "successful_attempts": 0,   # 成功回数
+    "total_response_time": 0.0, # 累積応答時間（ms）
+    "max_response_time": 0.0,   # 最大応答時間（ms）
+    "min_response_time": float('inf'),  # 最小応答時間（ms）
+    "start_time": datetime.now()  # 統計開始時刻
 }
 
 def print_error_stats():
-    """エラー統計を表示"""
+    """
+    パフォーマンス統計を表示（CLAUDE.md参照）
+    目標指標: 通信成功率95%以上、平均応答時間100ms以下、エラー率5%以下
+    """
     global error_stats
-    print("📊 エラー統計:")
-    print(f"   接続エラー: {error_stats['connection_errors']}回")
-    print(f"   読み取りエラー: {error_stats['read_errors']}回")
-    print(f"   連続失敗: {error_stats['consecutive_failures']}回")
+
+    # 基本統計
+    print("\n" + "="*60)
+    print("📊 PLCエージェント パフォーマンス統計")
+    print("="*60)
+
+    # エラー統計
+    print("\n【エラー統計】")
+    print(f"  接続エラー: {error_stats['connection_errors']}回")
+    print(f"  読み取りエラー: {error_stats['read_errors']}回")
+    print(f"  連続失敗: {error_stats['consecutive_failures']}回")
+
+    # 通信成功率
+    total = error_stats['total_attempts']
+    success = error_stats['successful_attempts']
+    if total > 0:
+        success_rate = (success / total) * 100
+        error_rate = 100 - success_rate
+        print(f"\n【通信統計】")
+        print(f"  総試行回数: {total}回")
+        print(f"  成功回数: {success}回")
+        print(f"  失敗回数: {total - success}回")
+        print(f"  通信成功率: {success_rate:.2f}% {'✅' if success_rate >= 95 else '⚠️'}")
+        print(f"  エラー率: {error_rate:.2f}% {'✅' if error_rate <= 5 else '⚠️'}")
+
+    # 応答時間統計
+    if success > 0:
+        avg_response = error_stats['total_response_time'] / success
+        print(f"\n【応答時間統計】")
+        print(f"  平均応答時間: {avg_response:.2f}ms {'✅' if avg_response <= 100 else '⚠️'}")
+        print(f"  最大応答時間: {error_stats['max_response_time']:.2f}ms")
+        if error_stats['min_response_time'] != float('inf'):
+            print(f"  最小応答時間: {error_stats['min_response_time']:.2f}ms")
+
+    # 稼働時間
+    uptime = datetime.now() - error_stats['start_time']
+    print(f"\n【稼働時間】")
+    print(f"  開始時刻: {error_stats['start_time'].strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"  稼働時間: {uptime}")
+
     if error_stats['last_success']:
-        print(f"   最終成功: {error_stats['last_success']}")
+        print(f"  最終成功: {error_stats['last_success'].strftime('%Y-%m-%d %H:%M:%S')}")
     else:
-        print("   最終成功: なし")
+        print(f"  最終成功: なし")
+
+    print("="*60 + "\n")
 
 def reload_env_vars():
     """環境変数を強制的に再読み込み"""
@@ -82,22 +140,83 @@ def load_plc_config():
     """PLC設定をDB優先で読み込み（JSONフォールバック）"""
     return config_manager.load_plc_config()
 
-def update_error_stats(success=True, error_type=None):
-    """エラー統計を更新"""
+def update_error_stats(success=True, error_type=None, response_time_ms=None):
+    """
+    パフォーマンス統計を更新（CLAUDE.md参照）
+
+    Args:
+        success: 通信が成功した場合True
+        error_type: エラータイプ（"connection" or "read"）
+        response_time_ms: 応答時間（ミリ秒）
+    """
     global error_stats
-    
+
+    # 総試行回数をカウント
+    error_stats["total_attempts"] += 1
+
     if success:
         error_stats["last_success"] = datetime.now()
         error_stats["consecutive_failures"] = 0
-        logger.info("✅ PLC通信成功")
+        error_stats["successful_attempts"] += 1
+
+        # 応答時間を記録
+        if response_time_ms is not None:
+            error_stats["total_response_time"] += response_time_ms
+            error_stats["max_response_time"] = max(error_stats["max_response_time"], response_time_ms)
+            error_stats["min_response_time"] = min(error_stats["min_response_time"], response_time_ms)
+
+            if response_time_ms > 100:
+                logger.warning(f"⚠️ 応答時間が遅い: {response_time_ms:.2f}ms (目標: 100ms以下)")
+            else:
+                logger.info(f"✅ PLC通信成功 (応答時間: {response_time_ms:.2f}ms)")
+        else:
+            logger.info("✅ PLC通信成功")
     else:
         error_stats["consecutive_failures"] += 1
         if error_type == "connection":
             error_stats["connection_errors"] += 1
         elif error_type == "read":
             error_stats["read_errors"] += 1
-        
+
         logger.warning(f"❌ PLC通信失敗 (連続失敗: {error_stats['consecutive_failures']}回)")
+
+    # 定期的に統計を表示（100回ごと）
+    if error_stats["total_attempts"] % 100 == 0:
+        print_error_stats()
+
+def validate_plc_ip(ip_address):
+    """
+    PLCのIPアドレスをホワイトリストで検証（CLAUDE.md参照）
+
+    Args:
+        ip_address: 検証対象のIPアドレス
+
+    Returns:
+        bool: ホワイトリストに含まれている場合True、それ以外False
+    """
+    # ホワイトリストが空の場合はすべて許可
+    if not ALLOWED_PLC_IPS or len(ALLOWED_PLC_IPS) == 0:
+        return True
+
+    # IPアドレスがホワイトリストに含まれているか確認
+    if ip_address in ALLOWED_PLC_IPS:
+        logger.info(f"✅ IPアドレス検証成功: {ip_address}")
+        return True
+    else:
+        logger.error(f"🚫 不正なPLC IPアドレス: {ip_address} (ホワイトリスト: {ALLOWED_PLC_IPS})")
+        return False
+
+def check_write_permission():
+    """
+    PLC書き込み権限をチェック（CLAUDE.md参照）
+
+    Returns:
+        bool: 書き込み可能な場合True、それ以外False
+    """
+    if READ_ONLY_MODE:
+        logger.warning("🔒 書き込み保護モードが有効です。PLCへの書き込みは禁止されています。")
+        return False
+    return True
 
 def retry_on_failure(func, max_retries=MAX_RETRY_ATTEMPTS, delay=1):
     """リトライ機構付きの関数実行"""
@@ -116,15 +235,24 @@ def retry_on_failure(func, max_retries=MAX_RETRY_ATTEMPTS, delay=1):
     return None
 
 def connect_mitsubishi_plc(ip, port, timeout=CONNECTION_TIMEOUT):
-    """三菱PLC接続（タイムアウト付き）"""
+    """
+    三菱PLC接続（タイムアウト付き）
+    CLAUDE.md参照: MC Protocol (SLMP), ポート5000/5007, Big-Endian
+    """
+    # セキュリティチェック: IPホワイトリスト
+    if not validate_plc_ip(ip):
+        logger.error(f"🚫 IPアドレス検証失敗: {ip}")
+        return None
+
     from pymcprotocol import Type3E
-    
+
     def _connect():
         plc = Type3E()
         plc.setaccessopt(commtype="binary")  # バイナリモード（高速）
         plc.connect(ip, port)
+        logger.info(f"✅ 三菱PLC接続成功: {ip}:{port}")
         return plc
-    
+
     try:
         return retry_on_failure(_connect, max_retries=3, delay=1)
     except Exception as e:
@@ -133,16 +261,25 @@ def connect_mitsubishi_plc(ip, port, timeout=CONNECTION_TIMEOUT):
         return None
 
 def connect_omron_plc(ip, timeout=CONNECTION_TIMEOUT):
-    """オムロンPLC接続（タイムアウト付き）"""
+    """
+    オムロンPLC接続（タイムアウト付き）
+    CLAUDE.md参照: FINS Protocol, ポート9600, Big-Endian
+    """
+    # セキュリティチェック: IPホワイトリスト
+    if not validate_plc_ip(ip):
+        logger.error(f"🚫 IPアドレス検証失敗: {ip}")
+        return None
+
     import fins.udp
-    
+
     def _connect():
         fins_client = fins.udp.UDPFinsConnection()
         fins_client.connect(ip)
         fins_client.dest_node_add = 1
         fins_client.srce_node_add = 25
+        logger.info(f"✅ オムロンPLC接続成功: {ip}")
         return fins_client
-    
+
     try:
         return retry_on_failure(_connect, max_retries=3, delay=1)
     except Exception as e:
@@ -151,19 +288,28 @@ def connect_omron_plc(ip, timeout=CONNECTION_TIMEOUT):
         return None
 
 def connect_siemens_plc(ip, rack=0, slot=1, timeout=CONNECTION_TIMEOUT):
-    """シーメンスPLC接続（タイムアウト付き）"""
+    """
+    シーメンスPLC接続（タイムアウト付き）
+    CLAUDE.md参照: S7 Protocol, ポート102, Big-Endian
+    """
+    # セキュリティチェック: IPホワイトリスト
+    if not validate_plc_ip(ip):
+        logger.error(f"🚫 IPアドレス検証失敗: {ip}")
+        return None
+
     try:
         import snap7
     except ImportError:
         logger.error("snap7ライブラリがインストールされていません: pip install python-snap7")
         return None
-    
+
     def _connect():
         plc = snap7.client.Client()
         plc.set_connection_type(3)  # OP接続
         plc.connect(ip, rack, slot)
+        logger.info(f"✅ シーメンスPLC接続成功: {ip} (Rack:{rack}, Slot:{slot})")
         return plc
-    
+
     try:
         return retry_on_failure(_connect, max_retries=3, delay=1)
     except Exception as e:
@@ -172,20 +318,29 @@ def connect_siemens_plc(ip, rack=0, slot=1, timeout=CONNECTION_TIMEOUT):
         return None
 
 def connect_keyence_plc(ip, port=502, timeout=CONNECTION_TIMEOUT):
-    """キーエンスPLC接続（Modbus/TCP）"""
+    """
+    キーエンスPLC接続（Modbus/TCP）
+    CLAUDE.md参照: Modbus TCP, ポート502, Big-Endian
+    """
+    # セキュリティチェック: IPホワイトリスト
+    if not validate_plc_ip(ip):
+        logger.error(f"🚫 IPアドレス検証失敗: {ip}")
+        return None
+
     try:
         from pymodbus.client import ModbusTcpClient
     except ImportError:
         logger.error("pymodbusライブラリがインストールされていません: pip install pymodbus")
         return None
-    
+
     def _connect():
         client = ModbusTcpClient(ip, port=port, timeout=timeout)
         if client.connect():
+            logger.info(f"✅ キーエンスPLC接続成功: {ip}:{port}")
             return client
         else:
             raise Exception("Modbus接続に失敗しました")
-    
+
     try:
         return retry_on_failure(_connect, max_retries=3, delay=1)
     except Exception as e:
@@ -319,40 +474,155 @@ def safe_plc_read(plc_func, error_msg="PLC読み取りエラー"):
 
 # === PLCから値を取得する関数 ===
 def read_from_plc(config):
-    """設定ファイルに基づいて動的にPLCからデータを読み取り"""
+    """
+    設定ファイルに基づいて動的にPLCからデータを読み取り
+    CLAUDE.md参照: 応答時間を測定し、パフォーマンス統計を更新
+    """
     global USE_DUMMY_PLC
+    import time
+    start_time = time.time()  # 応答時間測定開始
+
     ip = config.get("plc_ip", PLC_IP)
     port = config.get("plc_port", PLC_PORT)
     manufacturer = config.get("manufacturer", PLC_MANUFACTURER)
     data_points = config.get("data_points", {})
-    
+
     # デバッグ情報出力
-    print(f"🔧 DEBUG: USE_DUMMY_PLC = {USE_DUMMY_PLC}")
-    print(f"🔧 DEBUG: PLC_IP = {ip}, PLC_PORT = {port}")
-    print(f"🔧 DEBUG: Manufacturer = {manufacturer}")
-    
+    logger.debug(f"🔧 DEBUG: USE_DUMMY_PLC = {USE_DUMMY_PLC}")
+    logger.debug(f"🔧 DEBUG: PLC_IP = {ip}, PLC_PORT = {port}")
+    logger.debug(f"🔧 DEBUG: Manufacturer = {manufacturer}")
+
     # 環境変数によるダミーモード設定
     if USE_DUMMY_PLC:
-        print("⚠️ [DUMMY MODE] ダミーデータを返します。")
+        logger.info("⚠️ [DUMMY MODE] ダミーデータを返します。")
         return generate_dummy_data(data_points)
-    
+
     # 実際のPLC接続を試行
-    print(f"🔌 実際のPLC接続を試行中: {ip}:{port} ({manufacturer})")
+    logger.info(f"🔌 実際のPLC接続を試行中: {ip}:{port} ({manufacturer})")
     try:
         result = read_from_real_plc(config, ip, port, manufacturer, data_points)
+        response_time_ms = (time.time() - start_time) * 1000  # ミリ秒に変換
+
         if result is None:
-            print("❌ PLC接続失敗 - ダミーモードにフォールバック")
-            update_error_stats(False, "connection")
+            logger.error("❌ PLC接続失敗 - ダミーモードにフォールバック")
+            update_error_stats(False, "connection", response_time_ms)
             return generate_dummy_data(data_points)
         else:
-            print("✅ PLC接続成功")
-            update_error_stats(True)
+            logger.info("✅ PLC接続成功")
+            update_error_stats(True, response_time_ms=response_time_ms)
             return result
     except Exception as e:
-        print(f"❌ PLC接続例外: {e}")
-        print("🔄 自動的にダミーモードに切り替えます。")
-        update_error_stats(False, "connection")
+        response_time_ms = (time.time() - start_time) * 1000
+        logger.error(f"❌ PLC接続例外: {e}")
+        logger.info("🔄 自動的にダミーモードに切り替えます。")
+        update_error_stats(False, "connection", response_time_ms)
         return generate_dummy_data(data_points)
+
+def extract_address_number(address):
+    """
+    アドレス文字列から数値部分を抽出
+
+    Args:
+        address: アドレス文字列（例: "D100", "DM200", "D100.5"）
+
+    Returns:
+        int: アドレス番号（例: 100, 200, 100）
+    """
+    import re
+    # ビット指定がある場合は除外（D100.5 → D100）
+    address_base = address.split('.')[0]
+    # 数字部分を抽出
+    match = re.search(r'\d+', address_base)
+    if match:
+        return int(match.group())
+    return None
+
+def group_continuous_word_addresses(data_points, device_type='D'):
+    """
+    連続したワードアドレスをグループ化（バッチ読み取り最適化用）
+    CLAUDE.md参照: パフォーマンス最適化 - バッチ読み取りの活用
+
+    Args:
+        data_points: データ項目の辞書
+        device_type: デバイスタイプ（'D', 'DM'等）
+
+    Returns:
+        list: グループ化されたアドレスリスト
+        [
+            {
+                'keys': ['temp1', 'temp2', 'temp3'],  # データキー
+                'start_address': 100,  # 開始アドレス
+                'count': 3,  # ワード数
+                'settings': [{...}, {...}, {...}]  # 各項目の設定
+            },
+            ...
+        ]
+    """
+    # wordデータ型のみをフィルタ（dword, float32は除外）
+    word_items = []
+    for key, setting in data_points.items():
+        if not setting.get("enabled", False):
+            continue
+
+        data_type = setting.get("data_type", "word")
+        address = setting.get("address", "")
+
+        # ビット指定やdword/float32は個別処理
+        if data_type != "word" or '.' in address:
+            continue
+
+        # 指定デバイスタイプのみ
+        if not address.upper().startswith(device_type):
+            continue
+
+        addr_num = extract_address_number(address)
+        if addr_num is not None:
+            word_items.append({
+                'key': key,
+                'setting': setting,
+                'address_num': addr_num,
+                'address': address
+            })
+
+    # アドレス番号でソート
+    word_items.sort(key=lambda x: x['address_num'])
+
+    # 連続アドレスをグループ化
+    groups = []
+    current_group = None
+
+    for item in word_items:
+        if current_group is None:
+            # 新しいグループ開始
+            current_group = {
+                'keys': [item['key']],
+                'start_address': item['address_num'],
+                'count': 1,
+                'settings': [item['setting']],
+                'addresses': [item['address']]
+            }
+        elif item['address_num'] == current_group['start_address'] + current_group['count']:
+            # 連続している → グループに追加
+            current_group['keys'].append(item['key'])
+            current_group['count'] += 1
+            current_group['settings'].append(item['setting'])
+            current_group['addresses'].append(item['address'])
+        else:
+            # 連続していない → グループ確定して新しいグループ開始
+            groups.append(current_group)
+            current_group = {
+                'keys': [item['key']],
+                'start_address': item['address_num'],
+                'count': 1,
+                'settings': [item['setting']],
+                'addresses': [item['address']]
+            }
+
+    # 最後のグループを追加
+    if current_group:
+        groups.append(current_group)
+
+    return groups
 
 def generate_dummy_data(data_points):
     """ダミーデータを生成"""
@@ -391,7 +661,7 @@ def read_from_real_plc(config, ip, port, manufacturer, data_points):
     try:
         if manufacturer.lower() in ["mitsubishi", "三菱"]:
             import struct
-            
+
             # 新しい接続関数を使用
             plc = connect_mitsubishi_plc(ip, port)
             if not plc:
@@ -399,14 +669,67 @@ def read_from_real_plc(config, ip, port, manufacturer, data_points):
                 return None
 
             data = {}
-            
-            # 有効な各データ項目を設定に基づいて読み取り
+
+            # バッチ読み取り最適化: 連続したwordアドレスをグループ化
+            word_groups = group_continuous_word_addresses(data_points, device_type='D')
+
+            # グループ化されたwordアドレスを一括読み取り
+            for group in word_groups:
+                try:
+                    if group['count'] == 1:
+                        # 単独アドレス → 個別読み取り
+                        logger.debug(f"📖 単独読み取り: D{group['start_address']}")
+                        raw_values = plc.batchread_wordunits(
+                            headdevice=f"D{group['start_address']}",
+                            readsize=1
+                        )
+                    else:
+                        # 連続アドレス → バッチ読み取り（最適化）
+                        logger.info(f"🚀 バッチ読み取り: D{group['start_address']}-D{group['start_address'] + group['count'] - 1} ({group['count']}ワード)")
+                        raw_values = plc.batchread_wordunits(
+                            headdevice=f"D{group['start_address']}",
+                            readsize=group['count']
+                        )
+
+                    # 読み取った値を各項目に割り当て
+                    for i, key in enumerate(group['keys']):
+                        setting = group['settings'][i]
+                        scale = setting.get("scale", 1)
+                        raw_value = raw_values[i]
+
+                        # スケール適用
+                        if scale > 1:
+                            data[key] = raw_value / scale
+                        else:
+                            data[key] = raw_value
+
+                        logger.debug(f"  ✅ {key} = {data[key]} (raw: {raw_value}, scale: {scale})")
+
+                except Exception as e:
+                    logger.error(f"❌ バッチ読み取りエラー (D{group['start_address']}): {e}")
+                    # エラー時は個別に再試行
+                    for i, key in enumerate(group['keys']):
+                        setting = group['settings'][i]
+                        addr_num = group['start_address'] + i
+                        try:
+                            raw_value = plc.batchread_wordunits(f"D{addr_num}", 1)[0]
+                            scale = setting.get("scale", 1)
+                            data[key] = raw_value / scale if scale > 1 else raw_value
+                        except:
+                            logger.warning(f"⚠️ {key}(D{addr_num})の個別再試行も失敗")
+
+            # bit, dword, float32は個別処理（従来通り）
+            # ※既にバッチ読み取りで取得したwordデータはスキップ
             for key, setting in data_points.items():
                 if setting.get("enabled", False):
                     address = setting.get("address")
                     scale = setting.get("scale", 1)
                     data_type = setting.get("data_type", "word")  # デフォルト: word
-                    
+
+                    # バッチ読み取り済みのデータはスキップ
+                    if key in data:
+                        continue
+
                     if address:
                         def read_mitsubishi_data():
                             """三菱PLCデータ読み取り関数（safe_plc_read用）"""
@@ -441,43 +764,47 @@ def read_from_real_plc(config, ip, port, manufacturer, data_points):
                                     
                             elif data_type == "float32":
                                 # 32bit浮動小数点 (2ワード)
+                                # CLAUDE.md参照: 三菱PLCはBig-Endianで通信
                                 if address.upper().startswith('D'):
                                     addr_num = int(address[1:])
                                 elif address.upper().startswith('DM'):
                                     addr_num = int(address[2:])
                                 else:
                                     raise ValueError(f"不明なアドレス形式: {address}")
-                                
+
                                 # 2ワード読み取り (32bit)
                                 word_values = plc.batchread_wordunits(
-                                    headdevice=f"D{addr_num}", 
+                                    headdevice=f"D{addr_num}",
                                     readsize=2
                                 )
-                                
-                                # IEEE754 float32に変換
+
+                                # IEEE754 float32に変換（Big-Endian）
                                 if len(word_values) >= 2:
-                                    # リトルエンディアン形式で結合
-                                    combined = (word_values[1] << 16) | word_values[0]
-                                    raw_value = struct.unpack('<f', struct.pack('<I', combined))[0]
+                                    # Big-Endian形式で結合（三菱PLCは全てBig-Endian）
+                                    word1, word2 = word_values[0], word_values[1]
+                                    combined = (word1 << 16) | word2
+                                    raw_value = struct.unpack('>f', struct.pack('>I', combined))[0]
                                     
                             elif data_type == "dword":
                                 # 32bit整数 (2ワード)
+                                # CLAUDE.md参照: 三菱PLCはBig-Endianで通信
                                 if address.upper().startswith('D'):
                                     addr_num = int(address[1:])
                                 elif address.upper().startswith('DM'):
                                     addr_num = int(address[2:])
                                 else:
                                     raise ValueError(f"不明なアドレス形式: {address}")
-                                
+
                                 # 2ワード読み取り
                                 word_values = plc.batchread_wordunits(
-                                    headdevice=f"D{addr_num}", 
+                                    headdevice=f"D{addr_num}",
                                     readsize=2
                                 )
-                                
+
                                 if len(word_values) >= 2:
-                                    # 32bit整数に結合
-                                    raw_value = (word_values[1] << 16) | word_values[0]
+                                    # 32bit整数に結合（Big-Endian）
+                                    word1, word2 = word_values[0], word_values[1]
+                                    raw_value = (word1 << 16) | word2
                                     
                             else:
                                 # 従来の16bitワード読み取り
@@ -521,7 +848,7 @@ def read_from_real_plc(config, ip, port, manufacturer, data_points):
         elif manufacturer.lower() in ["keyence", "キーエンス"]:
             # キーエンスPLC（Modbus/TCP対応）
             modbus_port = config.get("modbus_port", 502)  # Modbusポート
-            
+
             # Modbus/TCP接続
             client = connect_keyence_plc(ip, port=modbus_port)
             if not client:
@@ -529,14 +856,69 @@ def read_from_real_plc(config, ip, port, manufacturer, data_points):
                 return None
 
             data = {}
-            
-            # 有効な各データ項目を設定に基づいて読み取り
+
+            # バッチ読み取り最適化: 連続したwordアドレスをグループ化（DMアドレスのみ）
+            word_groups = group_continuous_word_addresses(data_points, device_type='DM')
+
+            # グループ化されたwordアドレスを一括読み取り
+            for group in word_groups:
+                try:
+                    start_addr = group['start_address']
+                    count = group['count']
+
+                    if count == 1:
+                        # 単独アドレス → 個別読み取り
+                        logger.debug(f"📖 単独読み取り: DM{start_addr}")
+                        result = client.read_holding_registers(address=start_addr, count=1, unit=1)
+                    else:
+                        # 連続アドレス → バッチ読み取り（最適化）
+                        logger.info(f"🚀 バッチ読み取り: DM{start_addr}-DM{start_addr + count - 1} ({count}ワード)")
+                        result = client.read_holding_registers(address=start_addr, count=count, unit=1)
+
+                    # 読み取った値を各項目に割り当て
+                    if not result.isError():
+                        for i, key in enumerate(group['keys']):
+                            setting = group['settings'][i]
+                            scale = setting.get("scale", 1)
+                            raw_value = result.registers[i]
+
+                            # スケール適用
+                            if scale > 1:
+                                data[key] = raw_value / scale
+                            else:
+                                data[key] = raw_value
+
+                            logger.debug(f"  ✅ {key} = {data[key]} (raw: {raw_value}, scale: {scale})")
+                    else:
+                        raise Exception(f"Modbus読み取りエラー: {result}")
+
+                except Exception as e:
+                    logger.error(f"❌ バッチ読み取りエラー (DM{group['start_address']}): {e}")
+                    # エラー時は個別に再試行
+                    for i, key in enumerate(group['keys']):
+                        setting = group['settings'][i]
+                        addr_num = group['start_address'] + i
+                        try:
+                            result = client.read_holding_registers(address=addr_num, count=1, unit=1)
+                            if not result.isError():
+                                raw_value = result.registers[0]
+                                scale = setting.get("scale", 1)
+                                data[key] = raw_value / scale if scale > 1 else raw_value
+                        except:
+                            logger.warning(f"⚠️ {key}(DM{addr_num})の個別再試行も失敗")
+
+            # bit, dword, float32、および非DMアドレスは個別処理（従来通り）
+            # ※既にバッチ読み取りで取得したwordデータはスキップ
             for key, setting in data_points.items():
                 if setting.get("enabled", False):
                     address = setting.get("address")
                     scale = setting.get("scale", 1)
                     data_type = setting.get("data_type", "word")
-                    
+
+                    # バッチ読み取り済みのデータはスキップ
+                    if key in data:
+                        continue
+
                     if address:
                         def read_keyence_data():
                             """キーエンスPLCデータ読み取り関数（safe_plc_read用）"""
@@ -570,7 +952,7 @@ def read_from_real_plc(config, ip, port, manufacturer, data_points):
 
         elif manufacturer.lower() in ["omron", "オムロン"]:
             import struct
-            
+
             # 新しい接続関数を使用
             fins_client = connect_omron_plc(ip)
             if not fins_client:
@@ -578,14 +960,72 @@ def read_from_real_plc(config, ip, port, manufacturer, data_points):
                 return None
 
             data = {}
-            
-            # 有効な各データ項目を設定に基づいて読み取り
+
+            # バッチ読み取り最適化: 連続したwordアドレスをグループ化
+            word_groups = group_continuous_word_addresses(data_points, device_type='DM')
+
+            # グループ化されたwordアドレスを一括読み取り
+            for group in word_groups:
+                try:
+                    start_addr = group['start_address']
+                    count = group['count']
+
+                    if count == 1:
+                        # 単独アドレス → 個別読み取り
+                        logger.debug(f"📖 単独読み取り: DM{start_addr}")
+                        addr_bytes = b'\x00' + start_addr.to_bytes(2, byteorder='big')
+                        mem_area = fins_client.memory_area_read(b'\x82', addr_bytes, 1)
+                    else:
+                        # 連続アドレス → バッチ読み取り（最適化）
+                        logger.info(f"🚀 バッチ読み取り: DM{start_addr}-DM{start_addr + count - 1} ({count}ワード)")
+                        addr_bytes = b'\x00' + start_addr.to_bytes(2, byteorder='big')
+                        mem_area = fins_client.memory_area_read(b'\x82', addr_bytes, count)
+
+                    # 読み取った値を各項目に割り当て
+                    if mem_area and len(mem_area) >= count * 2:
+                        for i, key in enumerate(group['keys']):
+                            setting = group['settings'][i]
+                            scale = setting.get("scale", 1)
+                            # 2バイトずつ読み取り（Big-Endian）
+                            offset = i * 2
+                            raw_value = int.from_bytes(mem_area[offset:offset+2], byteorder='big')
+
+                            # スケール適用
+                            if scale > 1:
+                                data[key] = raw_value / scale
+                            else:
+                                data[key] = raw_value
+
+                            logger.debug(f"  ✅ {key} = {data[key]} (raw: {raw_value}, scale: {scale})")
+
+                except Exception as e:
+                    logger.error(f"❌ バッチ読み取りエラー (DM{group['start_address']}): {e}")
+                    # エラー時は個別に再試行
+                    for i, key in enumerate(group['keys']):
+                        setting = group['settings'][i]
+                        addr_num = group['start_address'] + i
+                        try:
+                            addr_bytes = b'\x00' + addr_num.to_bytes(2, byteorder='big')
+                            mem_area = fins_client.memory_area_read(b'\x82', addr_bytes, 1)
+                            if mem_area and len(mem_area) >= 2:
+                                raw_value = int.from_bytes(mem_area[0:2], byteorder='big')
+                                scale = setting.get("scale", 1)
+                                data[key] = raw_value / scale if scale > 1 else raw_value
+                        except:
+                            logger.warning(f"⚠️ {key}(DM{addr_num})の個別再試行も失敗")
+
+            # bit, dword, float32は個別処理（従来通り）
+            # ※既にバッチ読み取りで取得したwordデータはスキップ
             for key, setting in data_points.items():
                 if setting.get("enabled", False):
                     address = setting.get("address")
                     scale = setting.get("scale", 1)
                     data_type = setting.get("data_type", "word")  # デフォルト: word
-                    
+
+                    # バッチ読み取り済みのデータはスキップ
+                    if key in data:
+                        continue
+
                     if address:
                         def read_omron_data():
                             """オムロンPLCデータ読み取り関数（safe_plc_read用）"""

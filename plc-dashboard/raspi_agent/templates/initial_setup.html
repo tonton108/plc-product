@@ -85,155 +85,18 @@
       <!-- PLCアドレス設定セクション -->
       <div class="form-section">
         <h3 style="color: var(--primary); margin: 20px 0 16px 0;">📍 PLCデータ項目設定</h3>
-        
+
         <div class="data-config-section">
-          <div class="plc-config-grid">
-            
-            <!-- 生産数量 -->
-            <div class="plc-config-item">
-              <label class="plc-config-toggle">
-                <input type="checkbox" name="production_count_enabled" value="true" 
-                       {% if equipment.data_points and equipment.data_points.production_count and equipment.data_points.production_count.enabled %}checked{% endif %}>
-                <span class="plc-icon">📊</span>
-                <strong>生産数量</strong>
-              </label>
-              <div class="plc-config-inputs">
-                <input type="text" name="production_count_address" 
-                       value="{{ equipment.data_points.production_count.address if equipment.data_points and equipment.data_points.production_count else 'D150' }}" 
-                       placeholder="D150">
-                <select name="production_count_data_type" class="data-type-select">
-                  <option value="word" {% if equipment.data_points and equipment.data_points.production_count and equipment.data_points.production_count.data_type == 'word' %}selected{% elif not equipment.data_points or not equipment.data_points.production_count %}selected{% endif %}>Word (16bit)</option>
-                  <option value="dword" {% if equipment.data_points and equipment.data_points.production_count and equipment.data_points.production_count.data_type == 'dword' %}selected{% endif %}>DWord (32bit)</option>
-                  <option value="float32" {% if equipment.data_points and equipment.data_points.production_count and equipment.data_points.production_count.data_type == 'float32' %}selected{% endif %}>Float32</option>
-                  <option value="bit" {% if equipment.data_points and equipment.data_points.production_count and equipment.data_points.production_count.data_type == 'bit' %}selected{% endif %}>Bit</option>
-                </select>
-                <input type="number" name="production_count_scale" 
-                       value="{{ equipment.data_points.production_count.scale if equipment.data_points and equipment.data_points.production_count else 1 }}" 
-                       placeholder="倍率" min="1">
-              </div>
-            </div>
-
-            <!-- 電流 -->
-            <div class="plc-config-item">
-              <label class="plc-config-toggle">
-                <input type="checkbox" name="current_enabled" value="true" 
-                       {% if equipment.data_points and equipment.data_points.current and equipment.data_points.current.enabled %}checked{% else %}checked{% endif %}>
-                <span class="plc-icon">⚡</span>
-                <strong>電流</strong>
-              </label>
-              <div class="plc-config-inputs">
-                <input type="text" name="current_address" 
-                       value="{{ equipment.data_points.current.address if equipment.data_points and equipment.data_points.current else 'D100' }}" 
-                       placeholder="D100">
-                <select name="current_data_type" class="data-type-select">
-                  <option value="word" {% if equipment.data_points and equipment.data_points.current and equipment.data_points.current.data_type == 'word' %}selected{% endif %}>Word (16bit)</option>
-                  <option value="dword" {% if equipment.data_points and equipment.data_points.current and equipment.data_points.current.data_type == 'dword' %}selected{% endif %}>DWord (32bit)</option>
-                  <option value="float32" {% if equipment.data_points and equipment.data_points.current and equipment.data_points.current.data_type == 'float32' %}selected{% endif %}>Float32</option>
-                  <option value="bit" {% if equipment.data_points and equipment.data_points.current and equipment.data_points.current.data_type == 'bit' %}selected{% endif %}>Bit</option>
-                </select>
-                <input type="number" name="current_scale" 
-                       value="{{ equipment.data_points.current.scale if equipment.data_points and equipment.data_points.current else 10 }}" 
-                       placeholder="倍率" min="1">
-              </div>
-            </div>
-
-            <!-- 温度 -->
-            <div class="plc-config-item">
-              <label class="plc-config-toggle">
-                <input type="checkbox" name="temperature_enabled" value="true" 
-                       {% if equipment.data_points and equipment.data_points.temperature and equipment.data_points.temperature.enabled %}checked{% else %}checked{% endif %}>
-                <span class="plc-icon">🌡️</span>
-                <strong>温度</strong>
-              </label>
-              <div class="plc-config-inputs">
-                <input type="text" name="temperature_address" 
-                       value="{{ equipment.data_points.temperature.address if equipment.data_points and equipment.data_points.temperature else 'D101' }}" 
-                       placeholder="D101">
-                <select name="temperature_data_type" class="data-type-select">
-                  <option value="word" {% if equipment.data_points and equipment.data_points.temperature and equipment.data_points.temperature.data_type == 'word' %}selected{% endif %}>Word (16bit)</option>
-                  <option value="dword" {% if equipment.data_points and equipment.data_points.temperature and equipment.data_points.temperature.data_type == 'dword' %}selected{% endif %}>DWord (32bit)</option>
-                  <option value="float32" {% if equipment.data_points and equipment.data_points.temperature and equipment.data_points.temperature.data_type == 'float32' %}selected{% elif not equipment.data_points or not equipment.data_points.temperature %}selected{% endif %}>Float32</option>
-                  <option value="bit" {% if equipment.data_points and equipment.data_points.temperature and equipment.data_points.temperature.data_type == 'bit' %}selected{% endif %}>Bit</option>
-                </select>
-                <input type="number" name="temperature_scale" 
-                       value="{{ equipment.data_points.temperature.scale if equipment.data_points and equipment.data_points.temperature else 1 }}" 
-                       placeholder="倍率" min="1">
-              </div>
-            </div>
-
-            <!-- 圧力 -->
-            <div class="plc-config-item">
-              <label class="plc-config-toggle">
-                <input type="checkbox" name="pressure_enabled" value="true" 
-                       {% if equipment.data_points and equipment.data_points.pressure and equipment.data_points.pressure.enabled %}checked{% else %}checked{% endif %}>
-                <span class="plc-icon">🔧</span>
-                <strong>圧力</strong>
-              </label>
-              <div class="plc-config-inputs">
-                <input type="text" name="pressure_address" 
-                       value="{{ equipment.data_points.pressure.address if equipment.data_points and equipment.data_points.pressure else 'D102' }}" 
-                       placeholder="D102">
-                <select name="pressure_data_type" class="data-type-select">
-                  <option value="word" {% if equipment.data_points and equipment.data_points.pressure and equipment.data_points.pressure.data_type == 'word' %}selected{% elif not equipment.data_points or not equipment.data_points.pressure %}selected{% endif %}>Word (16bit)</option>
-                  <option value="dword" {% if equipment.data_points and equipment.data_points.pressure and equipment.data_points.pressure.data_type == 'dword' %}selected{% endif %}>DWord (32bit)</option>
-                  <option value="float32" {% if equipment.data_points and equipment.data_points.pressure and equipment.data_points.pressure.data_type == 'float32' %}selected{% endif %}>Float32</option>
-                  <option value="bit" {% if equipment.data_points and equipment.data_points.pressure and equipment.data_points.pressure.data_type == 'bit' %}selected{% endif %}>Bit</option>
-                </select>
-                <input type="number" name="pressure_scale" 
-                       value="{{ equipment.data_points.pressure.scale if equipment.data_points and equipment.data_points.pressure else 100 }}" 
-                       placeholder="倍率" min="1">
-              </div>
-            </div>
-
-            <!-- サイクルタイム -->
-            <div class="plc-config-item">
-              <label class="plc-config-toggle">
-                <input type="checkbox" name="cycle_time_enabled" value="true" 
-                       {% if equipment.data_points and equipment.data_points.cycle_time and equipment.data_points.cycle_time.enabled %}checked{% else %}checked{% endif %}>
-                <span class="plc-icon">⏱️</span>
-                <strong>サイクルタイム</strong>
-              </label>
-              <div class="plc-config-inputs">
-                <input type="text" name="cycle_time_address" 
-                       value="{{ equipment.data_points.cycle_time.address if equipment.data_points and equipment.data_points.cycle_time else 'D200' }}" 
-                       placeholder="D200">
-                <select name="cycle_time_data_type" class="data-type-select">
-                  <option value="word" {% if equipment.data_points and equipment.data_points.cycle_time and equipment.data_points.cycle_time.data_type == 'word' %}selected{% endif %}>Word (16bit)</option>
-                  <option value="dword" {% if equipment.data_points and equipment.data_points.cycle_time and equipment.data_points.cycle_time.data_type == 'dword' %}selected{% elif not equipment.data_points or not equipment.data_points.cycle_time %}selected{% endif %}>DWord (32bit)</option>
-                  <option value="float32" {% if equipment.data_points and equipment.data_points.cycle_time and equipment.data_points.cycle_time.data_type == 'float32' %}selected{% endif %}>Float32</option>
-                  <option value="bit" {% if equipment.data_points and equipment.data_points.cycle_time and equipment.data_points.cycle_time.data_type == 'bit' %}selected{% endif %}>Bit</option>
-                </select>
-                <input type="number" name="cycle_time_scale" 
-                       value="{{ equipment.data_points.cycle_time.scale if equipment.data_points and equipment.data_points.cycle_time else 1 }}" 
-                       placeholder="倍率" min="1">
-              </div>
-            </div>
-
-            <!-- エラーコード -->
-            <div class="plc-config-item">
-              <label class="plc-config-toggle">
-                <input type="checkbox" name="error_code_enabled" value="true" 
-                       {% if equipment.data_points and equipment.data_points.error_code and equipment.data_points.error_code.enabled %}checked{% else %}checked{% endif %}>
-                <span class="plc-icon">⚠️</span>
-                <strong>エラーコード</strong>
-              </label>
-              <div class="plc-config-inputs">
-                <input type="text" name="error_code_address" 
-                       value="{{ equipment.data_points.error_code.address if equipment.data_points and equipment.data_points.error_code else 'D300' }}" 
-                       placeholder="D300">
-                <select name="error_code_data_type" class="data-type-select">
-                  <option value="word" {% if equipment.data_points and equipment.data_points.error_code and equipment.data_points.error_code.data_type == 'word' %}selected{% elif not equipment.data_points or not equipment.data_points.error_code %}selected{% endif %}>Word (16bit)</option>
-                  <option value="dword" {% if equipment.data_points and equipment.data_points.error_code and equipment.data_points.error_code.data_type == 'dword' %}selected{% endif %}>DWord (32bit)</option>
-                  <option value="float32" {% if equipment.data_points and equipment.data_points.error_code and equipment.data_points.error_code.data_type == 'float32' %}selected{% endif %}>Float32</option>
-                  <option value="bit" {% if equipment.data_points and equipment.data_points.error_code and equipment.data_points.error_code.data_type == 'bit' %}selected{% endif %}>Bit</option>
-                </select>
-                <input type="number" name="error_code_scale" 
-                       value="{{ equipment.data_points.error_code.scale if equipment.data_points and equipment.data_points.error_code else 1 }}" 
-                       placeholder="倍率" min="1">
-              </div>
-            </div>
-
+          <div id="plc-items-container" class="plc-items-container">
+            <!-- 項目が動的に追加される -->
           </div>
+
+          <button type="button" onclick="addPLCItem()" class="btn secondary" style="margin-top: 12px;">
+            ➕ 項目を追加
+          </button>
+
+          <!-- PLC設定をJSON形式でhidden inputとして送信 -->
+          <input type="hidden" name="plc_configs_json" id="plc_configs_json">
         </div>
       </div>
 
@@ -244,13 +107,209 @@
   </div>
 </div>
 
+<style>
+/* PLC項目カードのスタイル（monitoring.htmlと同じ）*/
+.plc-items-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.plc-item-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+body.dark .plc-item-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.plc-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+body.dark .plc-item-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.plc-item-number {
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--primary);
+}
+
+.btn-remove {
+  background: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.btn-remove:hover {
+  background: #d32f2f;
+}
+
+.plc-item-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.plc-item-grid .form-group {
+  margin-bottom: 0;
+}
+
+.plc-item-grid label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.plc-item-grid input,
+.plc-item-grid select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+body.dark .plc-item-grid input,
+body.dark .plc-item-grid select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text);
+}
+</style>
+
 <script type="application/json" id="series-data">{{ series_list | tojson | safe }}</script>
 <script type="application/json" id="current-series">"{{ equipment.series or '' }}"</script>
 
 <script>
+  // PLC項目管理用の配列
+  let plcItems = [];
+  let nextItemId = 0;
+
+  // PLC項目を追加
+  function addPLCItem(data = null) {
+    const itemId = nextItemId++;
+    const item = data || {
+      id: itemId,
+      data_type: `item_${itemId}`,
+      name: '',
+      icon: '',
+      unit: '',
+      enabled: true,
+      address: '',
+      scale_factor: 1,
+      plc_data_type: 'word'
+    };
+    item.id = itemId;
+
+    plcItems.push(item);
+    renderPLCItems();
+  }
+
+  // PLC項目を削除
+  function removePLCItem(itemId) {
+    plcItems = plcItems.filter(item => item.id !== itemId);
+    renderPLCItems();
+  }
+
+  // PLC項目一覧を描画
+  function renderPLCItems() {
+    const container = document.getElementById('plc-items-container');
+    container.innerHTML = '';
+
+    plcItems.forEach((item, index) => {
+      const itemDiv = document.createElement('div');
+      itemDiv.className = 'plc-item-card';
+      itemDiv.innerHTML = `
+        <div class="plc-item-header">
+          <span class="plc-item-number">#${index + 1}</span>
+          <button type="button" onclick="removePLCItem(${item.id})" class="btn-remove" title="削除">🗑️</button>
+        </div>
+
+        <div class="plc-item-grid">
+          <div class="form-group">
+            <label><strong>項目名:</strong></label>
+            <input type="text" data-item-id="${item.id}" data-field="name" value="${item.name || ''}"
+                   placeholder="例: 金型温度A" required>
+          </div>
+
+          <div class="form-group">
+            <label><strong>アイコン:</strong></label>
+            <input type="text" data-item-id="${item.id}" data-field="icon" value="${item.icon || ''}"
+                   placeholder="🌡️" maxlength="10">
+          </div>
+
+          <div class="form-group">
+            <label><strong>単位:</strong></label>
+            <input type="text" data-item-id="${item.id}" data-field="unit" value="${item.unit || ''}"
+                   placeholder="例: ℃" maxlength="20">
+          </div>
+
+          <div class="form-group">
+            <label><strong>PLCアドレス:</strong></label>
+            <input type="text" data-item-id="${item.id}" data-field="address" value="${item.address || ''}"
+                   placeholder="D100" required>
+          </div>
+
+          <div class="form-group">
+            <label><strong>データ型:</strong></label>
+            <select data-item-id="${item.id}" data-field="plc_data_type">
+              <option value="word" ${item.plc_data_type === 'word' ? 'selected' : ''}>Word (16bit)</option>
+              <option value="dword" ${item.plc_data_type === 'dword' ? 'selected' : ''}>DWord (32bit)</option>
+              <option value="float32" ${item.plc_data_type === 'float32' ? 'selected' : ''}>Float32</option>
+              <option value="bit" ${item.plc_data_type === 'bit' ? 'selected' : ''}>Bit</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label><strong>倍率:</strong></label>
+            <input type="number" data-item-id="${item.id}" data-field="scale_factor" value="${item.scale_factor || 1}"
+                   min="1" required>
+          </div>
+        </div>
+      `;
+
+      container.appendChild(itemDiv);
+    });
+
+    // イベントリスナーを設定
+    container.querySelectorAll('input, select').forEach(input => {
+      input.addEventListener('change', function() {
+        const itemId = parseInt(this.getAttribute('data-item-id'));
+        const field = this.getAttribute('data-field');
+        const item = plcItems.find(i => i.id === itemId);
+        if (item) {
+          if (field === 'scale_factor') {
+            item[field] = parseInt(this.value);
+          } else {
+            item[field] = this.value;
+          }
+        }
+      });
+    });
+  }
+
   // PLCメーカー変更時のシリーズ更新
   document.addEventListener('DOMContentLoaded', function() {
     updateModbusPortState();
+    // 初期項目を追加
+    addPLCItem();
   });
 
   function updateModbusPortState() {
@@ -280,24 +339,21 @@
     updateSeries();
   }
 
-  // チェックボックス連動でフィールドの有効/無効を切り替え
-  document.querySelectorAll('.plc-config-toggle input[type="checkbox"]').forEach(function(checkbox) {
-    checkbox.addEventListener('change', function() {
-      const configItem = this.closest('.plc-config-item');
-      const inputs = configItem.querySelectorAll('.plc-config-inputs input, .plc-config-inputs select');
-      
-      inputs.forEach(function(input) {
-        input.disabled = !checkbox.checked;
-        if (!checkbox.checked) {
-          input.style.opacity = '0.5';
-        } else {
-          input.style.opacity = '1';
-        }
-      });
-    });
-    
-    // 初期化時に実行
-    checkbox.dispatchEvent(new Event('change'));
+  // フォーム送信時にPLC設定をJSON形式でhidden inputに格納
+  document.querySelector('form').addEventListener('submit', function(e) {
+    const plcConfigs = plcItems.map(item => ({
+      data_type: item.data_type,
+      name: item.name,
+      icon: item.icon,
+      unit: item.unit,
+      enabled: true,
+      address: item.address,
+      scale_factor: item.scale_factor,
+      plc_data_type: item.plc_data_type
+    }));
+
+    document.getElementById('plc_configs_json').value = JSON.stringify(plcConfigs);
+    console.log('📡 送信するPLC設定:', plcConfigs);
   });
 </script>
 {% endblock %}

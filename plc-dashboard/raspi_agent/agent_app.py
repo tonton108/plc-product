@@ -234,71 +234,41 @@ def initial_setup():
         }
         
         print(f"[INFO] 設定画面から送信するデータ: {plc_data}")
-        
-        # PLCデータ項目設定を追加
+
+        # PLCデータ項目設定を追加（動的JSON形式に対応）
         data_points = {}
-        
-        # 各データ項目の設定を処理
-        data_items = [
-            "production_count",
-            "current", 
-            "temperature",
-            "pressure",
-            "cycle_time",
-            "error_code"
-        ]
-        
-        for item in data_items:
-            enabled_key = f"{item}_enabled"
-            address_key = f"{item}_address"
-            scale_key = f"{item}_scale"
-            data_type_key = f"{item}_data_type"
-            
-            # チェックボックスがチェックされている場合のみ設定を保存
-            if enabled_key in request.form:
-                address = request.form.get(address_key, "").strip()
-                scale = request.form.get(scale_key, "1")
-                data_type = request.form.get(data_type_key, "word")
-                
-                # アドレスが入力されている場合のみ有効とする
-                if address:
-                    try:
-                        scale_int = int(scale) if scale else 1
-                        data_points[item] = {
-                            "address": address,
-                            "data_type": data_type,
-                            "scale": scale_int,
-                            "enabled": True
-                        }
-                    except ValueError:
-                        # スケール値が不正な場合はデフォルト値を使用
-                        data_points[item] = {
-                            "address": address,
-                            "data_type": data_type,
-                            "scale": 1,
-                            "enabled": True
-                        }
-            else:
-                # チェックボックスが無効の場合は無効として保存
-                address = request.form.get(address_key, "").strip()
-                scale = request.form.get(scale_key, "1")
-                data_type = request.form.get(data_type_key, "word")
-                if address:  # アドレスがある場合のみ保存（設定は残す）
-                    try:
-                        scale_int = int(scale) if scale else 1
-                        data_points[item] = {
-                            "address": address,
-                            "data_type": data_type,
-                            "scale": scale_int,
-                            "enabled": False
-                        }
-                    except ValueError:
-                        data_points[item] = {
-                            "address": address,
-                            "data_type": data_type,
-                            "scale": 1,
-                            "enabled": False
-                        }
+
+        # plc_configs_jsonからPLC設定を読み取り（新しい動的フォーマット）
+        plc_configs_json = request.form.get("plc_configs_json", "")
+
+        if plc_configs_json:
+            try:
+                plc_configs = json.loads(plc_configs_json)
+                print(f"[INFO] 動的PLC設定を受信: {len(plc_configs)}項目")
+
+                for plc_config in plc_configs:
+                    data_type = plc_config.get("data_type")
+                    if not data_type:
+                        continue
+
+                    data_points[data_type] = {
+                        "name": plc_config.get("name", data_type),  # 項目名
+                        "icon": plc_config.get("icon", ""),  # アイコン
+                        "unit": plc_config.get("unit", ""),  # 単位
+                        "address": plc_config.get("address", ""),
+                        "data_type": plc_config.get("plc_data_type", "word"),
+                        "scale": plc_config.get("scale_factor", 1),
+                        "enabled": plc_config.get("enabled", True)
+                    }
+
+                print(f"[INFO] 処理したPLC項目: {list(data_points.keys())}")
+
+            except json.JSONDecodeError as e:
+                print(f"❌ JSON解析エラー: {e}")
+                # JSONエラーの場合は空の設定を使用
+                data_points = {}
+        else:
+            print("⚠️ plc_configs_jsonが見つかりません（古いフォーマットの可能性）")
         
         # data_pointsを基本設定に追加
         plc_data["data_points"] = data_points
@@ -339,13 +309,17 @@ def initial_setup():
                     for data_type, setting in data_points.items():
                         plc_configs.append({
                             "data_type": data_type,
+                            "name": setting.get("name", data_type),  # 項目名
+                            "icon": setting.get("icon", ""),  # アイコン
+                            "unit": setting.get("unit", ""),  # 単位
                             "enabled": setting.get("enabled", False),
                             "address": setting.get("address", ""),
                             "scale_factor": setting.get("scale", 1),
                             "plc_data_type": setting.get("data_type", "word")
                         })
-                    
+
                     plc_config_url = f"http://{plc_data['central_server_ip']}:{plc_data['central_server_port']}/api/equipment/{plc_data['equipment_id']}/plc_configs"
+                    print(f"[INFO] 送信するPLC設定: {plc_configs}")  # デバッグ用
                     plc_response = requests.put(plc_config_url, json=plc_configs, timeout=10)
                     
                     if plc_response.status_code == 200:
@@ -692,6 +666,45 @@ def api_update_plc_configs(equipment_id):
     except Exception as e:
         print(f"❌ PLCデータ設定更新エラー: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/equipment/<equipment_id>/plc_configs", methods=["GET"])
+@require_auth
+def api_get_plc_configs(equipment_id):
+    """PLCデータ設定を取得（DB優先、ローカル設定フォールバック）"""
+    try:
+        # 1. DB APIでPLC設定を取得（優先）
+        db_api = config.config_manager.db_api
+        plc_configs = db_api.get_plc_data_configs(equipment_id)
+
+        if plc_configs:
+            print(f"✅ DBからPLC設定を取得: {equipment_id} - {len(plc_configs)}項目")
+            return jsonify(plc_configs), 200
+
+        # 2. DB設定が空の場合、ローカルplc_config.jsonから取得（フォールバック）
+        print(f"⚠️ DB設定が空のため、ローカル設定をフォールバック: {equipment_id}")
+        local_config = config.load_plc_config()
+        data_points = local_config.get("data_points", {})
+
+        # ローカル設定を中央サーバー形式に変換
+        configs = []
+        for data_type, setting in data_points.items():
+            configs.append({
+                "data_type": data_type,
+                "name": setting.get("name", data_type),  # 項目名（空なら内部キーを使用）
+                "icon": setting.get("icon", ""),  # アイコン
+                "unit": setting.get("unit", ""),  # 単位
+                "enabled": setting.get("enabled", False),
+                "address": setting.get("address", ""),
+                "scale_factor": setting.get("scale", 1),
+                "plc_data_type": setting.get("data_type", "word")
+            })
+
+        print(f"✅ ローカル設定からPLC設定を取得: {equipment_id} - {len(configs)}項目")
+        return jsonify(configs), 200
+
+    except Exception as e:
+        print(f"❌ PLC設定取得エラー: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/current-equipment-info")
 @require_auth

@@ -250,6 +250,9 @@ class ConfigManager:
             for plc_config in plc_data_configs:
                 data_type = plc_config.get("data_type")
                 config["data_points"][data_type] = {
+                    "name": plc_config.get("name", data_type),  # 項目名
+                    "icon": plc_config.get("icon", ""),  # アイコン
+                    "unit": plc_config.get("unit", ""),  # 単位
                     "address": plc_config.get("address"),
                     "data_type": plc_config.get("plc_data_type", "word"),  # 新しいPLCデータ型フィールド
                     "scale": plc_config.get("scale_factor", 1),
@@ -329,6 +332,9 @@ class ConfigManager:
         for data_type, setting in data_points.items():
             plc_configs.append({
                 "data_type": data_type,
+                "name": setting.get("name", data_type),  # 項目名（なければdata_typeをフォールバック）
+                "icon": setting.get("icon", ""),  # アイコン
+                "unit": setting.get("unit", ""),  # 単位
                 "enabled": setting.get("enabled", False),
                 "address": setting.get("address", ""),
                 "scale_factor": setting.get("scale", 1),
