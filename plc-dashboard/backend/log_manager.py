@@ -9,17 +9,13 @@ import sys
 import argparse
 from datetime import datetime, timedelta, timezone
 
-# プロジェクトルートをパスに追加
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, project_root)
-
 # 環境変数設定
 if not os.getenv('DATABASE_URL'):
     os.environ['DATABASE_URL'] = 'postgresql+psycopg2://plc_user:plc_pass@localhost:5432/plc_monitor'
 
-from backend.app import create_app
-from backend.db import db
-from backend.db.models import Equipment, Log, DailyLogSummary, MonthlyLogSummary
+from app import create_app
+from db import db
+from db.models import Equipment, Log, DailyLogSummary, MonthlyLogSummary
 from sqlalchemy import text
 
 def show_stats():

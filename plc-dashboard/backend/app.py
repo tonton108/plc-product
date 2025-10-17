@@ -23,8 +23,9 @@ def create_app():
     if database_url and database_url.startswith("postgresql://"):
         database_url = database_url.replace("postgresql://", "postgresql+psycopg2://")
     elif not database_url:
-        # DATABASE_URLが設定されていない場合はSQLiteを使用
-        database_url = 'sqlite:///instance/plc_monitoring.db'
+        # DATABASE_URLが設定されていない場合はSQLiteを使用（絶対パス）
+        db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'instance', 'plc_monitoring.db')
+        database_url = f'sqlite:///{db_path}'
 
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False

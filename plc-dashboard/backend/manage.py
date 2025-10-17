@@ -16,8 +16,9 @@ app, socketio = create_app()
 # Flask CLIでの起動用（flask --app manage.py run）
 def create_app_cli():
     """Flask CLIで起動する際のアプリケーション作成"""
-    with app.app_context():
-        wait_for_db(db.session)
+    # SQLiteの場合はwait_for_dbをスキップ
+    # with app.app_context():
+    #     wait_for_db(db.session)
     return app
 
 # Flask CLIとの互換性のため、appを公開
@@ -27,8 +28,9 @@ if __name__ == "__main__":
     # 直接実行時（python manage.py または docker環境）
     port = int(os.environ.get("PORT", 5000))
 
-    with app.app_context():
-        wait_for_db(db.session)
+    # SQLiteの場合はwait_for_dbをスキップ
+    # with app.app_context():
+    #     wait_for_db(db.session)
 
     print(f"🚀 Starting Flask-SocketIO server on port {port}")
     socketio.run(

@@ -37,55 +37,67 @@ class Equipment(db.Model):
         self.status = status
 
 class PLCDataConfig(db.Model):
-    """PLCデータ項目設定テーブル"""
+    """PLCデータ項目設定テーブル（動的項目対応）"""
     __tablename__ = 'plc_data_configs'
     id = db.Column(db.Integer, primary_key=True)
     equipment_id = db.Column(db.Integer, db.ForeignKey('equipments.id'), nullable=False)
-    data_type = db.Column(db.String(50), nullable=False)  # production_count, current, temperature, pressure, cycle_time, error_code
+
+    # ユーザー定義項目フィールド（新規追加）
+    name = db.Column(db.String(100), nullable=False)      # 項目名（例: "金型温度A"）
+    icon = db.Column(db.String(10), default='')           # アイコン（絵文字、例: "🌡️"）
+    unit = db.Column(db.String(20), default='')           # 単位（例: "℃", "A", "個"）
+
+    # PLC設定フィールド
+    data_type = db.Column(db.String(50), nullable=False)  # 内部キー（後方互換性のため残す）
     enabled = db.Column(db.Boolean, default=True)
     address = db.Column(db.String(20), nullable=False)    # D100, D101など
     scale_factor = db.Column(db.Integer, default=1)       # 倍率
     plc_data_type = db.Column(db.String(20), default='word')  # bit, word, dword, float32
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # ユニーク制約: 同じ設備の同じデータ型は1つまで
-    __table_args__ = (db.UniqueConstraint('equipment_id', 'data_type', name='uq_equipment_data_type'),)
-    
-    def __init__(self, equipment_id, data_type, enabled=True, address="", scale_factor=1, plc_data_type="word"):
+
+    def __init__(self, equipment_id, data_type, name="", enabled=True, address="", scale_factor=1, plc_data_type="word", icon="", unit=""):
         self.equipment_id = equipment_id
-        self.data_type = data_type
+        self.data_type = data_type  # 内部キー（後方互換性）
+        self.name = name if name else data_type  # 項目名が空なら内部キーを使用
+        self.icon = icon
+        self.unit = unit
         self.enabled = enabled
         self.address = address
         self.scale_factor = scale_factor
         self.plc_data_type = plc_data_type
 
 class Log(db.Model):
-    """ログテーブル（全データ項目対応版）"""
+    """ログテーブル（全データ項目対応版 + 動的JSON対応）"""
     __tablename__ = 'logs'
     id = db.Column(db.Integer, primary_key=True)
     equipment_id = db.Column(db.Integer, db.ForeignKey('equipments.id'))
-    
-    # 既存項目
+
+    # 既存項目（後方互換性のため保持）
     current = db.Column(db.Float)
     temperature = db.Column(db.Float)
     pressure = db.Column(db.Float)
-    
-    # 新規追加項目
+
+    # 新規追加項目（後方互換性のため保持）
     production_count = db.Column(db.Integer)      # 生産数量
     cycle_time = db.Column(db.Float)              # サイクルタイム
     error_code = db.Column(db.Integer)            # エラーコード
-    
+
+    # ✅ 動的データ対応JSON型カラム（新規追加）
+    # 例: {"temp_a": 25.5, "pressure_b": 100.2, "custom_sensor": 42}
+    data = db.Column(db.JSON, nullable=True)
+
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 class DailyLogSummary(db.Model):
-    """日次集計ログテーブル"""
+    """日次集計ログテーブル + 動的JSON対応"""
     __tablename__ = 'daily_log_summaries'
     id = db.Column(db.Integer, primary_key=True)
     equipment_id = db.Column(db.Integer, db.ForeignKey('equipments.id'), nullable=False)
     date = db.Column(db.Date, nullable=False)
-    
-    # 統計データ
+
+    # 統計データ（後方互換性のため保持）
     production_count_total = db.Column(db.Integer)      # 1日の総生産数
     current_avg = db.Column(db.Float)                   # 平均電流
     current_max = db.Column(db.Float)                   # 最大電流
@@ -99,9 +111,13 @@ class DailyLogSummary(db.Model):
     cycle_time_avg = db.Column(db.Float)                # 平均サイクルタイム
     error_count = db.Column(db.Integer)                 # エラー発生回数
     data_count = db.Column(db.Integer)                  # 元データ件数
-    
+
+    # ✅ 動的データ対応JSON型カラム（新規追加）
+    # 例: {"temp_a_avg": 25.5, "temp_a_max": 30.0, "pressure_b_avg": 100.2}
+    data_summary = db.Column(db.JSON, nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     # ユニーク制約
     __table_args__ = (db.UniqueConstraint('equipment_id', 'date', name='uq_equipment_date'),)
     
@@ -125,14 +141,14 @@ class DailyLogSummary(db.Model):
         self.data_count = data_count
 
 class MonthlyLogSummary(db.Model):
-    """月次集計ログテーブル"""
+    """月次集計ログテーブル + 動的JSON対応"""
     __tablename__ = 'monthly_log_summaries'
     id = db.Column(db.Integer, primary_key=True)
     equipment_id = db.Column(db.Integer, db.ForeignKey('equipments.id'), nullable=False)
     year = db.Column(db.Integer, nullable=False)
     month = db.Column(db.Integer, nullable=False)
-    
-    # 統計データ（日次集計の集約）
+
+    # 統計データ（日次集計の集約、後方互換性のため保持）
     production_count_total = db.Column(db.Integer)
     current_avg = db.Column(db.Float)
     current_max = db.Column(db.Float)
@@ -144,9 +160,13 @@ class MonthlyLogSummary(db.Model):
     cycle_time_avg = db.Column(db.Float)
     error_count_total = db.Column(db.Integer)
     operational_days = db.Column(db.Integer)            # 稼働日数
-    
+
+    # ✅ 動的データ対応JSON型カラム（新規追加）
+    # 例: {"temp_a_avg": 25.5, "temp_a_max": 30.0, "pressure_b_avg": 100.2}
+    data_summary = db.Column(db.JSON, nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     # ユニーク制約
     __table_args__ = (db.UniqueConstraint('equipment_id', 'year', 'month', name='uq_equipment_year_month'),)
     
