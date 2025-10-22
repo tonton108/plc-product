@@ -368,9 +368,6 @@ def register_routes(app, socketio=None):
             for config in plc_configs:
                 configs.append({
                     "data_type": config.data_type,
-                    "name": getattr(config, "name", config.data_type),  # 項目名（空なら内部キーを使用）
-                    "icon": getattr(config, "icon", ""),  # アイコン
-                    "unit": getattr(config, "unit", ""),  # 単位
                     "enabled": config.enabled,
                     "address": config.address,
                     "scale_factor": config.scale_factor,
@@ -429,9 +426,6 @@ def register_routes(app, socketio=None):
                 insert_data = {
                     "equipment_id": equipment_internal_id,
                     "data_type": config_data.get("data_type"),
-                    "name": config_data.get("name", config_data.get("data_type", "")),  # 項目名（空なら内部キーを使用）
-                    "icon": config_data.get("icon", ""),  # アイコン
-                    "unit": config_data.get("unit", ""),  # 単位
                     "enabled": config_data.get("enabled", False),
                     "address": config_data.get("address", ""),
                     "scale_factor": config_data.get("scale_factor", 1),
@@ -448,11 +442,11 @@ def register_routes(app, socketio=None):
                 print(f"🔄 [DEBUG] PLCデータ設定追加: {config_data.get('data_type')} -> {config_data.get('address')}")
                 db.session.execute(text(sql), filtered_data)
 
-            # PLCデータ設定完了時にステータスを「設定済み」に更新
+            # PLCデータ設定保存後、設備ステータスを「設定済み」に更新
             if equipment:
                 equipment.status = "設定済み"
                 equipment.updated_at = datetime.now(timezone.utc)
-                print(f"✅ [DEBUG] ステータスを '設定済み' に更新しました")
+                print(f"🔄 [DEBUG] 設備ステータスを「設定済み」に更新: {equipment_id}")
 
             db.session.commit()
             print(f"✅ [DEBUG] PLCデータ設定保存成功: {equipment_id}")
@@ -505,21 +499,13 @@ def register_routes(app, socketio=None):
                 log_entry.pressure = data.get("pressure")
                 log_entry.cycle_time = data.get("cycle_time")
                 log_entry.error_code = data.get("error_code")
-
-                # ✅ 動的フィールドを data JSONカラムに保存
-                fixed_fields = {"equipment_id", "timestamp", "production_count", "current",
-                               "temperature", "pressure", "cycle_time", "error_code"}
-                dynamic_data = {k: v for k, v in data.items() if k not in fixed_fields and v is not None}
-                if dynamic_data:
-                    log_entry.data = dynamic_data
-                    print(f"📦 動的データ保存: {list(dynamic_data.keys())}")
-
+                
                 # 通常のSQLAlchemyセッション管理
                 db.session.add(log_entry)
                 db.session.commit()
-
+                
                 print(f"💾 DB保存完了: ログID={log_entry.id}")
-
+                
             except Exception as db_error:
                 db.session.rollback()
                 print(f"❌ DB保存エラー: {db_error}")
@@ -538,9 +524,6 @@ def register_routes(app, socketio=None):
                     "error_code": data.get("error_code"),
                     "status": "normal" if not data.get("error_code") else "error"
                 }
-                # ✅ 動的データも含める
-                if dynamic_data:
-                    realtime_data["data"] = dynamic_data
                 
                 # WebSocket送信を別のtry-catchで囲む
                 try:
@@ -580,7 +563,7 @@ def register_routes(app, socketio=None):
             if not latest_log:
                 return jsonify({"message": "No data found"}), 404
 
-            response = {
+            return jsonify({
                 "equipment_id": equipment_id,
                 "timestamp": latest_log.timestamp.isoformat(),
                 "production_count": latest_log.production_count,
@@ -589,13 +572,7 @@ def register_routes(app, socketio=None):
                 "pressure": latest_log.pressure,
                 "cycle_time": latest_log.cycle_time,
                 "error_code": latest_log.error_code
-            }
-
-            # ✅ 動的データも含める
-            if latest_log.data:
-                response["data"] = latest_log.data
-
-            return jsonify(response), 200
+            }), 200
 
         except Exception as e:
             return jsonify({"error": str(e)}), 500
@@ -812,21 +789,15 @@ def register_routes(app, socketio=None):
                     Log.timestamp >= start_time
                 ).order_by(Log.timestamp.desc()).limit(limit).all()
                 
-                data = []
-                for log in logs:
-                    log_entry = {
-                        "timestamp": log.timestamp.isoformat(),
-                        "production_count": log.production_count,
-                        "current": log.current,
-                        "temperature": log.temperature,
-                        "pressure": log.pressure,
-                        "cycle_time": log.cycle_time,
-                        "error_code": log.error_code
-                    }
-                    # ✅ 動的データも含める
-                    if log.data:
-                        log_entry["data"] = log.data
-                    data.append(log_entry)
+                data = [{
+                    "timestamp": log.timestamp.isoformat(),
+                    "production_count": log.production_count,
+                    "current": log.current,
+                    "temperature": log.temperature,
+                    "pressure": log.pressure,
+                    "cycle_time": log.cycle_time,
+                    "error_code": log.error_code
+                } for log in logs]
                 data_source = "raw_logs"
                 
             elif period in ['7d', '30d']:
@@ -840,25 +811,19 @@ def register_routes(app, socketio=None):
                     .order_by(DailyLogSummary.date.desc())\
                     .all()
                 
-                data = []
-                for summary in summaries:
-                    summary_entry = {
-                        "date": summary.date.isoformat(),
-                        "production_count": summary.production_count_total,
-                        "current_avg": summary.current_avg,
-                        "current_max": summary.current_max,
-                        "current_min": summary.current_min,
-                        "temperature_avg": summary.temperature_avg,
-                        "temperature_max": summary.temperature_max,
-                        "temperature_min": summary.temperature_min,
-                        "pressure_avg": summary.pressure_avg,
-                        "error_count": summary.error_count,
-                        "data_count": summary.data_count
-                    }
-                    # ✅ 動的データの集計も含める
-                    if summary.data_summary:
-                        summary_entry["data_summary"] = summary.data_summary
-                    data.append(summary_entry)
+                data = [{
+                    "date": summary.date.isoformat(),
+                    "production_count": summary.production_count_total,
+                    "current_avg": summary.current_avg,
+                    "current_max": summary.current_max,
+                    "current_min": summary.current_min,
+                    "temperature_avg": summary.temperature_avg,
+                    "temperature_max": summary.temperature_max,
+                    "temperature_min": summary.temperature_min,
+                    "pressure_avg": summary.pressure_avg,
+                    "error_count": summary.error_count,
+                    "data_count": summary.data_count
+                } for summary in summaries]
                 data_source = "daily_summaries"
             
             else:
