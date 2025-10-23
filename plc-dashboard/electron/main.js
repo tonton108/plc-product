@@ -190,8 +190,7 @@ function updateTrayMenu() {
     {
       label: 'ログを表示',
       click: () => {
-        // TODO: ログウィンドウを実装
-        showNotification('未実装', 'ログ表示機能は近日実装予定です');
+        createLogWindow();
       }
     },
     { type: 'separator' },
@@ -329,6 +328,176 @@ function updateDockerStatus() {
       console.error('Dockerステータスパースエラー:', parseError);
     }
   });
+}
+
+/**
+ * ログウィンドウの作成
+ */
+function createLogWindow() {
+  const logWindow = new BrowserWindow({
+    width: 900,
+    height: 600,
+    title: 'Docker ログ',
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
+    }
+  });
+
+  // ログ表示用の簡易HTMLを動的生成
+  const logHTML = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Docker ログ</title>
+      <style>
+        body {
+          margin: 0;
+          padding: 20px;
+          font-family: 'Courier New', monospace;
+          background-color: #1e1e1e;
+          color: #d4d4d4;
+        }
+        h2 {
+          color: #4ec9b0;
+          margin-bottom: 10px;
+        }
+        .tabs {
+          display: flex;
+          gap: 10px;
+          margin-bottom: 20px;
+        }
+        .tab-button {
+          padding: 10px 20px;
+          background-color: #2d2d2d;
+          color: #d4d4d4;
+          border: 1px solid #3e3e42;
+          cursor: pointer;
+          border-radius: 4px;
+          transition: all 0.2s;
+        }
+        .tab-button:hover {
+          background-color: #3e3e42;
+        }
+        .tab-button.active {
+          background-color: #0e639c;
+          border-color: #007acc;
+        }
+        .refresh-button {
+          padding: 10px 20px;
+          background-color: #0e639c;
+          color: white;
+          border: none;
+          cursor: pointer;
+          border-radius: 4px;
+          margin-left: auto;
+        }
+        .refresh-button:hover {
+          background-color: #1177bb;
+        }
+        #log-content {
+          background-color: #252526;
+          padding: 15px;
+          border-radius: 4px;
+          border: 1px solid #3e3e42;
+          overflow-y: auto;
+          height: 450px;
+          white-space: pre-wrap;
+          font-size: 12px;
+          line-height: 1.5;
+        }
+        .log-line {
+          margin-bottom: 4px;
+        }
+        .log-error {
+          color: #f48771;
+        }
+        .log-warning {
+          color: #dcdcaa;
+        }
+        .log-info {
+          color: #4fc1ff;
+        }
+      </style>
+    </head>
+    <body>
+      <h2>Docker コンテナログ</h2>
+      <div class="tabs">
+        <button class="tab-button active" onclick="switchTab('backend')">Backend</button>
+        <button class="tab-button" onclick="switchTab('db')">Database</button>
+        <button class="refresh-button" onclick="refreshLogs()">🔄 更新</button>
+      </div>
+      <div id="log-content">ログを読み込み中...</div>
+
+      <script>
+        let currentService = 'backend';
+
+        async function loadLogs(service) {
+          document.getElementById('log-content').textContent = 'ログを読み込み中...';
+          try {
+            const logs = await window.electronAPI.getLogs(service);
+            displayLogs(logs);
+          } catch (error) {
+            document.getElementById('log-content').textContent = 'ログの取得に失敗しました: ' + error.message;
+          }
+        }
+
+        function displayLogs(logs) {
+          const content = document.getElementById('log-content');
+          content.innerHTML = '';
+
+          const lines = logs.split('\\n');
+          lines.forEach(line => {
+            const div = document.createElement('div');
+            div.className = 'log-line';
+
+            if (line.toLowerCase().includes('error')) {
+              div.className += ' log-error';
+            } else if (line.toLowerCase().includes('warning') || line.toLowerCase().includes('warn')) {
+              div.className += ' log-warning';
+            } else if (line.toLowerCase().includes('info')) {
+              div.className += ' log-info';
+            }
+
+            div.textContent = line;
+            content.appendChild(div);
+          });
+
+          // 最新のログまでスクロール
+          content.scrollTop = content.scrollHeight;
+        }
+
+        function switchTab(service) {
+          currentService = service;
+
+          // タブのアクティブ状態を更新
+          document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.classList.remove('active');
+          });
+          event.target.classList.add('active');
+
+          loadLogs(service);
+        }
+
+        function refreshLogs() {
+          loadLogs(currentService);
+        }
+
+        // 初回ロード
+        loadLogs('backend');
+
+        // 5秒ごとに自動更新
+        setInterval(() => {
+          refreshLogs();
+        }, 5000);
+      </script>
+    </body>
+    </html>
+  `;
+
+  logWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(logHTML)}`);
 }
 
 /**

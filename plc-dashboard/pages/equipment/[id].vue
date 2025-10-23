@@ -110,6 +110,7 @@ import {
 import { Chart } from 'vue-chartjs'
 import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useToast } from '~/composables/useToast'
 
 ChartJS.register(
   Title,
@@ -126,6 +127,7 @@ const router = useRouter()
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBase
 const equipmentId = route.params.id
+const toast = useToast()
 
 // 戻るボタンのハンドラー
 const goBack = () => {
@@ -254,35 +256,48 @@ const updateChart = () => {
 
 // ✅ 動的CSVダウンロード
 const downloadCSV = () => {
-  // ヘッダー行を動的生成
-  const headerFields = ['timestamp']
-  plcConfigs.value.forEach(config => {
-    if (config.enabled) {
-      headerFields.push(config.data_type)
+  try {
+    if (logsRaw.value.length === 0) {
+      toast.warning('エクスポートするデータがありません')
+      return
     }
-  })
-  const header = headerFields.join(',') + '\n'
 
-  // データ行を動的生成
-  const rows = logsRaw.value.map(log => {
-    const values = [log.timestamp]
+    // ヘッダー行を動的生成
+    const headerFields = ['timestamp']
     plcConfigs.value.forEach(config => {
       if (config.enabled) {
-        values.push(log[config.data_type] ?? '')
+        headerFields.push(config.data_type)
       }
     })
-    return values.join(',')
-  })
+    const header = headerFields.join(',') + '\n'
 
-  const csvContent = header + rows.join('\n')
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
+    // データ行を動的生成
+    const rows = logsRaw.value.map(log => {
+      const values = [log.timestamp]
+      plcConfigs.value.forEach(config => {
+        if (config.enabled) {
+          values.push(log[config.data_type] ?? '')
+        }
+      })
+      return values.join(',')
+    })
 
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${equipmentId}_logs.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+    const csvContent = header + rows.join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+
+    const a = document.createElement('a')
+    a.href = url
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+    a.download = `${equipmentId}_logs_${timestamp}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+
+    toast.success(`CSVファイルをダウンロードしました（${logsRaw.value.length}件）`)
+  } catch (error) {
+    console.error('CSVダウンロードエラー:', error)
+    toast.error('CSVのダウンロードに失敗しました')
+  }
 }
 
 let intervalId = null

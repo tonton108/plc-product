@@ -9,6 +9,16 @@
               <v-card-subtitle class="text-subtitle-1">設備一覧からモニタリングしたい設備を選択してください</v-card-subtitle>
             </v-col>
             <v-col cols="auto">
+              <ThemeToggle />
+              <v-btn
+                color="white"
+                size="large"
+                class="ml-3 mr-3"
+                @click="$router.push('/dashboard')"
+              >
+                <v-icon>mdi-view-dashboard</v-icon>
+                <span class="ml-2">ダッシュボード</span>
+              </v-btn>
               <v-btn
                 color="white"
                 size="large"
@@ -224,10 +234,12 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useToast } from '~/composables/useToast'
 
 const router = useRouter()
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBase
+const toast = useToast()
 
 const equipmentList = ref([])
 const loading = ref(true)
@@ -258,10 +270,12 @@ const fetchEquipment = async () => {
     }
     const data = await response.json()
     equipmentList.value = data
+    toast.success(`設備データを更新しました（${data.length}件）`)
   } catch (err) {
     console.error('設備データ取得エラー:', err)
     errorMessage.value = '設備データの取得に失敗しました'
     error.value = true
+    toast.error('設備データの取得に失敗しました')
   } finally {
     loading.value = false
   }

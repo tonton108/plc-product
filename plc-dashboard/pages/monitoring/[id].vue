@@ -126,6 +126,17 @@
             <v-chip size="small" color="info" class="ml-3" variant="flat">
               {{ dataHistory.length }}件
             </v-chip>
+            <v-spacer></v-spacer>
+            <v-btn
+              color="primary"
+              variant="elevated"
+              @click="exportDataHistoryToCSV"
+            >
+              <template #prepend>
+                <v-icon>mdi-download</v-icon>
+              </template>
+              CSV出力
+            </v-btn>
           </v-card-title>
           <v-divider class="mb-4"></v-divider>
           <v-data-table
@@ -246,6 +257,7 @@ import {
 import { Chart } from 'vue-chartjs'
 import { ref, onMounted, onBeforeUnmount, reactive, computed, nextTick, toRaw } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useToast } from '~/composables/useToast'
 
 ChartJS.register(
   Title,
@@ -262,6 +274,7 @@ const router = useRouter()
 const { $socket } = useNuxtApp()
 const config = useRuntimeConfig()
 const apiBase = config.public.apiBase
+const toast = useToast()
 
 // データ定義
 const equipmentId = route.params.id
@@ -710,6 +723,45 @@ const fetchLatestData = async () => {
   } catch (error) {
     console.error('最新データ取得エラー:', error)
     addDebugLog('error', `最新データ取得エラー: ${error.message}`)
+  }
+}
+
+// CSVエクスポート機能
+const exportDataHistoryToCSV = () => {
+  try {
+    if (!dataHistory.value || dataHistory.value.length === 0) {
+      toast.warning('エクスポートするデータがありません')
+      return
+    }
+
+    // ヘッダー行を動的生成（tableHeadersから取得）
+    const headerFields = tableHeaders.value.map(h => h.value)
+    const header = headerFields.join(',') + '\n'
+
+    // データ行を生成
+    const rows = dataHistory.value.map(log => {
+      const values = headerFields.map(field => {
+        const value = log[field]
+        return value !== null && value !== undefined ? value : ''
+      })
+      return values.join(',')
+    })
+
+    const csvContent = header + rows.join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+
+    const a = document.createElement('a')
+    a.href = url
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+    a.download = `${equipmentId}_realtime_${timestamp}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+
+    toast.success(`CSVファイルをダウンロードしました（${dataHistory.value.length}件）`)
+  } catch (error) {
+    console.error('CSVエクスポートエラー:', error)
+    toast.error('CSVのダウンロードに失敗しました')
   }
 }
 
