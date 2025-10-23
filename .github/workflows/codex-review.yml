@@ -1,0 +1,58 @@
+name: Codex Auto Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [ main ]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  codex-review:
+    name: Trigger Codex Code Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Post Codex review comment
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const reviewComment = `@codex review this PR for:
+            - Security vulnerabilities (especially in PLC communication)
+            - Python best practices and type safety
+            - PLC protocol implementation (Modbus TCP, FINS, MC Protocol)
+            - Endianness issues (all PLCs use Big-Endian)
+            - Error handling and timeout settings
+            - Performance issues
+            - Code quality and maintainability
+
+            Please provide feedback in Japanese (日本語でレビューしてください).`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: reviewComment
+            });
+
+      - name: Add review label
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              labels: ['ai-review']
+            });
