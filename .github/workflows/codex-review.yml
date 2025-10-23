@@ -5,6 +5,11 @@ on:
     types: [opened, synchronize, reopened]
     branches: [ master ]
 
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
 jobs:
   codex-review:
     name: Trigger Codex Code Review
