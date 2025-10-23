@@ -1,0 +1,61 @@
+# Git関連
+.git
+.gitignore
+README.md
+
+# Node.js関連
+node_modules
+npm-debug.log*
+.npm
+
+# Python関連
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache
+.coverage
+
+# 環境設定
+.env
+.env.local
+.env.*.local
+
+# IDE関連
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS関連
+.DS_Store
+Thumbs.db
+
+# ログファイル
+*.log
+
+# 一時ファイル
+*.tmp
+*.temp
+
+# Docker関連
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# 開発用ファイル
+.nuxt
+.output
+dist
+.next
+
+# データベースファイル（永続化はvolumesで行う）
+*.db
+*.sqlite
+*.sqlite3
+
+# その他
+.cache
+.parcel-cache 

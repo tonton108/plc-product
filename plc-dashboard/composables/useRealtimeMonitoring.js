@@ -1,0 +1,201 @@
+import { ref, onBeforeUnmount } from 'vue'
+
+/**
+ * リアルタイムモニタリング用コンポーザブル
+ * WebSocket接続とデータ受信を管理
+ */
+export const useRealtimeMonitoring = (equipmentId, options = {}) => {
+  const {
+    onDataUpdate = null,
+    onConnect = null,
+    onDisconnect = null,
+    debugMode = false
+  } = options
+
+  // 状態管理
+  const connectionStatus = ref(false)
+  const socketInfo = ref({})
+  const lastDataUpdate = ref(null)
+  const debugLogs = ref([])
+  const debugCounters = ref({
+    plc_data_update: 0,
+    equipment_data_update: 0,
+    status: 0,
+    connect: 0,
+    disconnect: 0
+  })
+
+  // デバッグログ追加
+  const addDebugLog = (type, message) => {
+    if (!debugMode) return
+
+    try {
+      const timestamp = new Date().toLocaleTimeString('ja-JP')
+
+      if (!debugLogs.value) {
+        debugLogs.value = []
+      }
+
+      debugLogs.value.push({ type, message, timestamp })
+
+      if (debugLogs.value.length > 100) {
+        debugLogs.value = debugLogs.value.slice(-50)
+      }
+    } catch (error) {
+      console.error('デバッグログエラー:', error)
+    }
+  }
+
+  // WebSocket接続設定
+  const setupWebSocket = ($socket) => {
+    if (!$socket) {
+      console.warn('❌ Socket.IO client not available')
+      addDebugLog('error', 'Socket.IO クライアントが利用できません')
+      return
+    }
+
+    console.log('🔌 WebSocket接続を開始...')
+    addDebugLog('info', 'WebSocket接続を開始')
+    $socket.connect()
+
+    // 接続イベント
+    $socket.on('connect', () => {
+      connectionStatus.value = true
+      debugCounters.value.connect++
+      socketInfo.value = { id: $socket.id }
+      console.log('✅ WebSocket接続完了')
+      console.log('🔗 Socket ID:', $socket.id)
+      addDebugLog('success', `WebSocket接続完了 (ID: ${$socket.id})`)
+
+      // モニタリングルームに参加
+      $socket.emit('join_monitoring', { equipment_id: equipmentId })
+      console.log(`🏠 モニタリングルーム参加: equipment_${equipmentId}`)
+      addDebugLog('info', `モニタリングルーム参加: equipment_${equipmentId}`)
+
+      // コールバック実行
+      if (onConnect) onConnect()
+    })
+
+    // 切断イベント
+    $socket.on('disconnect', () => {
+      connectionStatus.value = false
+      debugCounters.value.disconnect++
+      socketInfo.value = {}
+      console.log('❌ WebSocket切断')
+      addDebugLog('warning', 'WebSocket切断')
+
+      // コールバック実行
+      if (onDisconnect) onDisconnect()
+    })
+
+    // ステータスイベント
+    $socket.on('status', (data) => {
+      debugCounters.value.status++
+      console.log('📊 WebSocket状態:', data)
+      addDebugLog('info', `状態受信: ${data.msg}`)
+    })
+
+    // 接続エラーイベント
+    $socket.on('connect_error', (error) => {
+      console.error('❌ WebSocket接続エラー:', error)
+      addDebugLog('error', `接続エラー: ${error.message}`)
+    })
+
+    // PLCデータ更新イベント
+    $socket.on('plc_data_update', (data) => {
+      debugCounters.value.plc_data_update++
+      lastDataUpdate.value = new Date().toLocaleTimeString('ja-JP')
+      console.log('📥 plc_data_update 受信:', data)
+      console.log('🔍 設備ID比較:', {
+        受信: data.equipment_id,
+        現在: equipmentId,
+        一致: data.equipment_id === equipmentId
+      })
+      addDebugLog('info', `plc_data_update 受信 (${data.equipment_id})`)
+
+      if (data.equipment_id === equipmentId) {
+        console.log('🔄 PLCデータ受信 (plc_data_update):', data)
+        const dataKeys = Object.keys(data).filter(
+          (k) => k !== 'equipment_id' && k !== 'timestamp'
+        )
+        const dataPreview = dataKeys
+          .slice(0, 2)
+          .map((k) => `${k}=${data[k]}`)
+          .join(', ')
+        addDebugLog('success', `PLCデータ処理開始: ${dataPreview}`)
+
+        // コールバック実行
+        if (onDataUpdate) onDataUpdate(data)
+      } else {
+        console.log('⚠️ 設備IDが不一致のため処理をスキップ')
+        addDebugLog(
+          'warning',
+          `設備ID不一致: 受信=${data.equipment_id}, 期待=${equipmentId}`
+        )
+      }
+    })
+
+    // 設備固有データ更新イベント
+    $socket.on('equipment_data_update', (data) => {
+      debugCounters.value.equipment_data_update++
+      console.log('📥 equipment_data_update 受信:', data)
+      addDebugLog('info', `equipment_data_update 受信 (${data.equipment_id})`)
+
+      if (data.equipment_id === equipmentId) {
+        console.log('🔄 設備データ受信 (equipment_data_update):', data)
+
+        // コールバック実行
+        if (onDataUpdate) onDataUpdate(data)
+      }
+    })
+
+    // 定期的な接続確認（10秒ごと）
+    const intervalId = setInterval(() => {
+      if ($socket) {
+        const status = {
+          接続状態: $socket.connected,
+          SocketID: $socket.id,
+          設備ID: equipmentId
+        }
+        console.log('🔍 WebSocket状態確認:', status)
+        addDebugLog(
+          'info',
+          `定期確認: ${$socket.connected ? '接続中' : '切断'}`
+        )
+      }
+    }, 10000)
+
+    // クリーンアップ関数を返す
+    return () => {
+      clearInterval(intervalId)
+      if ($socket) {
+        $socket.emit('leave_monitoring', { equipment_id: equipmentId })
+        $socket.disconnect()
+      }
+    }
+  }
+
+  // クリーンアップ（コンポーネントアンマウント時）
+  let cleanup = null
+  const disconnect = () => {
+    if (cleanup) cleanup()
+  }
+
+  onBeforeUnmount(() => {
+    disconnect()
+  })
+
+  return {
+    // 状態
+    connectionStatus,
+    socketInfo,
+    lastDataUpdate,
+    debugLogs,
+    debugCounters,
+
+    // メソッド
+    setupWebSocket,
+    disconnect,
+    addDebugLog
+  }
+}
