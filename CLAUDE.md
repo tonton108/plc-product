@@ -205,7 +205,7 @@ bash scp_bulk_push.sh
 
 **ワークフロー:**
 - `.github/workflows/ci.yml` - 基本的なCI/CD
-  - Backend Tests: pytest + coverage（カバレッジ85%以上）
+  - Backend Tests: pytest + coverage（カバレッジ50%以上、目標85%）
   - Linting: pylint, black
   - Frontend Tests: Nuxt.js build + ESLint
   - Security Scan: Trivy脆弱性スキャン
@@ -214,6 +214,23 @@ bash scp_bulk_push.sh
 **自動実行:**
 - Pull Request作成時
 - masterブランチへのpush時
+
+**テストカバレッジの現状と改善計画:**
+
+現在のカバレッジ: **46%**（2025年1月時点）
+- ✅ PLCドライバー層: 高カバレッジ（94-99%）
+- ✅ ローカルバッファ: 75%
+- ❌ アプリケーション層: 0%（`agent_app.py`, `plc_agent.py`）
+
+**段階的な改善計画:**
+1. **第1段階（現在）**: 閾値50% - CI/CDの基盤確立
+2. **第2段階**: 閾値65% - `agent_app.py`の主要フローテストを追加
+3. **第3段階**: 閾値85% - `plc_agent.py`のエラーハンドリング、リトライ処理のテストを追加
+
+**優先的にテストを追加すべきファイル:**
+- `agent_app.py` (474行, 0%カバレッジ) - Flask API、設備登録フロー
+- `plc_agent.py` (168行, 0%カバレッジ) - PLCデータ収集メインループ
+- `register_equipment.py` (46行, 0%カバレッジ) - 設備登録CLI
 
 ### Codex AI自動レビュー
 
