@@ -51,7 +51,82 @@ Codexは、OpenAIが提供するAIコードレビューエージェントです�
 - `@codex review`コメントを自動投稿
 - `ai-review`ラベルを自動付与
 
-### ステップ4: 手動レビュー（オプション）
+### ステップ4: MFA（多要素認証）の有効化
+
+**重要**: Codexを使用するには、ChatGPTアカウントで多要素認証（MFA）が有効になっている必要があります。
+
+1. **セキュリティ設定にアクセス**
+   - https://chatgpt.com/settings
+   - 「セキュリティ」タブをクリック
+
+2. **Two-Factor Authenticationを確認**
+   - 「Two-Factor Authentication」が有効になっているか確認
+   - 無効の場合は「Enable」をクリックして有効化
+   - 認証アプリ（Google Authenticator、Authy等）で設定
+
+3. **バックアップコードを保存**
+   - MFA有効化時に表示されるバックアップコードを安全な場所に保存
+
+### ステップ5: Codex設定画面での確認
+
+1. **Codex設定ページにアクセス**
+   - https://chatgpt.com/codex
+
+2. **個人設定を確認**
+   - 「自分のすべてのプル リクエストをレビューします」が有効になっているか確認
+
+3. **リポジトリの設定を確認**
+   - 「リポジトリの設定」セクションで `tonton108/plc-product` が登録されているか確認
+   - 「自動コードレビュー」列が「個人設定に従う」または有効になっているか確認
+
+4. **設定が表示されない場合**
+   - GitHub連携を再接続
+   - リポジトリのアクセス権限を確認
+   - 数分待ってからページをリロード
+
+### ステップ6: 動作確認
+
+#### 既存PRがある場合（推奨）
+
+既存のPRで動作確認する場合、空のコミットでワークフローを再実行できます：
+
+```bash
+# 空のコミットを作成
+git commit --allow-empty -m "chore: Codex動作確認"
+
+# プッシュしてワークフローをトリガー
+git push origin <ブランチ名>
+```
+
+#### 新規PRを作成する場合
+
+```bash
+# テストブランチを作成
+git checkout -b test/codex-verification
+
+# 軽微な変更を加える
+echo "# Codex動作確認" >> README.md
+git add README.md
+git commit -m "test: Codex自動レビューの動作確認"
+
+# プッシュ
+git push origin test/codex-verification
+```
+
+GitHub上でPRを作成し、以下を確認：
+
+1. **GitHub Actionsの実行確認**（1-2分以内）
+   - PRページの「Checks」タブを確認
+   - 「Codex Auto Review」ワークフローが実行されているか
+
+2. **@codex reviewコメントの確認**（1-2分以内）
+   - PRのコメント欄に `@codex review` コメントが自動投稿される
+
+3. **Codexレビューコメントの確認**（5-10分以内）
+   - Codexがレビューコメントを返す
+   - 日本語でフィードバックが表示される
+
+### ステップ7: 手動レビュー（オプション）
 
 GitHub Actions経由の自動レビュー以外に、PRコメントから手動でレビューを依頼することもできます。
 

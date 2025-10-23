@@ -239,6 +239,7 @@ OpenAI Codex（ChatGPT Plus付属）を使用したAI自動コードレビュー
 **前提条件:**
 - ChatGPT Plus契約（$20/月、追加コスト無し）
 - GitHubとの連携設定
+- MFA（多要素認証）の有効化
 
 **使用例:**
 ```bash
@@ -252,6 +253,24 @@ git push origin feature/my-feature
 # GitHub上でPR作成
 # → 自動的にCodexレビューがトリガーされる
 ```
+
+**動作確認:**
+```bash
+# 既存PRでワークフローを再実行する場合
+git commit --allow-empty -m "chore: ワークフロー再実行"
+git push origin <ブランチ名>
+```
+
+**Codex設定の確認:**
+1. https://chatgpt.com/codex にアクセス
+2. リポジトリ `tonton108/plc-product` が登録されているか確認
+3. 「自動コードレビュー」が有効になっているか確認
+4. MFA（多要素認証）が有効になっているか確認（https://chatgpt.com/settings）
+
+**トラブルシューティング:**
+- **Codexが反応しない**: MFA有効化、GitHub連携の再接続、数分待機
+- **レビューが英語**: PRコメントで `@codex review in Japanese` と明示
+- **ワークフローが失敗**: GitHub Actionsのログを確認（PRの「Checks」タブ）
 
 ### 将来の拡張（検討中）
 
