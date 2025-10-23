@@ -26,16 +26,16 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const prNumber = context.payload.pull_request.number;
-            const reviewComment = `@codex review this PR for:
+            const reviewComment = `@codex review this PR in Japanese. 日本語でレビューしてください.
+
+            Review for:
             - Security vulnerabilities (especially in PLC communication)
             - Python best practices and type safety
             - PLC protocol implementation (Modbus TCP, FINS, MC Protocol)
             - Endianness issues (all PLCs use Big-Endian)
             - Error handling and timeout settings
             - Performance issues
-            - Code quality and maintainability
-
-            Please provide feedback in Japanese (日本語でレビューしてください).`;
+            - Code quality and maintainability`;
 
             await github.rest.issues.createComment({
               owner: context.repo.owner,
