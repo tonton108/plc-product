@@ -1,0 +1,151 @@
+name: CI - PLC Monitoring System
+
+on:
+  pull_request:
+    branches: [ master ]
+  push:
+    branches: [ master ]
+
+jobs:
+  test-backend:
+    name: Backend Tests (Python)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          cd plc-dashboard/raspi_agent
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pylint black mypy
+
+      - name: Run pytest with coverage
+        run: |
+          cd plc-dashboard/raspi_agent
+          pytest tests/ -v --cov=. --cov-report=term --cov-report=xml --cov-report=html
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./plc-dashboard/raspi_agent/coverage.xml
+          flags: backend
+          name: backend-coverage
+        if: always()
+
+      - name: Check test coverage threshold
+        run: |
+          cd plc-dashboard/raspi_agent
+          coverage report --fail-under=85
+
+  lint-backend:
+    name: Backend Linting (Python)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install linters
+        run: |
+          pip install pylint black mypy
+
+      - name: Run Black (code formatter check)
+        run: |
+          cd plc-dashboard/raspi_agent
+          black --check --diff plc_drivers/ tests/ || true
+
+      - name: Run Pylint
+        run: |
+          cd plc-dashboard/raspi_agent
+          pylint plc_drivers/ --fail-under=7.0 || true
+
+  test-frontend:
+    name: Frontend Tests (Nuxt.js)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: plc-dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd plc-dashboard
+          npm ci
+
+      - name: Run ESLint
+        run: |
+          cd plc-dashboard
+          npm run lint || true
+
+      - name: Build frontend
+        run: |
+          cd plc-dashboard
+          npm run build
+
+  security-check:
+    name: Security Vulnerability Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+        if: always()
+
+  docker-build:
+    name: Docker Build Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker images (test only)
+        run: |
+          cd plc-dashboard
+          docker compose build --no-cache
+        env:
+          DOCKER_BUILDKIT: 1
