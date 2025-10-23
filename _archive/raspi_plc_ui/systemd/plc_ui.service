@@ -1,0 +1,13 @@
+[Unit]
+Description=Raspi PLC UI Launcher
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /home/nissin/raspi_plc_ui/check_and_launch_ui.py
+WorkingDirectory=/home/nissin/raspi_plc_ui
+Restart=always
+User=nissin
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

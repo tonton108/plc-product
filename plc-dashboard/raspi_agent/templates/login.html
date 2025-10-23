@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ログイン - RasPi PLC Monitor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* ログイン画面専用スタイル - メインCSSの影響をリセット */
+        html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            position: static !important; /* fixed を上書き */
+            overflow: auto !important; /* hidden を上書き */
+            background: linear-gradient(135deg, #2196f3, #4caf50) !important;
+        }
+        
+        .login-container {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            min-height: 100vh !important;
+            width: 100vw !important;
+            position: relative !important;
+            overflow: auto !important;
+            padding: 20px !important;
+            box-sizing: border-box !important;
+        }
+        
+        .login-card {
+            background: white !important;
+            padding: 40px !important;
+            border-radius: 16px !important;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15) !important;
+            width: 420px !important;
+            max-width: 90vw !important;
+            position: relative !important;
+            z-index: 1000 !important;
+            border: 1px solid rgba(255,255,255,0.2) !important;
+        }
+        
+        .login-header {
+            text-align: center !important;
+            margin-bottom: 32px !important;
+        }
+        
+        .login-header h1 {
+            color: #2196f3 !important;
+            margin-bottom: 12px !important;
+            font-size: 26px !important;
+            font-weight: 600 !important;
+        }
+        
+        .login-header p {
+            color: #666 !important;
+            font-size: 15px !important;
+            margin: 0 !important;
+        }
+        
+        .form-group {
+            margin-bottom: 24px !important;
+        }
+        
+        .form-group label {
+            display: block !important;
+            margin-bottom: 8px !important;
+            color: #333 !important;
+            font-weight: 500 !important;
+            font-size: 15px !important;
+        }
+        
+        .form-group input {
+            width: 100% !important;
+            padding: 14px 16px !important;
+            border: 2px solid #e0e0e0 !important;
+            border-radius: 8px !important;
+            font-size: 16px !important;
+            transition: all 0.3s ease !important;
+            box-sizing: border-box !important;
+            background: white !important;
+        }
+        
+        .form-group input:focus {
+            outline: none !important;
+            border-color: #2196f3 !important;
+            box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1) !important;
+        }
+        
+        .login-btn {
+            width: 100% !important;
+            padding: 14px 24px !important;
+            background: linear-gradient(135deg, #2196f3, #1976d2) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 8px !important;
+            font-size: 16px !important;
+            font-weight: 600 !important;
+            cursor: pointer !important;
+            transition: all 0.3s ease !important;
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3) !important;
+        }
+        
+        .login-btn:hover {
+            background: linear-gradient(135deg, #1976d2, #1565c0) !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4) !important;
+        }
+        
+        .login-btn:active {
+            transform: translateY(0) !important;
+        }
+        
+        .error-message {
+            background: linear-gradient(135deg, #ffebee, #ffcdd2) !important;
+            color: #c62828 !important;
+            padding: 12px 16px !important;
+            border-radius: 8px !important;
+            margin-bottom: 24px !important;
+            border-left: 4px solid #f44336 !important;
+            font-size: 14px !important;
+            font-weight: 500 !important;
+        }
+        
+        .system-info {
+            text-align: center !important;
+            margin-top: 32px !important;
+            padding-top: 24px !important;
+            border-top: 1px solid #f0f0f0 !important;
+            color: #777 !important;
+            font-size: 13px !important;
+        }
+        
+        .system-info p {
+            margin: 4px 0 !important;
+        }
+        
+        .security-icon {
+            font-size: 56px !important;
+            margin-bottom: 16px !important;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+        }
+        
+        /* アニメーション追加 */
+        .login-card {
+            animation: fadeInUp 0.6s ease-out !important;
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* レスポンシブ対応 */
+        @media (max-width: 480px) {
+            .login-card {
+                padding: 24px !important;
+                margin: 10px !important;
+            }
+            
+            .login-header h1 {
+                font-size: 22px !important;
+            }
+            
+            .security-icon {
+                font-size: 48px !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="security-icon">🔐</div>
+                <h1>PLC監視システム</h1>
+                <p>認証が必要です</p>
+            </div>
+            
+            {% if error %}
+            <div class="error-message">
+                <strong>❌ エラー:</strong> {{ error }}
+            </div>
+            {% endif %}
+            
+            <form method="post">
+                <div class="form-group">
+                    <label for="username">👤 ユーザー名:</label>
+                    <input type="text" id="username" name="username" required autofocus placeholder="admin">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">🔑 パスワード:</label>
+                    <input type="password" id="password" name="password" required placeholder="パスワードを入力">
+                </div>
+                
+                <button type="submit" class="login-btn">🚀 ログイン</button>
+            </form>
+            
+            <div class="system-info">
+                <p>🍓 <strong>Raspberry Pi PLC UI</strong></p>
+                <p>製造ライン監視システム</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

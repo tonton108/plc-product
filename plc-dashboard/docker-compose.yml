@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  # PostgreSQLデータベース（共通）
+  db:
+    image: postgres:15-alpine
+    container_name: plc-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-plc_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-plc_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-plc_monitor}
+      PGCLIENTENCODING: utf-8
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"  # ホストのPostgreSQLと競合を避けるため5433に変更
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - plc-network
+    restart: unless-stopped
+
+  # Flaskバックエンド（中央サーバーモード）
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: plc-backend
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-plc_user}:${POSTGRES_PASSWORD:-plc_pass}@db:5432/${POSTGRES_DB:-plc_monitor}
+      FLASK_APP: manage.py
+      FLASK_ENV: ${FLASK_ENV:-development}
+      SECRET_KEY: ${SECRET_KEY:-development-secret-key}
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - db
+    networks:
+      - plc-network
+    restart: unless-stopped
+    command: flask run --host=0.0.0.0 --port=5000
+
+  # Nuxt.jsフロントエンド
+  frontend:
+    image: node:20-alpine
+    container_name: plc-frontend
+    working_dir: /app
+    environment:
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - plc-network
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    restart: unless-stopped
+
+  # Raspberry Piエージェント（エージェントモード - オプション）
+  raspi-agent:
+    build:
+      context: ./raspi_agent
+      dockerfile: Dockerfile.agent
+    container_name: plc-raspi-agent
+    environment:
+      USE_DUMMY_PLC: ${USE_DUMMY_PLC:-true}
+      CENTRAL_SERVER_IP: ${CENTRAL_SERVER_IP:-backend}
+      CENTRAL_SERVER_PORT: ${CENTRAL_SERVER_PORT:-5000}
+      RASPI_UI_PORT: ${RASPI_UI_PORT:-5001}
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-plc_user}:${POSTGRES_PASSWORD:-plc_pass}@db:5432/${POSTGRES_DB:-plc_monitor}
+      REQUIRE_AUTH: ${REQUIRE_AUTH:-true}
+      SECRET_KEY: ${SECRET_KEY:-development-secret-key}
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./raspi_agent:/app
+      - ./backend:/app/backend
+    depends_on:
+      - db
+      - backend
+    networks:
+      - plc-network
+    restart: unless-stopped
+    profiles:
+      - agent
+
+volumes:
+  postgres_data:
+
+networks:
+  plc-network:
+    driver: bridge

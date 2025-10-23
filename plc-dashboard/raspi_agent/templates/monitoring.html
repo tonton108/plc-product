@@ -1,0 +1,1017 @@
+{% extends "base.html" %}
+{% block title %}モニタリング{% endblock %}
+
+{% block content %}
+<div class="monitor-card">
+  <h2>📊 モニタリング</h2>
+  
+  <div class="info-grid">
+    <div class="info-item">
+      <strong>設備ID:</strong> <span id="equipment-id">{{ equipment.equipment_id or 'N/A' }}</span>
+      <span id="data-source-badge" class="source-badge" style="display: none;"></span>
+    </div>
+    <div class="info-item">
+      <strong>PLCメーカー:</strong> <span id="plc-manufacturer">{{ equipment.manufacturer or 'N/A' }}</span>
+    </div>
+    <div class="info-item">
+      <strong>PLC接続先:</strong> <span id="plc-connection">{{ equipment.plc_ip or 'N/A' }}:{{ equipment.plc_port or 'N/A' }}</span>
+    </div>
+    <div class="info-item">
+      <strong>中央サーバー:</strong> <span id="central-server">{{ equipment.central_server_ip or 'N/A' }}:{{ equipment.central_server_port or 'N/A' }}</span>
+    </div>
+  </div>
+
+  <div class="status-grid">
+    <div class="status-item">
+      <strong>サイクルタイム:</strong> 
+      <span id="cycle-time">N/A</span>
+    </div>
+    <div class="status-item">
+      <strong>状態:</strong> 
+      <span id="equipment-status" class="status-badge gray">未接続</span>
+    </div>
+  </div>
+
+  <div class="data-grid" id="plc-data">
+    <!-- PLCデータがここに表示される -->
+  </div>
+
+  <div class="button-group">
+    <button onclick="testConnection()" class="btn primary">🔌 接続テスト</button>
+    <button onclick="openConfigModal()" class="btn secondary">⚙️ 設定変更</button>
+  </div>
+</div>
+
+<!-- 設定モーダル -->
+<div id="config-modal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>🔧 設定変更</h2>
+      <button class="modal-close" onclick="closeConfigModal()">&times;</button>
+    </div>
+    
+    <div class="modal-body">
+      <form id="config-form" class="form-grid">
+        <!-- 基本設定セクション -->
+        <div class="form-section">
+          <h3 style="color: var(--primary); margin-bottom: 16px;">🏭 基本設定</h3>
+          
+          <div class="basic-config-grid">
+            <div class="form-group">
+              <label><strong>設備ID:</strong></label>
+              <input type="text" name="equipment_id" id="equipment_id" value="{{ equipment.equipment_id or '' }}" required>
+            </div>
+
+            <div class="form-group">
+              <label><strong>PLCメーカー:</strong></label>
+              <select name="manufacturer" id="manufacturer" required>
+                {% for m in manufacturers %}
+                  <option value="{{ m }}" {% if equipment.manufacturer == m %}selected{% endif %}>{{ m }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label><strong>シリーズ:</strong></label>
+              <select name="series" id="series" required>
+                {% for s in series_list.get(equipment.manufacturer or '', []) %}
+                  <option value="{{ s }}" {% if equipment.series == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label><strong>🎯 PLC IPアドレス:</strong></label>
+              <input type="text" name="plc_ip" id="plc_ip" value="{{ equipment.plc_ip or '192.168.1.100' }}" 
+                     placeholder="例: 192.168.1.100" required>
+            </div>
+
+            <div class="form-group">
+              <label><strong>PLCポート:</strong></label>
+              <input type="number" name="plc_port" id="plc_port" value="{{ equipment.plc_port or 5000 }}" required>
+            </div>
+
+            <div class="form-group">
+              <label><strong>🌐 中央サーバーIP:</strong></label>
+              <input type="text" name="central_server_ip" id="central_server_ip" value="{{ equipment.central_server_ip or '192.168.1.10' }}" 
+                     placeholder="例: 192.168.1.10" required>
+            </div>
+
+            <div class="form-group">
+              <label><strong>中央サーバーポート:</strong></label>
+              <input type="number" name="central_server_port" id="central_server_port" value="{{ equipment.central_server_port or 5000 }}" required>
+            </div>
+
+            <div class="form-group">
+              <label><strong>取得間隔 (ms):</strong></label>
+              <input type="number" name="interval" id="interval" value="{{ equipment.interval or 1000 }}" required>
+            </div>
+
+            <div class="form-group">
+              <label><strong>🔌 Modbusポート:</strong> <small style="color: #666;">※キーエンスPLC使用時のみ必要</small></label>
+              <input type="number" name="modbus_port" id="modbus_port" value="{{ equipment.modbus_port or 502 }}" 
+                     placeholder="キーエンス用 (デフォルト: 502)">
+            </div>
+          </div>
+        </div>
+
+        <!-- PLCアドレス設定セクション -->
+        <div class="form-section">
+          <h3 style="color: var(--primary); margin: 20px 0 16px 0;">📍 PLCデータ項目設定</h3>
+
+          <div class="data-config-section">
+            <div id="plc-items-container" class="plc-items-container">
+              <!-- 項目が動的に追加される -->
+            </div>
+
+            <button type="button" onclick="addPLCItem()" class="btn secondary" style="margin-top: 12px;">
+              ➕ 項目を追加
+            </button>
+          </div>
+        </div>
+
+        <div class="button-group">
+          <button type="submit" class="btn primary">💾 保存</button>
+          <button type="button" onclick="closeConfigModal()" class="btn secondary">キャンセル</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- パスワード確認モーダル -->
+<div id="passwordModal" class="password-modal" style="display: none;">
+  <div class="password-modal-overlay"></div>
+  <div class="password-modal-content">
+    <div class="password-modal-header">
+      <div class="security-icon">🔒</div>
+      <h3>設定変更の確認</h3>
+      <p>設定を変更するにはパスワードを入力してください</p>
+    </div>
+    
+    <form id="passwordForm">
+      <div class="form-group">
+        <label for="confirmPassword">パスワード:</label>
+        <input type="password" id="confirmPassword" name="password" required autofocus>
+      </div>
+      
+      <div id="passwordError" class="error-message" style="display: none;"></div>
+      
+      <div class="modal-buttons">
+        <button type="submit" class="btn primary">確認</button>
+        <button type="button" id="cancelPassword" class="btn secondary">キャンセル</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+/* PLC項目カードのスタイル */
+.plc-items-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.plc-item-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+body.dark .plc-item-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.plc-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+body.dark .plc-item-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.plc-item-number {
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--primary);
+}
+
+.btn-remove {
+  background: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.btn-remove:hover {
+  background: #d32f2f;
+}
+
+.plc-item-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.plc-item-grid .form-group {
+  margin-bottom: 0;
+}
+
+.plc-item-grid label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.plc-item-grid input,
+.plc-item-grid select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+body.dark .plc-item-grid input,
+body.dark .plc-item-grid select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text);
+}
+
+/* パスワード確認モーダルのスタイル */
+.password-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2000; /* 設定モーダルより上に表示 */
+}
+
+.password-modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.password-modal-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  width: 400px;
+  max-width: 90vw;
+}
+
+.password-modal-header {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.password-modal-header .security-icon {
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+.password-modal-header h3 {
+  color: var(--primary);
+  margin-bottom: 8px;
+  font-size: 20px;
+}
+
+.password-modal-header p {
+  color: #666;
+  font-size: 14px;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.modal-buttons .btn {
+  flex: 1;
+}
+
+.error-message {
+  background: #ffe6e6;
+  color: #d32f2f;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  border-left: 4px solid #d32f2f;
+  font-size: 14px;
+}
+
+/* ダークモード対応 */
+body.dark .password-modal-content {
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+body.dark .password-modal-header h3 {
+  color: var(--primary);
+}
+
+body.dark .password-modal-header p {
+  color: #ccc;
+}
+
+body.dark .error-message {
+  background: rgba(244, 67, 54, 0.2);
+  color: #ef5350;
+  border-left: 4px solid #ef5350;
+}
+</style>
+
+<style>
+.source-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+  font-weight: bold;
+}
+
+.source-badge.database {
+  background: #4caf50;
+  color: white;
+}
+
+.source-badge.local {
+  background: #ff9800;
+  color: white;
+}
+</style>
+
+<script>
+  let lastTimestamp = null;
+  let currentEquipmentInfo = null;
+
+  // 設備情報をDB優先で取得・更新
+  async function updateEquipmentInfo() {
+    try {
+      const response = await fetch('/api/current-equipment-info');
+      if (!response.ok) {
+        throw new Error('設備情報取得失敗');
+      }
+      
+      const equipmentInfo = await response.json();
+      currentEquipmentInfo = equipmentInfo;
+      
+      console.log('📊 [DEBUG] 設備情報更新:', equipmentInfo);
+      
+      // 設備情報表示を更新
+      document.getElementById('equipment-id').textContent = equipmentInfo.equipment_id || 'N/A';
+      document.getElementById('plc-manufacturer').textContent = equipmentInfo.manufacturer || 'N/A';
+      document.getElementById('plc-connection').textContent = 
+        `${equipmentInfo.plc_ip || 'N/A'}:${equipmentInfo.plc_port || 'N/A'}`;
+      document.getElementById('central-server').textContent = 
+        `${equipmentInfo.central_server_ip || 'N/A'}:${equipmentInfo.central_server_port || 'N/A'}`;
+      
+      // データソースバッジを更新
+      const sourceBadge = document.getElementById('data-source-badge');
+      if (equipmentInfo.source === 'database') {
+        sourceBadge.textContent = 'DB優先';
+        sourceBadge.className = 'source-badge database';
+        sourceBadge.style.display = 'inline';
+      } else if (equipmentInfo.source === 'local_config') {
+        sourceBadge.textContent = 'ローカル設定';
+        sourceBadge.className = 'source-badge local';
+        sourceBadge.style.display = 'inline';
+      } else {
+        sourceBadge.style.display = 'none';
+      }
+      
+      // 設定モーダルの初期値も更新
+      updateConfigModalValues(equipmentInfo);
+      
+    } catch (error) {
+      console.error('❌ 設備情報更新エラー:', error);
+    }
+  }
+
+  // 設定モーダルの初期値を更新
+  function updateConfigModalValues(equipmentInfo) {
+    if (!equipmentInfo) return;
+    
+    // 基本設定フィールドを更新
+    const fieldMappings = {
+      'equipment_id': equipmentInfo.equipment_id,
+      'manufacturer': equipmentInfo.manufacturer,
+      'series': equipmentInfo.series,
+      'plc_ip': equipmentInfo.plc_ip,
+      'plc_port': equipmentInfo.plc_port,
+      'modbus_port': equipmentInfo.modbus_port,
+      'central_server_ip': equipmentInfo.central_server_ip,
+      'central_server_port': equipmentInfo.central_server_port,
+      'interval': equipmentInfo.interval
+    };
+    
+    Object.entries(fieldMappings).forEach(([fieldId, value]) => {
+      const element = document.getElementById(fieldId);
+      if (element && value !== undefined && value !== null) {
+        element.value = value;
+      }
+    });
+  }
+
+  function updateMonitoringData() {
+    fetch('/api/logs')
+      .then(res => {
+        if (!res.ok) {
+          throw new Error("ログ取得失敗");
+        }
+        return res.json();
+      })
+      .then(response => {
+        const now = new Date();
+        const cycleTime = lastTimestamp ? now - lastTimestamp : null;
+        lastTimestamp = now;
+
+        // サイクルタイム更新
+        if (cycleTime !== null) {
+          document.getElementById("cycle-time").textContent = `${cycleTime} ms`;
+        }
+
+        // ステータス更新
+        const statusEl = document.getElementById("equipment-status");
+        if (cycleTime > 5000) {
+          statusEl.textContent = "停止";
+          statusEl.className = "status-badge red";
+        } else {
+          statusEl.textContent = "稼働中";
+          statusEl.className = "status-badge green";
+        }
+
+        // PLCデータ表示
+        if (response.data) {
+          updatePLCData(response.data);
+        }
+      })
+      .catch(err => {
+        console.error("ログ取得失敗", err);
+        document.getElementById("cycle-time").textContent = "N/A";
+        const statusEl = document.getElementById("equipment-status");
+        statusEl.textContent = "未接続";
+        statusEl.className = "status-badge gray";
+      });
+  }
+
+  // PLC項目設定をキャッシュ（モニタリング表示用）
+  let plcConfigsCache = {};
+
+  // PLC項目設定を読み込んでキャッシュ
+  async function loadPLCConfigsForDisplay() {
+    try {
+      const equipmentId = "{{ equipment.equipment_id or '' }}";
+      if (!equipmentId) return;
+
+      const response = await fetch(`/api/equipment/${equipmentId}/plc_configs`);
+      if (!response.ok) return;
+
+      const configs = await response.json();
+
+      // data_typeをキーとした辞書を作成
+      plcConfigsCache = {};
+      configs.forEach(config => {
+        plcConfigsCache[config.data_type] = {
+          name: config.name || config.data_type,
+          icon: config.icon || '',
+          unit: config.unit || ''
+        };
+      });
+
+      console.log('📊 表示用PLC設定をキャッシュしました:', plcConfigsCache);
+
+    } catch (error) {
+      console.error('PLC設定読み込みエラー:', error);
+    }
+  }
+
+  function updatePLCData(data) {
+    const dataGrid = document.getElementById("plc-data");
+    dataGrid.innerHTML = "";
+
+    Object.entries(data).forEach(([key, value]) => {
+      const item = document.createElement("div");
+      item.className = "data-item";
+
+      const config = plcConfigsCache[key] || { name: key, icon: '', unit: '' };
+      const icon = config.icon ? `${config.icon} ` : '';
+      const label = config.name || key;
+      const unit = config.unit ? config.unit : '';
+
+      item.innerHTML = `
+        <strong>${icon}${label}:</strong>
+        <span class="data-value">${value}${unit}</span>
+      `;
+      dataGrid.appendChild(item);
+    });
+  }
+
+  function showToast(message) {
+    const toast = document.getElementById("toast");
+    toast.textContent = message;
+    toast.classList.add("show");
+    setTimeout(() => {
+      toast.classList.remove("show");
+    }, 3000);
+  }
+
+  async function testConnection() {
+    showToast("接続中…");
+
+    try {
+      const response = await fetch("/test-connection", { method: "POST" });
+      const result = await response.json();
+
+      if (result.success) {
+        showToast("✅ 接続に成功しました");
+      } else {
+        showToast("❌ 接続に失敗しました");
+      }
+
+      setTimeout(() => location.reload(), 1500);
+
+    } catch (error) {
+      showToast("❌ エラーが発生しました");
+    }
+  }
+
+  // モーダル関連の関数
+  function openConfigModal() {
+    // まずパスワード確認モーダルを表示
+    showPasswordModal();
+  }
+
+  function closeConfigModal() {
+    document.getElementById('config-modal').style.display = 'none';
+    document.body.style.overflow = 'auto';
+  }
+
+  // パスワード確認モーダルを表示
+  function showPasswordModal() {
+    const passwordModal = document.getElementById('passwordModal');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    const passwordError = document.getElementById('passwordError');
+    
+    passwordModal.style.display = 'block';
+    confirmPasswordInput.value = '';
+    confirmPasswordInput.type = 'text'; // 初期状態はtextタイプ
+    passwordError.style.display = 'none';
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => confirmPasswordInput.focus(), 100);
+  }
+
+  // パスワード確認モーダルを非表示
+  function hidePasswordModal() {
+    const passwordModal = document.getElementById('passwordModal');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    const passwordError = document.getElementById('passwordError');
+    
+    passwordModal.style.display = 'none';
+    confirmPasswordInput.value = '';
+    confirmPasswordInput.type = 'text'; // textタイプに戻す
+    passwordError.style.display = 'none';
+    document.body.style.overflow = 'auto';
+  }
+
+  // 設定モーダルを実際に開く（パスワード確認後）
+  async function actuallyOpenConfigModal() {
+    hidePasswordModal();
+    document.getElementById('config-modal').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+
+    // PLC設定を読み込む
+    await loadPLCConfigs();
+  }
+
+  // エラーメッセージを表示
+  function showPasswordError(message) {
+    const passwordError = document.getElementById('passwordError');
+    passwordError.textContent = message;
+    passwordError.style.display = 'block';
+  }
+
+  // パスワードフィールドの動的制御
+  document.getElementById('confirmPassword').addEventListener('focus', function() {
+    // フォーカス時にパスワードタイプに変更
+    this.type = 'password';
+  });
+
+  document.getElementById('confirmPassword').addEventListener('blur', function() {
+    // フォーカスを失った時、値が空ならtextタイプに戻す
+    if (!this.value) {
+      this.type = 'text';
+    }
+  });
+
+  document.getElementById('confirmPassword').addEventListener('input', function() {
+    // 入力がある場合はパスワードタイプを維持
+    this.type = 'password';
+  });
+
+  // パスワード確認フォームの送信処理
+  document.getElementById('passwordForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const password = document.getElementById('confirmPassword').value;
+    if (!password) {
+      showPasswordError('パスワードを入力してください');
+      return;
+    }
+
+    try {
+      // パスワード確認API呼び出し
+      const response = await fetch('/api/verify-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password: password })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // パスワードが正しい場合、設定モーダルを開く
+        actuallyOpenConfigModal();
+      } else {
+        // パスワードが間違っている場合、エラーを表示
+        showPasswordError(result.error || 'パスワードが正しくありません');
+        document.getElementById('confirmPassword').select();
+      }
+    } catch (error) {
+      console.error('Password verification error:', error);
+      showPasswordError('エラーが発生しました。再度お試しください。');
+    }
+  });
+
+  // キャンセルボタンの処理
+  document.getElementById('cancelPassword').addEventListener('click', hidePasswordModal);
+
+  // モーダル外クリックで閉じる
+  window.onclick = function(event) {
+    const configModal = document.getElementById('config-modal');
+    const passwordModal = document.getElementById('passwordModal');
+    
+    if (event.target === configModal) {
+      closeConfigModal();
+    } else if (event.target === passwordModal || event.target.classList.contains('password-modal-overlay')) {
+      hidePasswordModal();
+    }
+  }
+
+  // ESCキーでモーダルを閉じる
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      const passwordModal = document.getElementById('passwordModal');
+      const configModal = document.getElementById('config-modal');
+      
+      if (passwordModal.style.display === 'block') {
+        hidePasswordModal();
+      } else if (configModal.style.display === 'block') {
+        closeConfigModal();
+      }
+    }
+  });
+
+  // PLC項目管理用の配列
+  let plcItems = [];
+  let nextItemId = 0;
+
+  // PLC項目を追加
+  function addPLCItem(data = null) {
+    const itemId = nextItemId++;
+    const item = data || {
+      id: itemId,
+      data_type: `item_${itemId}`,
+      name: '',
+      icon: '',
+      unit: '',
+      enabled: true,
+      address: '',
+      scale_factor: 1,
+      plc_data_type: 'word'
+    };
+    item.id = itemId;
+
+    plcItems.push(item);
+    renderPLCItems();
+  }
+
+  // PLC項目を削除
+  function removePLCItem(itemId) {
+    plcItems = plcItems.filter(item => item.id !== itemId);
+    renderPLCItems();
+  }
+
+  // PLC項目一覧を描画
+  function renderPLCItems() {
+    const container = document.getElementById('plc-items-container');
+    container.innerHTML = '';
+
+    plcItems.forEach((item, index) => {
+      const itemDiv = document.createElement('div');
+      itemDiv.className = 'plc-item-card';
+      itemDiv.innerHTML = `
+        <div class="plc-item-header">
+          <span class="plc-item-number">#${index + 1}</span>
+          <button type="button" onclick="removePLCItem(${item.id})" class="btn-remove" title="削除">🗑️</button>
+        </div>
+
+        <div class="plc-item-grid">
+          <div class="form-group">
+            <label><strong>項目名:</strong></label>
+            <input type="text" data-item-id="${item.id}" data-field="name" value="${item.name || ''}"
+                   placeholder="例: 金型温度A" required>
+          </div>
+
+          <div class="form-group">
+            <label><strong>アイコン:</strong></label>
+            <input type="text" data-item-id="${item.id}" data-field="icon" value="${item.icon || ''}"
+                   placeholder="🌡️" maxlength="10">
+          </div>
+
+          <div class="form-group">
+            <label><strong>単位:</strong></label>
+            <input type="text" data-item-id="${item.id}" data-field="unit" value="${item.unit || ''}"
+                   placeholder="例: ℃" maxlength="20">
+          </div>
+
+          <div class="form-group">
+            <label><strong>PLCアドレス:</strong></label>
+            <input type="text" data-item-id="${item.id}" data-field="address" value="${item.address || ''}"
+                   placeholder="D100" required>
+          </div>
+
+          <div class="form-group">
+            <label><strong>データ型:</strong></label>
+            <select data-item-id="${item.id}" data-field="plc_data_type">
+              <option value="word" ${item.plc_data_type === 'word' ? 'selected' : ''}>Word (16bit)</option>
+              <option value="dword" ${item.plc_data_type === 'dword' ? 'selected' : ''}>DWord (32bit)</option>
+              <option value="float32" ${item.plc_data_type === 'float32' ? 'selected' : ''}>Float32</option>
+              <option value="bit" ${item.plc_data_type === 'bit' ? 'selected' : ''}>Bit</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label><strong>倍率:</strong></label>
+            <input type="number" data-item-id="${item.id}" data-field="scale_factor" value="${item.scale_factor || 1}"
+                   min="1" required>
+          </div>
+        </div>
+      `;
+
+      container.appendChild(itemDiv);
+    });
+
+    // イベントリスナーを設定
+    container.querySelectorAll('input, select').forEach(input => {
+      input.addEventListener('change', function() {
+        const itemId = parseInt(this.getAttribute('data-item-id'));
+        const field = this.getAttribute('data-field');
+        const item = plcItems.find(i => i.id === itemId);
+        if (item) {
+          if (field === 'scale_factor') {
+            item[field] = parseInt(this.value);
+          } else {
+            item[field] = this.value;
+          }
+        }
+      });
+    });
+  }
+
+  // サーバーからPLC設定を読み込み
+  async function loadPLCConfigs() {
+    try {
+      const equipmentId = document.getElementById('equipment_id').value;
+      if (!equipmentId) return;
+
+      const response = await fetch(`/api/equipment/${equipmentId}/plc_configs`);
+      if (!response.ok) {
+        console.warn('PLC設定の読み込みに失敗しました');
+        return;
+      }
+
+      const configs = await response.json();
+      console.log('📊 PLC設定を読み込みました:', configs);
+
+      plcItems = [];
+      nextItemId = 0;
+
+      configs.forEach(config => {
+        const item = {
+          id: nextItemId++,
+          data_type: config.data_type,
+          name: config.name || config.data_type,
+          icon: config.icon || '',
+          unit: config.unit || '',
+          enabled: config.enabled !== false,
+          address: config.address || '',
+          scale_factor: config.scale_factor || 1,
+          plc_data_type: config.plc_data_type || 'word'
+        };
+        plcItems.push(item);
+      });
+
+      renderPLCItems();
+
+    } catch (error) {
+      console.error('PLC設定読み込みエラー:', error);
+    }
+  }
+
+  // 設定フォームの送信処理
+  document.getElementById('config-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    const equipmentId = formData.get('equipment_id');
+
+    // FormDataをJSONオブジェクトに変換
+    const configData = {};
+
+    // 基本設定
+    configData.equipment_id = formData.get('equipment_id');
+    configData.manufacturer = formData.get('manufacturer');
+    configData.series = formData.get('series');
+    configData.plc_ip = formData.get('plc_ip');
+    configData.plc_port = parseInt(formData.get('plc_port'));
+    configData.modbus_port = parseInt(formData.get('modbus_port') || 502);
+    configData.interval = parseInt(formData.get('interval'));
+
+    // デバイス情報（現在の値を保持）
+    configData.raspi_ip = "{{ equipment.ip or '192.168.0.100' }}";
+    configData.mac_address = "{{ equipment.mac_address or 'a7:cb:75:e8:1e:fb' }}";
+    configData.cpu_serial_number = "{{ equipment.cpu_serial_number or 'FALLBACK_FIXED_ID' }}";
+    configData.hostname = "{{ equipment.hostname or 'DESKTOP-K88UM9J' }}";
+
+    console.log('🔧 [DEBUG] 送信するデバイス情報:', {
+      mac_address: configData.mac_address,
+      cpu_serial_number: configData.cpu_serial_number,
+      hostname: configData.hostname,
+      raspi_ip: configData.raspi_ip
+    });
+
+    try {
+      // 1. 設備基本設定を保存
+      const configResponse = await fetch(`/api/equipment/${equipmentId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(configData)
+      });
+
+      if (!configResponse.ok) {
+        throw new Error('設定の保存に失敗しました');
+      }
+
+      // 2. PLCデータ設定を保存（動的項目対応）
+      const plcConfigs = plcItems.map(item => ({
+        data_type: item.data_type,
+        name: item.name,
+        icon: item.icon,
+        unit: item.unit,
+        enabled: true,
+        address: item.address,
+        scale_factor: item.scale_factor,
+        plc_data_type: item.plc_data_type
+      }));
+
+      console.log('📡 送信するPLC設定:', plcConfigs);
+
+      const plcResponse = await fetch(`/api/equipment/${equipmentId}/plc_configs`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(plcConfigs)
+      });
+
+      if (!plcResponse.ok) {
+        throw new Error('PLCデータ設定の保存に失敗しました');
+      }
+
+      showToast("✅ 設定を保存しました");
+
+      // ローカル設定ファイルの設備IDも更新
+      try {
+        await fetch('/api/update-local-equipment-id', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ equipment_id: equipmentId })
+        });
+        console.log('✅ ローカル設備ID更新完了');
+      } catch (error) {
+        console.warn('⚠️ ローカル設備ID更新に失敗:', error);
+      }
+
+      closeConfigModal();
+
+      // 設定が更新されたので設備情報を再取得
+      setTimeout(async () => {
+        await updateEquipmentInfo();
+        showToast("📊 設備情報を更新しました");
+      }, 500);
+
+    } catch (error) {
+      console.error('Config save error:', error);
+      showToast(`❌ ${error.message}`);
+    }
+  });
+
+  // Modbusポートの有効/無効を切り替える関数
+  function updateModbusPortState() {
+    const manufacturer = document.getElementById("manufacturer").value;
+    const modbusPortInput = document.getElementById("modbus_port");
+    const modbusPortGroup = modbusPortInput.closest('.form-group');
+    
+    if (manufacturer === "キーエンス") {
+      modbusPortInput.disabled = false;
+      modbusPortInput.required = true;
+      modbusPortGroup.style.opacity = "1";
+      modbusPortGroup.style.pointerEvents = "auto";
+    } else {
+      modbusPortInput.disabled = true;
+      modbusPortInput.required = false;
+      modbusPortGroup.style.opacity = "0.5";
+      modbusPortGroup.style.pointerEvents = "none";
+    }
+  }
+
+  // シリーズ選択の動的更新
+  document.getElementById("manufacturer").addEventListener("change", function() {
+    const selected = this.value;
+    
+    // Modbusポートの状態を更新
+    updateModbusPortState();
+    
+    // シリーズリストを更新
+    fetch(`/api/series?manufacturer=${selected}`)
+      .then(res => res.json())
+      .then(data => {
+        const seriesSelect = document.getElementById("series");
+        seriesSelect.innerHTML = "";
+        data.forEach((s, idx) => {
+          const option = document.createElement("option");
+          option.value = s;
+          option.textContent = s;
+          if (idx === 0) option.selected = true;
+          seriesSelect.appendChild(option);
+        });
+      });
+  });
+
+  // ページ読み込み時にModbusポートの状態を初期化
+  document.addEventListener('DOMContentLoaded', function() {
+    updateModbusPortState();
+  });
+
+  // 初期化処理
+  async function initializeMonitoring() {
+    // 設備情報を最初に更新（DB優先）
+    await updateEquipmentInfo();
+    // PLC設定を読み込み（表示用）
+    await loadPLCConfigsForDisplay();
+    // PLCデータも更新
+    updateMonitoringData();
+  }
+
+  // データを一定間隔で更新
+  setInterval(updateMonitoringData, 3000);
+  
+  // 設備情報は少し長い間隔で更新（設定変更を反映）
+  setInterval(updateEquipmentInfo, 10000);
+  
+  // ページ読み込み時に初期化
+  initializeMonitoring();
+</script>
+{% endblock %}

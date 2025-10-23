@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}PLC UI{% endblock %}</title>
+  
+  <!-- 📱 ラズパイ専用のシンプルCSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=6">
+</head>
+
+<body class="{{ 'dark' if request.cookies.get('theme') == 'dark' else '' }}">
+  <div class="container">
+    {% block content %}{% endblock %}
+  </div>
+
+  <!-- 🌗 テーマ切替ボタン -->
+  <button onclick="toggleTheme()" class="theme-toggle">🌗</button>
+  
+  <!-- 📢 トースト通知 -->
+  <div id="toast"></div>
+
+  <script>
+    function toggleTheme() {
+      const body = document.body;
+      const darkMode = body.classList.toggle("dark");
+      document.cookie = `theme=${darkMode ? 'dark' : 'light'}; path=/; max-age=31536000`;
+    }
+  </script>
+</body>
+</html>
