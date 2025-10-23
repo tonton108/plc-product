@@ -147,7 +147,7 @@ def read_mitsubishi_plc(plc, data_points):
 
                             # ビット読み取り
                             bit_values = plc.batchread_bitunits(
-                                headdevice=f"{device_type}{addr_num:04X}",
+                                headdevice=f"{device_type}{addr_num}",
                                 readsize=1
                             )
                             raw_value = bit_values[0] if bit_values else 0
@@ -157,7 +157,7 @@ def read_mitsubishi_plc(plc, data_points):
                             addr_num = int(address[1:])
 
                             bit_values = plc.batchread_bitunits(
-                                headdevice=f"{device_type}{addr_num:04X}",
+                                headdevice=f"{device_type}{addr_num}",
                                 readsize=1
                             )
                             raw_value = bit_values[0] if bit_values else 0

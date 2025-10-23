@@ -82,12 +82,12 @@ def read_omron_plc(fins_client, data_points):
             if count == 1:
                 # 単独アドレス → 個別読み取り
                 logger.debug(f"📖 単独読み取り: DM{start_addr}")
-                addr_bytes = b'\x00' + start_addr.to_bytes(2, byteorder='big')
+                addr_bytes = start_addr.to_bytes(2, byteorder='big') + b'\x00'
                 mem_area = fins_client.memory_area_read(b'\x82', addr_bytes, 1)
             else:
                 # 連続アドレス → バッチ読み取り（最適化）
                 logger.info(f"🚀 バッチ読み取り: DM{start_addr}-DM{start_addr + count - 1} ({count}ワード)")
-                addr_bytes = b'\x00' + start_addr.to_bytes(2, byteorder='big')
+                addr_bytes = start_addr.to_bytes(2, byteorder='big') + b'\x00'
                 mem_area = fins_client.memory_area_read(b'\x82', addr_bytes, count)
 
             # 読み取った値を各項目に割り当て
@@ -114,7 +114,7 @@ def read_omron_plc(fins_client, data_points):
                 setting = group['settings'][i]
                 addr_num = group['start_address'] + i
                 try:
-                    addr_bytes = b'\x00' + addr_num.to_bytes(2, byteorder='big')
+                    addr_bytes = addr_num.to_bytes(2, byteorder='big') + b'\x00'
                     mem_area = fins_client.memory_area_read(b'\x82', addr_bytes, 1)
                     if mem_area and len(mem_area) >= 2:
                         raw_value = int.from_bytes(mem_area[0:2], byteorder='big')
@@ -173,7 +173,7 @@ def read_omron_plc(fins_client, data_points):
                             raise ValueError(f"不明なアドレス形式: {address}")
 
                         # 2ワード読み取り
-                        addr_bytes = b'\x00' + addr_num.to_bytes(2, byteorder='big')
+                        addr_bytes = addr_num.to_bytes(2, byteorder='big') + b'\x00'
                         mem_area = fins_client.memory_area_read(b'\x82', addr_bytes, 2)
 
                         if mem_area and len(mem_area) >= 4:
@@ -193,7 +193,7 @@ def read_omron_plc(fins_client, data_points):
                             raise ValueError(f"不明なアドレス形式: {address}")
 
                         # 2ワード読み取り
-                        addr_bytes = b'\x00' + addr_num.to_bytes(2, byteorder='big')
+                        addr_bytes = addr_num.to_bytes(2, byteorder='big') + b'\x00'
                         mem_area = fins_client.memory_area_read(b'\x82', addr_bytes, 2)
 
                         if mem_area and len(mem_area) >= 4:
@@ -212,7 +212,7 @@ def read_omron_plc(fins_client, data_points):
                                 addr_num = int(address[1:])
 
                         # アドレスをバイト形式に変換
-                        addr_bytes = b'\x00' + addr_num.to_bytes(2, byteorder='big')
+                        addr_bytes = addr_num.to_bytes(2, byteorder='big') + b'\x00'
 
                         # PLCからデータを読み取り（DM エリア: 0x82）
                         mem_area = fins_client.memory_area_read(b'\x82', addr_bytes, 1)
