@@ -547,14 +547,40 @@ python3 agent_app.py
 
 ### 対応メーカーとプロトコル
 
-このシステムは以下のPLCメーカーとプロトコルに対応しています：
+このシステムは以下のPLCメーカーとプロトコルに対応・対応予定です：
 
-| メーカー | プロトコル | Pythonライブラリ | ポート | 対応状況 |
-|---------|-----------|----------------|-------|---------|
-| 三菱電機 | MC Protocol (SLMP) | pymcprotocol | 5000/5007 | ✅ 実装済み |
-| オムロン | FINS over TCP | fins | 9600 | ✅ 実装済み |
-| キーエンス | Modbus TCP | pymodbus | 502 | ✅ 実装済み |
-| シーメンス | S7 Protocol | python-snap7 | 102 | 🚧 未実装 |
+| メーカー | 主要シリーズ | プロトコル | Pythonライブラリ | ポート | 対応状況 |
+|---------|------------|-----------|----------------|-------|---------|
+| **三菱電機** | Q/QnU/iQ-R/iQ-F/FX | MC Protocol (SLMP/3E/4E) | pymcprotocol | 5000/5007 | ✅ 実装済み |
+| **オムロン** | CP1/CJ/NJ/NX | FINS over TCP/UDP | fins | 9600 | ✅ 実装済み |
+| **キーエンス** | KV/KZ | Modbus TCP | pymodbus | 502 | ✅ 実装済み |
+| **シーメンス** | S7-200/300/400/1200/1500 | S7 Protocol | python-snap7 | 102 | 🚧 未実装 |
+| **Schneider Electric** | Modicon M221/M340/M580 | Modbus TCP | pymodbus | 502 | 🔄 対応可能 |
+| **Rockwell Automation** | CompactLogix/ControlLogix | EtherNet/IP (CIP) | pycomm3 | 44818 | 🔄 対応可能 |
+| **ABB** | AC500/AC500-eCo | Modbus TCP | pymodbus | 502 | 🔄 対応可能 |
+| **Panasonic** | FP-XH/FP-X/FP0H | MEWTOCOL | - | 8500 | 🔄 対応可能 |
+| **Fuji Electric** | FLEX-PC/MICREX-SX | 独自プロトコル | - | - | 🔄 対応可能 |
+| **Yokogawa** | STARDOM | VDS/Modbus TCP | pymodbus | 502 | 🔄 対応可能 |
+| **Delta Electronics** | DVP/AH500 | Modbus RTU/ASCII/TCP | pymodbus | 502 | 🔄 対応可能 |
+| **LS Electric** | XGK/XGB | Cnet/Fnet | - | 2004 | 🔄 対応可能 |
+| **Beckhoff** | CX/TwinCAT | ADS (Automation Device Specification) | pyads | 48898 | 🔄 対応可能 |
+| **IDEC** | MicroSmart FC6A | Modbus TCP/RTU | pymodbus | 502 | 🔄 対応可能 |
+| **AutomationDirect** | Click/Click PLUS/DirectLogic | Modbus TCP/RTU | pymodbus | 502 | 🔄 対応可能 |
+| **GE/Emerson** | PACSystems RX3i | SRTP/EGD/Modbus TCP | pymodbus | 18245/502 | 🔄 対応可能 |
+| **Hitachi** | EH/MICRO-EH | HI-PROTOCOL | - | - | 🔄 対応可能 |
+| **Bosch Rexroth** | IndraLogic XLC/XMC | CODESYS/EtherCAT | - | - | 🔄 対応可能 |
+| **Phoenix Contact** | PLCnext AXC F | Modbus/PROFINET/EtherNet/IP | pymodbus | 502 | 🔄 対応可能 |
+| **Wago** | 750/PFC100/PFC200 | Modbus TCP/EtherNet/IP | pymodbus | 502 | 🔄 対応可能 |
+| **FANUC** | 0i/30i/31i/32i (PMC) | FOCAS (HSSB/Ethernet) | - | 8193 | 🔄 対応可能 |
+| **Toshiba** | T2/EX100 | Modbus RTU | pymodbus | - | 🔄 対応可能 |
+| **Yaskawa** | MP2000/MP2200/MP3000 | EtherCAT | - | - | 🔄 対応可能 |
+
+**凡例:**
+- ✅ **実装済み**: 現在のシステムで動作確認済み（三菱、オムロン、キーエンス）
+- 🚧 **未実装**: ドライバー構造は作成済みだが機能未実装（シーメンス）
+- 🔄 **対応可能**: ライブラリまたはプロトコル仕様が公開されており、実装可能
+
+**実装優先順位:** 日本国内シェアと産業界での採用実績を考慮しています。Modbus TCP対応メーカーは既存ライブラリ（pymodbus）で即座に対応可能です。
 
 ### PLCデータ型とバイト長
 
@@ -856,6 +882,206 @@ plc.disconnect()
 - **ポート番号**: 102（S7プロトコル標準）
 - **Rack/Slot**: S7-300/400は通常Rack=0, Slot=2、S7-1200/1500はSlot=1
 - **接続前の確認**: PLCの設定で「PUT/GET通信許可」が有効になっている必要がある
+
+### その他の主要PLCメーカー
+
+上記4社（三菱、オムロン、キーエンス、シーメンス）以外の主要PLCメーカーの概要を以下に示します。
+
+#### Rockwell Automation (Allen-Bradley)
+
+**主要シリーズ:** CompactLogix、ControlLogix、MicroLogix
+**プロトコル:** EtherNet/IP (CIP - Common Industrial Protocol)
+**ポート:** 44818 (TCP)
+**Pythonライブラリ:** `pycomm3`
+
+**特徴:**
+- 北米シェアNo.1、日本でも自動車・食品業界で採用
+- EtherNet/IPはODVA標準プロトコル（PROFINET、CC-Linkと並ぶ産業用Ethernet三大規格）
+- Producer/Consumerモデルによるリアルタイムデータ交換
+- 最大128 CIP接続をサポート（1756-EN2T等）
+
+```python
+from pycomm3 import LogixDriver
+
+with LogixDriver('192.168.0.10') as plc:
+    # タグの読み取り
+    value = plc.read('MyTag')
+    print(f"Value: {value.value}")
+
+    # 複数タグの読み取り
+    values = plc.read('Tag1', 'Tag2', 'Tag3')
+    for tag in values:
+        print(f"{tag.tag}: {tag.value}")
+```
+
+#### Schneider Electric (Modicon)
+
+**主要シリーズ:** Modicon M221、M340、M580
+**プロトコル:** Modbus TCP/RTU
+**ポート:** 502 (Modbus TCP)
+**Pythonライブラリ:** `pymodbus`
+
+**特徴:**
+- Modbusプロトコルの創始者（1979年）
+- グローバルシェアトップクラス、欧州で強い
+- Modicon M580はPAC（Programmable Automation Controller）として高機能
+- Unity Pro、EcoStruxure Machine Expert等の統合開発環境
+
+Modbus TCP実装は「### Modbus TCP（キーエンス等）」セクションを参照してください。pymodbusライブラリで対応可能です。
+
+#### Beckhoff Automation
+
+**主要シリーズ:** CX5000、CX7000、CX8000（IPC型PLC）
+**プロトコル:** ADS (Automation Device Specification)
+**ポート:** 48898 (AMS/ADS)
+**Pythonライブラリ:** `pyads`
+
+**特徴:**
+- ドイツ製、PC-based制御の先駆者
+- TwinCAT（Windows上で動作するPLCソフトウェア）
+- リアルタイムEtherCAT通信（サイクルタイム <1ms）
+- IEC 61131-3 + オブジェクト指向拡張（Structured Text）
+
+```python
+import pyads
+
+# PLC接続
+plc = pyads.Connection('192.168.0.10.1.1', pyads.PORT_TC3PLC1)
+plc.open()
+
+# 変数の読み取り
+value = plc.read_by_name('.MyVariable', pyads.PLCTYPE_INT)
+print(f"Value: {value}")
+
+# 変数の書き込み
+plc.write_by_name('.MyVariable', 100, pyads.PLCTYPE_INT)
+
+plc.close()
+```
+
+#### ABB
+
+**主要シリーズ:** AC500、AC500-eCo、AC500-S
+**プロトコル:** Modbus TCP、IEC 61131-3
+**ポート:** 502 (Modbus TCP)
+**Pythonライブラリ:** `pymodbus`
+
+**特徴:**
+- スイス製、産業用ロボットで有名だがPLCも展開
+- CODESYS V3ベース（Beckhoffと同系統）
+- 自動運転モードで自動的にRUNモードへ移行
+- 高い耐環境性能（-25°C～+60°C）
+
+Modbus TCP実装は標準仕様に準拠。pymodbusライブラリで対応可能です。
+
+#### Panasonic
+
+**主要シリーズ:** FP-XH、FP-X、FP0H
+**プロトコル:** MEWTOCOL (Matsushita Electric Works Transmission Over Communication Lines)
+**ポート:** 8500 (MEWTOCOL-COM over Ethernet)
+**Pythonライブラリ:** 独自実装が必要
+
+**特徴:**
+- 日本製、制御盤・小型機械向けに強い
+- MEWTOCOL-COMはパナソニック独自のASCII通信プロトコル
+- FP-XHシリーズはEthernet標準搭載
+- Control FPWIN Pro（無償プログラミングソフトウェア）
+
+**MEWTOCOL-COM通信例（ASCII）:**
+```
+送信コマンド（DT100読み取り）：<BCC>%01#RDD00100000010<CR>
+応答：<BCC>$01000064<CR>（値=100）
+```
+※ BCC（Block Check Character）によるエラーチェック
+
+#### GE/Emerson (PACSystems)
+
+**主要シリーズ:** PACSystems RX3i、RX7i
+**プロトコル:** SRTP (Service Request Transfer Protocol)、EGD (Ethernet Global Data)、Modbus TCP
+**ポート:** 18245 (SRTP)、502 (Modbus TCP)
+**Pythonライブラリ:** `pymodbus`（Modbus TCPのみ）
+
+**特徴:**
+- 米国GE→現在はEmerson傘下
+- SRTP/EGDは独自プロトコル（公開仕様なし）
+- RX3i CPUはSRTP server最大48接続をサポート
+- Modbus TCPを併用することで汎用的に接続可能
+
+Modbus TCP経由での接続を推奨します。pymodbusライブラリで対応可能です。
+
+#### Wago
+
+**主要シリーズ:** 750-8xx（Modbus TCP Controller）、PFC100、PFC200
+**プロトコル:** Modbus TCP、EtherNet/IP、PROFINET
+**ポート:** 502 (Modbus TCP)
+**Pythonライブラリ:** `pymodbus`
+
+**特徴:**
+- ドイツ製、I/Oモジュール型PLCで有名
+- 750シリーズは2つのEthernetポート搭載（ライントポロジー可能）
+- 統合スイッチ内蔵でハブ不要
+- CODESYS V3ベース
+
+Modbus TCP実装は標準仕様に準拠。pymodbusライブラリで対応可能です。
+
+#### Phoenix Contact
+
+**主要シリーズ:** PLCnext Technology (AXC F 2152等)
+**プロトコル:** PROFINET、Modbus TCP/RTU、EtherNet/IP、OPC UA
+**ポート:** 502 (Modbus TCP)
+**Pythonライブラリ:** `pymodbus`
+
+**特徴:**
+- ドイツ製、PLCnextは次世代オープンPLCプラットフォーム
+- IEC 61131-3言語 + C/C++/Python等の高級言語でプログラミング可能
+- Node-RED、Docker、Linuxベース
+- IT/OT融合に強い（HTTP、HTTPS、FTP、OPC UA、SQL等）
+
+Modbus TCP実装は標準仕様に準拠。pymodbusライブラリで対応可能です。
+
+#### IDEC
+
+**主要シリーズ:** MicroSmart FC6A、FC6B
+**プロトコル:** Modbus TCP/RTU
+**ポート:** 502 (Modbus TCP)
+**Pythonライブラリ:** `pymodbus`
+
+**特徴:**
+- 日本製、HMI一体型PLC（オールインワン型）で人気
+- 7インチタッチパネル + PLC + 最大24 I/O一体化
+- Modbus Master/Slave両対応
+- WindLDR（無償プログラミングソフトウェア）
+
+Modbus TCP実装は標準仕様に準拠。pymodbusライブラリで対応可能です。
+
+#### FANUC
+
+**主要シリーズ:** 0i-F、30i-B、31i-B5、32i-B (CNC統合PMC)
+**プロトコル:** FOCAS (Factory Automation Computer Aided System)
+**ポート:** 8193 (FOCAS/Ethernet)
+**Pythonライブラリ:** 独自実装が必要（Cライブラリのラッパー）
+
+**特徴:**
+- 日本製、CNC（数値制御装置）世界シェアNo.1
+- PMC（Programmable Machine Controller）はCNC統合PLC
+- FOCASはCNC/PMCデータ交換用API（Ethernet/HSSB）
+- Focas 1/Focas 2ライブラリ（Windows DLL）
+
+**注意:** FANUCのFOCASはPLC単体というよりCNC制御の一部です。専用ライブラリとオプション（有償）が必要です。
+
+#### その他のメーカー
+
+以下のメーカーもModbus TCP/RTU対応により接続可能です：
+
+- **Delta Electronics (台湾):** DVP/AH500シリーズ、Modbus RTU/ASCII/TCP対応、ISPSoft開発環境
+- **LS Electric (韓国):** XGK/XGBシリーズ、Cnet/Fnetプロトコル、XG5000開発環境
+- **Yokogawa (日本):** STARDOMシリーズ、VDS SCADA + Modbus Master/Slave
+- **Fuji Electric (日本):** FLEX-PC/MICREX-SXシリーズ、独自プロトコル
+- **Hitachi (日本):** EH/MICRO-EHシリーズ、HI-PROTOCOL (RS-422/485)
+- **Toshiba (日本):** T2/EX100シリーズ、Modbus RTU対応モジュール
+- **AutomationDirect/Koyo (米国):** Click/DirectLogicシリーズ、Modbus TCP/RTU対応
+- **Bosch Rexroth (ドイツ):** IndraLogic XLC/XMCシリーズ、CODESYS + EtherCAT
+- **Yaskawa (日本):** MP2000/MP2200/MP3000シリーズ、EtherCAT対応オプション
 
 ### セキュリティとアクセス制御
 
