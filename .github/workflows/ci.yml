@@ -24,7 +24,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements_agent.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
@@ -32,7 +32,7 @@ jobs:
         run: |
           cd plc-dashboard/raspi_agent
           pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements_agent.txt
           pip install pytest pytest-cov pylint black mypy
 
       - name: Run pytest with coverage
