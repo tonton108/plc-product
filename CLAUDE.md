@@ -228,11 +228,81 @@ PLCデータ収集エージェント。対応メーカー: 三菱、オムロン
 - `bit`: ビット値（0/1）
 
 #### `plc-dashboard/raspi_agent/db_utils.py`
-設定管理とデータベースAPI。DB優先、JSONフォールバックのハイブリッド設定管理を実装。
+設定管理とデータベースAPI。DB優先、JSONフォールバックのハイブリッド設定管理を実装。**ローカルバッファリング機能を統合**。
 
 **主要クラス:**
 - `ConfigManager`: ローカル設定管理（DB優先、plc_config.jsonフォールバック）
-- `DatabaseAPI`: 中央サーバーとのHTTP通信
+- `DatabaseAPI`: 中央サーバーとのHTTP通信 + ローカルバッファリング
+
+**DatabaseAPIの重要な機能:**
+- `send_log_data()`: データ送信時に自動的にローカルバッファに保存し、送信成功時のみ削除
+- `retry_pending_data()`: 未送信データを一括再送信（定期実行）
+- `cleanup_buffer()`: 古いバッファデータを自動削除（7日以上前）
+- `get_buffer_stats()`: バッファの統計情報を表示
+
+#### `plc-dashboard/raspi_agent/local_buffer.py`
+**ローカルバッファ管理モジュール（2025-01追加）**
+
+中央サーバーへの送信に失敗したPLCデータをSQLiteで一時保存し、サーバー復旧時に自動再送する機能を提供。
+
+**主なユースケース:**
+- 中央サーバーの計画的シャットダウン時（退勤時など）のデータ保全
+- ネットワーク障害時のデータロス防止
+- 一時的なサーバーメンテナンス時の継続運用
+
+**主要クラス:**
+- `LocalBuffer`: SQLiteベースのバッファ管理クラス
+
+**重要な機能:**
+- `save()`: データをバッファに保存
+- `get_pending()`: 未送信データを取得（最大再試行回数チェック）
+- `mark_as_sent()`: 送信成功後にデータを削除
+- `increment_retry()`: 再試行回数をインクリメント＆エラーログ記録
+- `cleanup_old_data()`: 古いデータを自動削除（デフォルト7日）
+- `cleanup_max_retry_exceeded()`: 再試行上限（10回）を超えたデータを削除
+- `get_stats()`: バッファ統計（総件数、設備別、再試行回数別）
+
+**データベーススキーマ:**
+```sql
+CREATE TABLE pending_data (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    equipment_id TEXT NOT NULL,
+    data TEXT NOT NULL,           -- JSON形式のPLCデータ
+    created_at TIMESTAMP NOT NULL,
+    retry_count INTEGER DEFAULT 0,
+    last_retry_at TIMESTAMP,
+    error_message TEXT
+);
+```
+
+**動作フロー:**
+```
+[PLCデータ取得]
+    ↓
+[ローカルバッファに保存] ← 必ず保存（データロス防止）
+    ↓
+[中央サーバーに送信]
+    ├─ 成功 → バッファから削除
+    └─ 失敗 → バッファに残す（後で再送）
+         ↓
+    [60秒ごとに自動再送]
+         ↓
+    [1時間ごとにクリーンアップ]
+```
+
+**設定パラメータ（plc_agent.py:1245-1246）:**
+- `retry_interval`: 60秒（未送信データの再送信間隔）
+- `cleanup_interval`: 3600秒（古いデータのクリーンアップ間隔）
+- `max_retry`: 10回（最大再試行回数、local_buffer.py:59）
+- `retention_days`: 7日（データ保存期間、db_utils.py:248）
+
+**統計情報の確認:**
+```python
+# Pythonスクリプトから
+from db_utils import DatabaseAPI
+db_api = DatabaseAPI()
+db_api.get_buffer_stats()  # コンソールに統計を表示
+```
 
 ### plc-dashboard/scripts/（開発・管理ツール）
 

@@ -9,6 +9,16 @@
               <v-card-subtitle class="text-subtitle-1">設備一覧からモニタリングしたい設備を選択してください</v-card-subtitle>
             </v-col>
             <v-col cols="auto">
+              <v-btn
+                color="white"
+                size="large"
+                class="mr-3"
+                :loading="loading"
+                @click="fetchEquipment"
+              >
+                <v-icon>mdi-refresh</v-icon>
+                <span class="ml-2">更新</span>
+              </v-btn>
               <v-btn-toggle
                 v-model="viewMode"
                 mandatory
@@ -72,7 +82,7 @@
           <v-card-text class="pb-2">
             <v-list density="compact" class="bg-transparent">
               <v-list-item density="compact">
-                <template v-slot:prepend>
+                <template #prepend>
                   <v-icon size="small">mdi-raspberry-pi</v-icon>
                 </template>
                 <v-list-item-title class="text-body-2">
@@ -80,7 +90,7 @@
                 </v-list-item-title>
               </v-list-item>
               <v-list-item density="compact">
-                <template v-slot:prepend>
+                <template #prepend>
                   <v-icon size="small">mdi-server-network</v-icon>
                 </template>
                 <v-list-item-title class="text-body-2">
@@ -88,7 +98,7 @@
                 </v-list-item-title>
               </v-list-item>
               <v-list-item density="compact">
-                <template v-slot:prepend>
+                <template #prepend>
                   <v-icon size="small">mdi-ethernet</v-icon>
                 </template>
                 <v-list-item-title class="text-body-2">
@@ -96,7 +106,7 @@
                 </v-list-item-title>
               </v-list-item>
               <v-list-item density="compact">
-                <template v-slot:prepend>
+                <template #prepend>
                   <v-icon size="small">mdi-timer-outline</v-icon>
                 </template>
                 <v-list-item-title class="text-body-2">
@@ -110,7 +120,7 @@
             <v-row dense>
               <v-col cols="6">
                 <v-tooltip text="リアルタイムモニタリング" location="bottom">
-                  <template v-slot:activator="{ props }">
+                  <template #activator="{ props }">
                     <v-btn
                       v-bind="props"
                       color="primary"
@@ -126,7 +136,7 @@
               </v-col>
               <v-col cols="6">
                 <v-tooltip text="履歴データ・グラフ表示" location="bottom">
-                  <template v-slot:activator="{ props }">
+                  <template #activator="{ props }">
                     <v-btn
                       v-bind="props"
                       color="secondary"
@@ -155,10 +165,10 @@
           item-value="equipment_id"
           class="elevation-2"
         >
-          <template v-slot:item.equipment_id="{ item }">
+          <template #[`item.equipment_id`]="{ item }">
             <strong>{{ item.equipment_id }}</strong>
           </template>
-          <template v-slot:item.status="{ item }">
+          <template #[`item.status`]="{ item }">
             <v-chip
               :color="getStatusColor(item.status)"
               text-color="white"
@@ -167,16 +177,16 @@
               {{ item.status }}
             </v-chip>
           </template>
-          <template v-slot:item.manufacturer="{ item }">
+          <template #[`item.manufacturer`]="{ item }">
             {{ item.manufacturer }} - {{ item.series }}
           </template>
-          <template v-slot:item.plc_ip="{ item }">
+          <template #[`item.plc_ip`]="{ item }">
             {{ item.plc_ip || 'N/A' }}
           </template>
-          <template v-slot:item.interval="{ item }">
+          <template #[`item.interval`]="{ item }">
             {{ item.interval }}秒
           </template>
-          <template v-slot:item.actions="{ item }">
+          <template #[`item.actions`]="{ item }">
             <v-btn
               color="primary"
               size="small"
@@ -184,7 +194,7 @@
               class="mr-2"
               @click="goToMonitoring(item.equipment_id)"
             >
-              <template v-slot:prepend>
+              <template #prepend>
                 <v-icon size="small">mdi-monitor-dashboard</v-icon>
               </template>
               監視
@@ -195,7 +205,7 @@
               variant="elevated"
               @click="goToLogs(item.equipment_id)"
             >
-              <template v-slot:prepend>
+              <template #prepend>
                 <v-icon size="small">mdi-chart-line</v-icon>
               </template>
               ログ

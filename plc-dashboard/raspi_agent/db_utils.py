@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from dotenv import load_dotenv
 import socket
 import uuid
+from local_buffer import LocalBuffer
 
 load_dotenv()
 
@@ -48,11 +49,15 @@ def get_ip_address():
 
 class DatabaseAPI:
     """中央サーバーのデータベースAPIとの通信クラス"""
-    
+
     def __init__(self):
         self.central_server_ip = os.getenv("CENTRAL_SERVER_IP", "192.168.1.10")
         self.central_server_port = os.getenv("CENTRAL_SERVER_PORT", "5000")
         self.base_url = f"http://{self.central_server_ip}:{self.central_server_port}/api"
+
+        # ローカルバッファ機能を初期化
+        self.buffer = LocalBuffer(db_path='config/buffer.db', max_retry=10)
+        print("[INFO] ローカルバッファ機能を有効化しました")
         
     def get_equipment_config(self, equipment_id):
         """設備の基本設定を取得"""
@@ -148,18 +153,124 @@ class DatabaseAPI:
             return False
     
     def send_log_data(self, equipment_id, log_data):
-        """ログデータを送信"""
+        """ログデータを送信（バッファリング対応）
+
+        1. まずローカルバッファに保存
+        2. 中央サーバーへの送信を試行
+        3. 送信成功時はバッファから削除、失敗時はバッファに残す
+        """
         try:
             payload = {
                 "equipment_id": equipment_id,
                 "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
                 **log_data
             }
-            response = requests.post(f"{self.base_url}/logs", json=payload, timeout=5)
-            return response.status_code == 200
+
+            # 1. ローカルバッファに保存
+            record_id = self.buffer.save(equipment_id, payload)
+
+            # 2. 中央サーバーへの送信を試行
+            try:
+                response = requests.post(f"{self.base_url}/logs", json=payload, timeout=5)
+                if response.status_code == 200:
+                    # 送信成功 → バッファから削除
+                    self.buffer.mark_as_sent(record_id)
+                    return True
+                else:
+                    # 送信失敗（HTTPエラー） → バッファに残す
+                    error_msg = f"HTTP {response.status_code}"
+                    self.buffer.increment_retry(record_id, error_msg)
+                    print(f"[WARN] サーバーエラー（バッファに保存済み）: {error_msg}")
+                    return False
+            except requests.exceptions.RequestException as e:
+                # 接続エラー → バッファに残す
+                error_msg = str(e)
+                self.buffer.increment_retry(record_id, error_msg)
+                print(f"[WARN] 接続エラー（バッファに保存済み）: {error_msg}")
+                return False
+
         except Exception as e:
-            print(f"❌ ログデータ送信エラー: {e}")
+            print(f"[ERROR] ログデータ送信エラー: {e}")
             return False
+
+    def retry_pending_data(self, batch_size=100):
+        """未送信データを再送信
+
+        Args:
+            batch_size: 1回に再送するデータ数（デフォルト100件）
+
+        Returns:
+            (成功数, 失敗数, 総数) のタプル
+        """
+        pending = self.buffer.get_pending(limit=batch_size)
+
+        if not pending:
+            return (0, 0, 0)
+
+        success_count = 0
+        failure_count = 0
+
+        print(f"\n[RETRY] 未送信データの再送信を開始: {len(pending)}件")
+
+        for record_id, equipment_id, data in pending:
+            try:
+                # タイムスタンプを再設定せず、元のタイムスタンプを使用
+                response = requests.post(f"{self.base_url}/logs", json=data, timeout=5)
+
+                if response.status_code == 200:
+                    # 送信成功 → バッファから削除
+                    self.buffer.mark_as_sent(record_id)
+                    success_count += 1
+                    print(f"  [OK] 再送成功: ID={record_id}, 設備={equipment_id}")
+                else:
+                    # 送信失敗 → 再試行カウント更新
+                    error_msg = f"HTTP {response.status_code}"
+                    self.buffer.increment_retry(record_id, error_msg)
+                    failure_count += 1
+                    print(f"  [WARN] 再送失敗（ID={record_id}）: {error_msg}")
+
+            except requests.exceptions.RequestException as e:
+                # 接続エラー → 再試行カウント更新
+                error_msg = str(e)
+                self.buffer.increment_retry(record_id, error_msg)
+                failure_count += 1
+                print(f"  [WARN] 再送失敗（ID={record_id}）: 接続エラー")
+            except Exception as e:
+                # その他のエラー
+                self.buffer.increment_retry(record_id, str(e))
+                failure_count += 1
+                print(f"  [ERROR] 再送エラー（ID={record_id}）: {e}")
+
+        print(f"[RESULT] 再送結果: 成功={success_count}, 失敗={failure_count}, 総数={len(pending)}\n")
+
+        return (success_count, failure_count, len(pending))
+
+    def cleanup_buffer(self, days=7):
+        """古いバッファデータをクリーンアップ
+
+        Args:
+            days: 保存期間（日数）
+
+        Returns:
+            削除されたレコード数
+        """
+        # 古いデータを削除
+        deleted_old = self.buffer.cleanup_old_data(days=days)
+
+        # 再試行上限を超えたデータを削除
+        deleted_max_retry = self.buffer.cleanup_max_retry_exceeded()
+
+        total_deleted = deleted_old + deleted_max_retry
+
+        if total_deleted > 0:
+            print(f"[CLEANUP] バッファクリーンアップ完了: {total_deleted}件削除")
+
+        return total_deleted
+
+    def get_buffer_stats(self):
+        """バッファの統計情報を取得・表示"""
+        self.buffer.print_stats()
+        return self.buffer.get_stats()
 
 class ConfigManager:
     """設定管理クラス（DB + JSONフォールバック）"""

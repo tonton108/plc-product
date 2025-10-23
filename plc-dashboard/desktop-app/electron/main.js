@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename)
 
 // 開発環境とプロダクション環境の判定
 const isDev = process.env.NODE_ENV !== 'production'
-const VITE_DEV_SERVER_URL = 'http://localhost:5173'
+const NUXT_UI_URL = 'http://localhost:3000'  // Nuxt UIのURL
 
 let mainWindow = null
 let tray = null
@@ -129,12 +129,12 @@ function createWindow() {
     title: 'PLC Monitoring System'
   })
 
-  // 開発時はViteサーバーから、プロダクション時はビルド済みファイルをロード
+  // 開発時・本番時ともにNuxt UIを表示
+  mainWindow.loadURL(NUXT_UI_URL)
+
+  // 開発時のみDevToolsを開く
   if (isDev) {
-    mainWindow.loadURL(VITE_DEV_SERVER_URL)
     mainWindow.webContents.openDevTools()
-  } else {
-    mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
   }
 
   // ウィンドウを閉じる時（×ボタン）→ 最小化してタスクトレイに隠す

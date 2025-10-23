@@ -1238,43 +1238,79 @@ def main_loop():
     # 初回起動時に環境変数を再読み込み
     print("🚀 PLCエージェント起動 - 環境変数確認中...")
     reload_env_vars()
-    
+
+    # バッファリング機能のカウンター
+    retry_counter = 0  # 再送信のカウンター
+    cleanup_counter = 0  # クリーンアップのカウンター
+    retry_interval = 60  # 再送信間隔（秒）: 60秒ごと
+    cleanup_interval = 3600  # クリーンアップ間隔（秒）: 1時間ごと
+
+    print(f"📦 バッファリング機能有効:")
+    print(f"  - 再送信間隔: {retry_interval}秒ごと")
+    print(f"  - クリーンアップ間隔: {cleanup_interval}秒ごと（7日以上前のデータを削除）")
+
     while True:
         # 設定をDB優先で読み込み（設定変更に対応）
         config = load_plc_config()
         equipment_id = config.get("equipment_id")
-        
+
         if not equipment_id:
             print("⚠️ 設備IDが未設定です。自動識別を試行します...")
-            
+
             # CPUシリアル番号による自動識別を実行
             equipment_id = auto_identify_equipment()
-            
+
             if not equipment_id:
                 print("⚠️ 設備自動識別に失敗しました。10秒後に再試行します。")
                 time.sleep(10)
                 continue
-            
+
             # 設定を再読み込み（識別結果を反映）
             config = load_plc_config()
-        
+
         # 設定に基づいてPLCからデータを取得
         values = read_from_plc(config)
 
         if values:
-            # DB APIを使用してログデータを送信
+            # DB APIを使用してログデータを送信（バッファリング対応）
             success = db_api.send_log_data(equipment_id, values)
-            
+
             if success:
                 print(f"✅ DB送信成功: {equipment_id} / {values}")
             else:
-                print(f"❌ DB送信エラー: {equipment_id}")
+                print(f"⚠️ DB送信失敗（バッファに保存済み）: {equipment_id}")
         else:
             print("⚠️ データ取得失敗。")
 
         # 設定された間隔で待機
         interval = config.get("interval", INTERVAL)
         time.sleep(interval / 1000.0)
+
+        # カウンター更新
+        retry_counter += interval / 1000.0
+        cleanup_counter += interval / 1000.0
+
+        # 定期的に未送信データを再送信
+        if retry_counter >= retry_interval:
+            try:
+                success, failure, total = db_api.retry_pending_data(batch_size=100)
+                if total > 0:
+                    print(f"🔄 未送信データ再送完了: 成功={success}, 失敗={failure}")
+            except Exception as e:
+                print(f"❌ 未送信データ再送エラー: {e}")
+            finally:
+                retry_counter = 0
+
+        # 定期的に古いバッファデータをクリーンアップ
+        if cleanup_counter >= cleanup_interval:
+            try:
+                deleted = db_api.cleanup_buffer(days=7)
+                if deleted > 0:
+                    print(f"🗑️ 古いバッファデータを削除: {deleted}件")
+            except Exception as e:
+                print(f"❌ バッファクリーンアップエラー: {e}")
+            finally:
+                cleanup_counter = 0
 
 if __name__ == "__main__":
     main_loop()
