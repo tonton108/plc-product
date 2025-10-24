@@ -242,6 +242,7 @@ OpenAI Codex（ChatGPT Plus付属）を使用したAI自動コードレビュー
   - PR作成時に自動レビュー依頼
   - PLCプロジェクト特有の観点（セキュリティ、エンディアン、タイムアウト等）
   - 日本語でのフィードバック
+  - **具体的なコード修正案の提示**（diff形式で修正前後のコードを表示）
 
 **レビュー観点:**
 - セキュリティ脆弱性（PLC通信セキュリティ）
@@ -270,6 +271,13 @@ git push origin feature/my-feature
 
 # GitHub上でPR作成
 # → 自動的にCodexレビューがトリガーされる
+# → レビューコメントと共に具体的な修正案が提示される
+```
+
+**追加で修正案を依頼する場合:**
+```bash
+# PRコメントで以下をメンション
+@codex address that feedback and provide code fix suggestions in Japanese
 ```
 
 **動作確認:**
@@ -289,6 +297,7 @@ git push origin <ブランチ名>
 - **Codexが反応しない**: MFA有効化、GitHub連携の再接続、数分待機
 - **レビューが英語**: PRコメントで `@codex review in Japanese` と明示
 - **ワークフローが失敗**: GitHub Actionsのログを確認（PRの「Checks」タブ）
+- **修正案が表示されない**: PRコメントで `@codex address that feedback and provide code fix suggestions in Japanese` と明示的に依頼
 
 ### 将来の拡張（検討中）
 
