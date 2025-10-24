@@ -12,7 +12,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - CLI出力やログ文言も、特別な理由がなければ日本語で提案すること。
 - 回答の際は、過剰な翻訳ではなく技術的な正確さを優先すること。
 
-
 Claudeは以下のルールを厳守すること：
 
 1. すべてのコミットメッセージは**日本語**で書くこと。
@@ -20,6 +19,7 @@ Claudeは以下のルールを厳守すること：
 3. フォーマットは「タイプ: 概要」形式（例：`refactor: 古いディレクトリを整理し重複を解消`）。
 4. Claude Codeは**自動署名（🤖やCo-Authored行）を付与しないこと。**
 5. 英語が混ざった場合は即座に修正し、再コミット前に確認を求めること。
+
 ---
 
 ## プロジェクト概要
@@ -36,6 +36,20 @@ Claudeは以下のルールを厳守すること：
 5. **docker-compose.yml**: 統合Docker Compose設定
 
 **旧raspi_plc_uiディレクトリは_archive/raspi_plc_ui/にアーカイブされています。現在のシステムではplc-dashboard/raspi_agent/を使用してください。**
+
+### 📚 プロジェクト知識ベース
+
+設計判断や実装の背景、PLC特有の知見は `_docs/` ディレクトリに体系的に記録されています：
+
+- **`_docs/decisions/`** - 設計判断の根拠（なぜSocket.IOをthreadingモードにしたか、など）
+- **`_docs/features/`** - 機能実装の記録（Codex自動レビュー、ローカルバッファリング、など）
+- **`_docs/plc-knowledge/`** - PLC特有の知見（プロトコル、エンディアン、タイムアウト、トラブルシューティング）
+- **`_docs/architecture/`** - コードアーキテクチャの詳細
+- **`_docs/deployment/`** - デプロイメント手順
+- **`_docs/setup/`** - 環境セットアップ（MCP, CI/CD等）
+- **`_docs/commands/`** - 開発コマンド集
+
+詳細は `_docs/README.md` を参照してください。
 
 ### システムアーキテクチャ（イントラネット環境）
 
@@ -79,9 +93,13 @@ Claudeは以下のルールを厳守すること：
 3. Flask Backendがデータベースに保存し、WebSocket経由でリアルタイム配信
 4. 不特定多数のクライアント端末がNuxt UIにブラウザでアクセスし、リアルタイムモニタリング
 
-## 開発コマンド
+詳細は `_docs/architecture/` を参照してください。
 
-### 統合プロジェクト（plc-dashboard）
+---
+
+## クイックスタート
+
+### 中央サーバー起動
 
 ```bash
 cd plc-dashboard
@@ -89,537 +107,154 @@ cd plc-dashboard
 # 環境設定
 cp .env.example .env
 
-# 中央サーバーモード起動
-docker compose up -d db backend  # PostgreSQL + Flask API
-npm run dev                       # Nuxt.jsフロントエンド（ポート3000）
+# PostgreSQL + Flask Backend
+docker compose up -d db backend
 
-# Raspberry Piエージェントモード起動（オプション）
-docker compose --profile agent up -d raspi-agent
-
-# または、エージェントをローカルPythonで起動
-cd raspi_agent
-python agent_app.py
+# Nuxt.js Frontend (ポート3000)
+npm run dev
 ```
 
-### バックエンド（Flask）
+### Raspberry Piエージェント起動（ローカル開発）
+
+```bash
+cd plc-dashboard/raspi_agent
+
+# ダミーPLCモード
+export USE_DUMMY_PLC=true
+python agent_app.py  # ポート8080
+```
+
+### デモデータ送信（開発用）
 
 ```bash
 cd plc-dashboard/backend
-
-# ローカル開発サーバー起動
-flask --app manage.py run --host=0.0.0.0 --port=5000
-
-# データベースマイグレーション
-flask --app manage.py db upgrade
-flask --app manage.py db migrate -m "説明"
-
-# データ管理ツール
-python log_manager.py stats                  # 統計表示
-python log_manager.py cleanup --days 90     # クリーンアップ
-python log_manager.py daily 2025-01-15      # 日次集計作成
-
-# デモデータ送信（開発用）
 python demo_data_sender.py --mode continuous --interval 2.0
 ```
 
-### フロントエンド（Nuxt.js）
+ブラウザで `http://localhost:3000/monitoring/DEMO_001` にアクセスしてリアルタイムデータを確認。
 
-```bash
-cd plc-dashboard
+詳細は `_docs/commands/development.md` を参照してください。
 
-# 開発サーバー起動（ホットリロード）
-npm run dev
+---
 
-# プロダクションビルド
-npm run build
+## 主要ドキュメント
 
-# プロダクションプレビュー
-npm run preview
-```
+### 設計判断（decisions）
 
-### Raspberry Piエージェント
+なぜその技術・設計を選んだのか、判断理由を記録：
 
-```bash
-cd plc-dashboard/raspi_agent
+- `_docs/decisions/socketio-threading-mode.md` - Socket.IO threading mode選択理由
+- `_docs/decisions/equipment-identification-strategy.md` - 設備識別の優先順位戦略
+- `_docs/decisions/data-archiving-strategy.md` - 階層化アーカイブシステム
+- `_docs/decisions/query-optimization.md` - クエリ最適化戦略
+- `_docs/decisions/performance-optimization.md` - パフォーマンス最適化施策
 
-# ローカル開発（ダミーPLCモード）
-export USE_DUMMY_PLC=true
-python agent_app.py
+### アーキテクチャ（architecture）
 
-# 実機PLC接続モード
-export USE_DUMMY_PLC=false
-export PLC_IP=192.168.0.10
-python agent_app.py
+コード構造と主要ファイルの詳細：
 
-# ラズパイへの一括デプロイ（ip_list.csvに対象IPを記載）
-bash scp_bulk_push.sh
-```
+- `_docs/architecture/backend.md` - バックエンド（Flask）詳細
+- `_docs/architecture/frontend.md` - フロントエンド（Nuxt.js）詳細
+- `_docs/architecture/raspi-agent.md` - Raspberry Piエージェント詳細
 
-## MCP Serverの導入と活用
+### PLC知見（plc-knowledge）
 
-このプロジェクトでは、Claude CodeでModel Context Protocol (MCP)サーバーを使用して、データベースやGitHubリポジトリに直接アクセスできます。
+PLCプロジェクト特有の実装ノウハウ：
 
-### 導入済みMCPサーバー
+- `_docs/plc-knowledge/protocols.md` - PLCプロトコル実装ガイド（Modbus、FINS、MC Protocol）
+- `_docs/plc-knowledge/endianness.md` - エンディアン問題と対処法（Big-Endian必須）
+- `_docs/plc-knowledge/timeout-settings.md` - タイムアウト設定のベストプラクティス
+- `_docs/plc-knowledge/troubleshooting.md` - トラブルシューティングガイド
 
-#### 1. PostgreSQL MCP Server
-**用途**: PLC監視システムのデータベースに直接SQLクエリを実行してデータを分析
+### 機能実装（features）
 
-**設定ファイル**: `plc-dashboard/.mcp.json`
+新機能の実装記録：
 
-**使用例**:
-- "最新10件のPLCログデータを取得して"
-- "DEMO_001の過去24時間のデータを集計して"
-- "エラー率が5%を超える設備を検索して"
+- `_docs/features/codex-auto-review.md` - Codex AI自動レビュー機能
 
-#### 2. GitHub MCP Server
-**用途**: GitHubリポジトリ、Issue、Pull Requestへのアクセス
+### デプロイメント（deployment）
 
-**必要な設定**: GitHub Personal Access Token（`.env`ファイルに`GITHUB_TOKEN`を設定）
+本番環境へのデプロイ手順：
 
-**使用例**:
-- "このプロジェクトの未解決Issueを一覧表示して"
-- "最新のPull Requestをレビューして"
-- "main branchとの差分を確認して"
+- `_docs/deployment/raspi-deployment.md` - Raspberry Piデプロイメント
+- `_docs/deployment/environment-variables.md` - 環境変数設定ガイド
 
-### セットアップ方法
+### セットアップ（setup）
 
-詳細なセットアップ手順は`plc-dashboard/MCP_SETUP.md`を参照してください。
+開発環境・CI/CDのセットアップ：
 
-**クイックスタート**:
-1. Node.js 18以上をインストール
-2. `.env`ファイルを作成して`GITHUB_TOKEN`を設定
-3. Claude Codeを再起動
-4. `/mcp`コマンドで接続状態を確認
+- `_docs/setup/mcp-servers.md` - MCP Server設定
+- `_docs/setup/ci-cd.md` - CI/CDセットアップ
 
-### トラブルシューティング
+### 開発コマンド（commands）
 
-- **PostgreSQL接続エラー**: データベースが起動しているか確認（`docker compose ps`）
-- **GitHub認証エラー**: Personal Access Tokenが正しく設定されているか確認（`.env`ファイル）
-- **npxコマンドが見つからない**: Node.jsをインストール
+日常的に使う開発コマンド集：
 
-## CI/CDとAI自動レビュー
+- `_docs/commands/development.md` - 開発コマンド集
 
-### GitHub Actions CI/CD
+---
 
-このプロジェクトではGitHub Actionsを使用して自動テスト・Lint・セキュリティスキャンを実行します。
+## 重要な注意点
 
-**ワークフロー:**
-- `.github/workflows/ci.yml` - 基本的なCI/CD
-  - Backend Tests: pytest + coverage（カバレッジ45%以上、目標85%）
-  - Linting: pylint, black
-  - Frontend Tests: Nuxt.js build + ESLint
-  - Security Scan: Trivy脆弱性スキャン
-  - Docker Build: ビルドテスト
+### 1. Socket.IO初期化
 
-**自動実行:**
-- Pull Request作成時
-- masterブランチへのpush時
+**必ず`async_mode='threading'`で初期化してください。**
 
-**テストカバレッジの現状と改善計画:**
-
-現在のカバレッジ: **46%**（2025年1月時点）
-- ✅ PLCドライバー層: 高カバレッジ（94-99%）
-- ✅ ローカルバッファ: 75%
-- ❌ アプリケーション層: 0%（`agent_app.py`, `plc_agent.py`）
-
-**段階的な改善計画:**
-1. **第1段階（現在）**: 閾値45% - CI/CDの基盤確立
-2. **第2段階**: 閾値60% - `agent_app.py`の基本APIエンドポイントテストを追加
-3. **第3段階**: 閾値75% - `plc_agent.py`のメインループ、エラーハンドリングのテストを追加
-4. **第4段階**: 閾値85% - 統合テスト、エッジケースのテストを追加
-
-**優先的にテストを追加すべきファイル:**
-- `agent_app.py` (474行, 0%カバレッジ) - Flask API、設備登録フロー
-- `plc_agent.py` (168行, 0%カバレッジ) - PLCデータ収集メインループ
-- `register_equipment.py` (46行, 0%カバレッジ) - 設備登録CLI
-
-### Codex AI自動レビュー
-
-OpenAI Codex（ChatGPT Plus付属）を使用したAI自動コードレビュー。
-
-**導入済み機能:**
-- `.github/workflows/codex-review.yml` - Codex自動レビュー
-  - PR作成時に自動レビュー依頼
-  - PLCプロジェクト特有の観点（セキュリティ、エンディアン、タイムアウト等）
-  - 日本語でのフィードバック
-
-**レビュー観点:**
-- セキュリティ脆弱性（PLC通信セキュリティ）
-- PLCプロトコル実装（Modbus TCP、FINS、MC Protocol）
-- エンディアン問題（全PLCでBig-Endian）
-- エラーハンドリング・タイムアウト設定
-- Pythonベストプラクティス
-- パフォーマンス問題
-
-**セットアップ方法:**
-詳細は`plc-dashboard/CODEX_SETUP.md`を参照してください。
-
-**前提条件:**
-- ChatGPT Plus契約（$20/月、追加コスト無し）
-- GitHubとの連携設定
-- MFA（多要素認証）の有効化
-
-**使用例:**
-```bash
-# PRを作成
-git checkout -b feature/my-feature
-# 変更を加える
-git add .
-git commit -m "feat: 新機能追加"
-git push origin feature/my-feature
-
-# GitHub上でPR作成
-# → 自動的にCodexレビューがトリガーされる
-```
-
-**動作確認:**
-```bash
-# 既存PRでワークフローを再実行する場合
-git commit --allow-empty -m "chore: ワークフロー再実行"
-git push origin <ブランチ名>
-```
-
-**Codex設定の確認:**
-1. https://chatgpt.com/codex にアクセス
-2. リポジトリ `tonton108/plc-product` が登録されているか確認
-3. 「自動コードレビュー」が有効になっているか確認
-4. MFA（多要素認証）が有効になっているか確認（https://chatgpt.com/settings）
-
-**トラブルシューティング:**
-- **Codexが反応しない**: MFA有効化、GitHub連携の再接続、数分待機
-- **レビューが英語**: PRコメントで `@codex review in Japanese` と明示
-- **ワークフローが失敗**: GitHub Actionsのログを確認（PRの「Checks」タブ）
-
-### 将来の拡張（検討中）
-
-効果を確認後、以下のツールも追加検討:
-- **CodeRabbit**: より詳細な静的解析（+$15-30/月）
-- **Bugbot**: Cursor IDE統合（+$40/月）
-- **Devin**: AI自動修正エージェント（+$500/月）
-
-## コードアーキテクチャ
-
-### plc-dashboard（中央サーバー）
-
-**技術スタック:**
-- フロントエンド: Nuxt.js 3 + Vuetify 3 + Chart.js + Socket.IO Client
-- バックエンド: Flask + Flask-SocketIO + SQLAlchemy
-- データベース: PostgreSQL（本番）/ SQLite（開発）
-- リアルタイム通信: Socket.IO (threading mode)
-
-**主要ファイル:**
-
-#### `plc-dashboard/backend/app.py`
-Flaskアプリケーションのファクトリー。CORS設定、SQLAlchemy初期化、Socket.IO初期化（`async_mode='threading'`でgreenletエラー回避）を行う。
-
-#### `plc-dashboard/backend/api/routes.py`
-全APIエンドポイントとWebSocketイベントハンドラー。主要なエンドポイント:
-- `POST /api/register` - Raspberry Piからの設備登録
-- `POST /api/logs` - PLCログデータ保存 + WebSocket配信
-- `GET /api/logs/<equipment_id>/history_optimized` - 最適化履歴取得
-- Socket.IOイベント: `plc_data_update`, `equipment_data_update`
-
-#### `plc-dashboard/backend/db/models.py`
-SQLAlchemyモデル:
-- **Equipment**: 設備情報（`cpu_serial_number`, `mac_address`, `equipment_id`で識別）
-- **PLCDataConfig**: PLCデータ項目設定
-- **Log**: 詳細ログ（90日保存）
-- **DailyLogSummary**: 日次集計（365日保存）
-- **MonthlyLogSummary**: 月次集計（永続保存）
-
-**重要な設計原則:**
-- 設備識別の優先順位: `cpu_serial_number` > `mac_address` > `equipment_id`
-- Socket.IOは必ず`async_mode='threading'`で初期化すること
-- 設備更新時は必ず`cpu_serial_number`で既存設備を検索し、`equipment_id`を更新
-
-#### `plc-dashboard/pages/monitoring/[id].vue`
-リアルタイムモニタリングページ。Socket.IOでデータ受信、Chart.jsでグラフ表示。
-
-#### `plc-dashboard/backend/api/scheduler.py`
-データクリーンアップと集計作成のスケジューラー。90日以上古いログの削除、日次・月次集計の自動作成を行う。
-
-### plc-dashboard/raspi_agent/（Raspberry Piエージェント）
-
-**技術スタック:**
-- Flask + Flask-SocketIO（WebUI用）
-- PLC通信ライブラリ: pymcprotocol（三菱）、fins（オムロン）、pymodbus（キーエンス）
-- マルチスレッド: PLCエージェントはバックグラウンドスレッドで動作
-
-**主要ファイル:**
-
-#### `plc-dashboard/raspi_agent/agent_app.py`
-Flaskアプリケーション本体。初期設定画面、モニタリング画面、認証機能を提供。PLCエージェントをバックグラウンドスレッドで起動・管理する。
-
-**重要な機能:**
-- デバイス情報（CPUシリアル番号）で設備を自動識別し、設定済みならモニタリング画面、未設定なら初期設定画面へ遷移
-- PLCエージェントのライフサイクル管理（起動・停止・再起動）
-- 認証機能による保護
-
-#### `plc-dashboard/raspi_agent/plc_agent.py`
-PLCデータ収集エージェント。対応メーカー: 三菱、オムロン、キーエンス、シーメンス（未実装）。
-
-**重要な関数:**
-- `read_from_plc(config)`: 設定に基づいてPLCからデータを読み取り。実PLC接続失敗時は自動的にダミーモードにフォールバック
-- `auto_identify_equipment()`: CPUシリアル番号で設備を自動識別
-- `main_loop()`: 設定された間隔でデータを取得し、中央サーバーに送信
-
-**データ型サポート:**
-- `word`: 16bit整数
-- `dword`: 32bit整数
-- `float32`: IEEE754浮動小数点
-- `bit`: ビット値（0/1）
-
-#### `plc-dashboard/raspi_agent/db_utils.py`
-設定管理とデータベースAPI。DB優先、JSONフォールバックのハイブリッド設定管理を実装。**ローカルバッファリング機能を統合**。
-
-**主要クラス:**
-- `ConfigManager`: ローカル設定管理（DB優先、plc_config.jsonフォールバック）
-- `DatabaseAPI`: 中央サーバーとのHTTP通信 + ローカルバッファリング
-
-**DatabaseAPIの重要な機能:**
-- `send_log_data()`: データ送信時に自動的にローカルバッファに保存し、送信成功時のみ削除
-- `retry_pending_data()`: 未送信データを一括再送信（定期実行）
-- `cleanup_buffer()`: 古いバッファデータを自動削除（7日以上前）
-- `get_buffer_stats()`: バッファの統計情報を表示
-
-#### `plc-dashboard/raspi_agent/local_buffer.py`
-**ローカルバッファ管理モジュール（2025-01追加）**
-
-中央サーバーへの送信に失敗したPLCデータをSQLiteで一時保存し、サーバー復旧時に自動再送する機能を提供。
-
-**主なユースケース:**
-- 中央サーバーの計画的シャットダウン時（退勤時など）のデータ保全
-- ネットワーク障害時のデータロス防止
-- 一時的なサーバーメンテナンス時の継続運用
-
-**主要クラス:**
-- `LocalBuffer`: SQLiteベースのバッファ管理クラス
-
-**重要な機能:**
-- `save()`: データをバッファに保存
-- `get_pending()`: 未送信データを取得（最大再試行回数チェック）
-- `mark_as_sent()`: 送信成功後にデータを削除
-- `increment_retry()`: 再試行回数をインクリメント＆エラーログ記録
-- `cleanup_old_data()`: 古いデータを自動削除（デフォルト7日）
-- `cleanup_max_retry_exceeded()`: 再試行上限（10回）を超えたデータを削除
-- `get_stats()`: バッファ統計（総件数、設備別、再試行回数別）
-
-**データベーススキーマ:**
-```sql
-CREATE TABLE pending_data (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    equipment_id TEXT NOT NULL,
-    data TEXT NOT NULL,           -- JSON形式のPLCデータ
-    created_at TIMESTAMP NOT NULL,
-    retry_count INTEGER DEFAULT 0,
-    last_retry_at TIMESTAMP,
-    error_message TEXT
-);
-```
-
-**動作フロー:**
-```
-[PLCデータ取得]
-    ↓
-[ローカルバッファに保存] ← 必ず保存（データロス防止）
-    ↓
-[中央サーバーに送信]
-    ├─ 成功 → バッファから削除
-    └─ 失敗 → バッファに残す（後で再送）
-         ↓
-    [60秒ごとに自動再送]
-         ↓
-    [1時間ごとにクリーンアップ]
-```
-
-**設定パラメータ（plc_agent.py:1245-1246）:**
-- `retry_interval`: 60秒（未送信データの再送信間隔）
-- `cleanup_interval`: 3600秒（古いデータのクリーンアップ間隔）
-- `max_retry`: 10回（最大再試行回数、local_buffer.py:59）
-- `retention_days`: 7日（データ保存期間、db_utils.py:248）
-
-**統計情報の確認:**
 ```python
-# Pythonスクリプトから
-from db_utils import DatabaseAPI
-db_api = DatabaseAPI()
-db_api.get_buffer_stats()  # コンソールに統計を表示
+# plc-dashboard/backend/app.py
+socketio.init_app(app, async_mode='threading', cors_allowed_origins="*")
 ```
 
-### plc-dashboard/scripts/（開発・管理ツール）
+詳細は `_docs/decisions/socketio-threading-mode.md` を参照。
 
-**主要ツール:**
-- `check_data.py`: データベース内のログデータ確認ツール
-- `check_integration.sh`: ディレクトリ構造とファイル存在確認スクリプト
-- `init_db.py`: データベース初期化スクリプト（開発用）
-- `test_db_connection.py`: PostgreSQL接続テスト
+### 2. 設備識別の優先順位
 
-## データベース設計
+**設備識別は以下の優先順位で行ってください：**
 
-### 階層化アーカイブシステム
+1. `cpu_serial_number`（最優先・不変）
+2. `mac_address`（準不変）
+3. `equipment_id`（可変・ユーザー定義）
 
-1. **詳細データ（logs）**: 90日間保存、リアルタイム監視用
-2. **日次集計（daily_log_summaries）**: 365日間保存、週次・月次トレンド分析用
-3. **月次集計（monthly_log_summaries）**: 永続保存、長期比較用
+詳細は `_docs/decisions/equipment-identification-strategy.md` を参照。
 
-### 最適化インデックス
+### 3. PLCプロトコル実装
 
-- `idx_logs_timestamp` - タイムスタンプ検索高速化
-- `idx_logs_equipment_timestamp` - 設備別期間検索高速化
-- `idx_daily_summary_equipment_date` - 日次集計検索高速化
-- `idx_monthly_summary_equipment_year_month` - 月次集計検索高速化
+**すべてのPLCでBig-Endianを使用します。**
 
-## デプロイメント
+```python
+# ✅ 正しい: Big-Endian
+bytes_data = struct.pack('>HH', word1, word2)
 
-### ラズパイへの一括デプロイ
-
-1. `plc-dashboard/raspi_agent/ip_list.csv`にラズパイのIPアドレスを記載:
-```csv
-ip_address
-192.168.0.101
-192.168.0.102
+# ❌ 間違い: Little-Endian
+bytes_data = struct.pack('<HH', word1, word2)
 ```
 
-2. デプロイスクリプトを実行:
-```bash
-cd plc-dashboard/raspi_agent
-bash scp_bulk_push.sh
+詳細は `_docs/plc-knowledge/endianness.md` を参照。
+
+### 4. タイムアウト設定
+
+**PLC通信は必ずタイムアウト（3-5秒）を設定してください。**
+
+```python
+# ✅ 正しい
+plc.connect(ip, port, timeout=5.0)
+
+# ❌ 間違い
+plc.connect(ip, port)
 ```
 
-このスクリプトは以下を実行します:
-- プロジェクトフォルダを`/home/pi/`に転送
-- `plc_ui.service`を`/etc/systemd/system/`に設置
-- systemd経由でDocker Composeを自動起動・永続化
+詳細は `_docs/plc-knowledge/timeout-settings.md` を参照。
 
-### 環境変数設定
-
-**plc-dashboard（中央サーバー）:**
-```env
-DATABASE_URL=postgresql+psycopg2://plc_user:plc_pass@localhost:5432/plc_monitor
-SECRET_KEY=your-secret-key
-```
-
-**plc-dashboard/raspi_agent/（Raspberry Pi）:**
-```env
-USE_DUMMY_PLC=false              # true=ダミーモード、false=実PLC接続
-PLC_IP=192.168.0.10              # PLCのIPアドレス
-PLC_PORT=5000                     # PLCポート（三菱PLC等）
-PLC_MANUFACTURER=Mitsubishi       # メーカー名
-LOG_INTERVAL_MS=5000              # データ収集間隔（ミリ秒）
-CENTRAL_SERVER_IP=192.168.1.10    # 中央サーバーIP
-CENTRAL_SERVER_PORT=5000          # 中央サーバーポート
-```
+---
 
 ## トラブルシューティング
 
-### Socket.IO Greenletエラー
-Socket.IOは必ず`async_mode='threading'`で初期化すること:
-```python
-socketio.init_app(app, async_mode='threading')
-```
+問題が発生したら、まず以下を確認してください：
 
-### 設備が見つからない
-1. CPUシリアル番号を確認: `python plc-dashboard/raspi_agent/test_cpu_serial.py`
-2. 中央サーバーで設備検索: `GET /api/equipment/search?cpu_serial_number=XXX`
-3. 設備が未登録なら初期設定画面で登録
+1. **`_docs/plc-knowledge/troubleshooting.md`** - よくある問題と解決策
+2. **環境変数設定** - `_docs/deployment/environment-variables.md`
+3. **ログ確認** - `docker compose logs -f backend`
 
-### PLC接続エラー
-1. `USE_DUMMY_PLC=true`でダミーモードに切り替え
-2. エラー統計を確認: `plc_agent.py`のログ出力を確認
-3. PLC側のIPアドレス、ポート、通信設定を確認
+---
 
-### データベース接続エラー
-```bash
-# PostgreSQL接続確認
-cd plc-dashboard
-python scripts/test_db_connection.py
-
-# マイグレーション実行
-cd backend
-flask --app manage.py db upgrade
-```
-
-## テストとデバッグ
-
-### デモデータ送信の実行順序
-
-1. 中央サーバー起動（plc-dashboard）
-```bash
-cd plc-dashboard/backend
-flask --app manage.py run
-```
-
-2. フロントエンド起動
-```bash
-cd plc-dashboard
-npm run dev
-```
-
-3. デモデータ送信
-```bash
-cd plc-dashboard/backend
-python demo_data_sender.py --mode continuous --interval 2.0
-```
-
-4. ブラウザで確認
-```
-http://localhost:3000/monitoring/DEMO_001
-```
-
-### ログの確認
-
-- **Flask側**: ターミナル出力（`📥 PLCデータ受信`, `📡 WebSocket送信完了`等）
-- **Nuxt側**: ブラウザ開発者コンソールでSocket.IOイベント確認
-- **Raspberry Pi側**: `plc_agent.log`ファイル
-
-## 重要な実装上の注意点
-
-### 設備の識別と更新
-
-設備の更新時は必ず`cpu_serial_number`で既存設備を検索し、見つかった場合は`equipment_id`を更新します。これにより、Raspberry Piの再起動やIP変更があっても設備情報を正しく維持できます。
-
-```python
-# routes.py:388-432 参照
-equipment = Equipment.query.filter_by(cpu_serial_number=cpu_serial_number).first()
-if equipment:
-    equipment.equipment_id = equipment_id  # 設備IDを新しい値に更新
-```
-
-### データ最適化クエリ
-
-短期間（1h, 6h, 24h）は詳細データ、長期間（7d, 30d）は集計データを自動選択:
-
-```python
-if period in ['1h', '6h', '24h']:
-    logs = Log.query.filter(...).all()  # 詳細データ
-elif period in ['7d', '30d']:
-    summaries = DailyLogSummary.query.filter(...).all()  # 集計データ
-```
-
-### PLCデータ読み取りのフォールバック
-
-実PLC接続失敗時は自動的にダミーモードにフォールバックします:
-
-```python
-# plc_agent.py:321-356
-if USE_DUMMY_PLC:
-    return generate_dummy_data(data_points)
-else:
-    result = read_from_real_plc(...)
-    if result is None:
-        return generate_dummy_data(data_points)  # フォールバック
-```
-
-## パフォーマンス最適化
-
-### データベース最適化効果
-
-- **クエリ速度**: 50-150倍高速化
-- **ストレージ使用量**: 75%削減
-- **同時接続可能数**: 10倍増加
-- **運用工数**: 90%削減
-
-### データ圧縮率
-
-- 中期データ（日次集計）: 99.9%圧縮（2400件→1件/日）
-- 長期データ（月次集計）: 99.99%圧縮（72,000件→12件/年）
+**最終更新:** 2025-10-24
