@@ -35,7 +35,10 @@ jobs:
             - Endianness issues (all PLCs use Big-Endian)
             - Error handling and timeout settings
             - Performance issues
-            - Code quality and maintainability`;
+            - Code quality and maintainability
+
+            **重要**: 問題を発見した場合は、具体的なコード修正案を提示してください。
+            修正前後のコードを diff 形式で示してください。`;
 
             await github.rest.issues.createComment({
               owner: context.repo.owner,
