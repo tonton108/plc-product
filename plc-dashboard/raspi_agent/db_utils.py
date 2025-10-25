@@ -20,10 +20,10 @@ def get_cpu_serial_number():
                     if serial and serial != "0000000000000000":
                         return serial
         # SerialがないかデフォルトIDの場合は、fallback
-        print("⚠️ CPU Serial情報が見つからないため、フォールバックIDを使用")
+        print("[WARNING] CPU Serial情報が見つからないため、フォールバックIDを使用")
         return _generate_fallback_serial()
     except Exception as e:
-        print(f"❌ CPUシリアル番号取得エラー: {e}")
+        print(f"[ERROR] CPUシリアル番号取得エラー: {e}")
         print("🔄 フォールバックIDを生成します")
         return _generate_fallback_serial()
 
@@ -67,7 +67,7 @@ class DatabaseAPI:
                 return response.json()
             return None
         except Exception as e:
-            print(f"❌ 設備設定取得エラー: {e}")
+            print(f"[ERROR] 設備設定取得エラー: {e}")
             return None
     
     def get_equipment_by_device_info(self, cpu_serial_number=None, mac_address=None, ip_address=None):
@@ -86,7 +86,7 @@ class DatabaseAPI:
                 return response.json()
             return None
         except Exception as e:
-            print(f"❌ デバイス情報による設備検索エラー: {e}")
+            print(f"[ERROR] デバイス情報による設備検索エラー: {e}")
             return None
     
     def check_equipment_setup_completed(self, equipment_id):
@@ -98,7 +98,7 @@ class DatabaseAPI:
                 return result.get("setup_completed", False)
             return False
         except Exception as e:
-            print(f"❌ セットアップ状態確認エラー: {e}")
+            print(f"[ERROR] セットアップ状態確認エラー: {e}")
             return False
     
     def get_plc_data_configs(self, equipment_id):
@@ -109,7 +109,7 @@ class DatabaseAPI:
                 return response.json()
             return []
         except Exception as e:
-            print(f"❌ PLCデータ設定取得エラー: {e}")
+            print(f"[ERROR] PLCデータ設定取得エラー: {e}")
             return []
     
     def save_equipment_config(self, equipment_data):
@@ -120,7 +120,7 @@ class DatabaseAPI:
                                   json=equipment_data, timeout=5)
             return response.status_code == 200
         except Exception as e:
-            print(f"❌ 設備設定保存エラー: {e}")
+            print(f"[ERROR] 設備設定保存エラー: {e}")
             return False
     
     def save_equipment_config_by_id(self, target_equipment_id, equipment_data):
@@ -130,7 +130,7 @@ class DatabaseAPI:
                                   json=equipment_data, timeout=5)
             return response.status_code == 200
         except Exception as e:
-            print(f"❌ 設備設定保存エラー: {e}")
+            print(f"[ERROR] 設備設定保存エラー: {e}")
             return False
     
     def save_plc_data_configs(self, equipment_id, plc_configs):
@@ -140,7 +140,7 @@ class DatabaseAPI:
                                   json=plc_configs, timeout=5)
             return response.status_code == 200
         except Exception as e:
-            print(f"❌ PLCデータ設定保存エラー: {e}")
+            print(f"[ERROR] PLCデータ設定保存エラー: {e}")
             return False
     
     def mark_setup_completed(self, equipment_id):
@@ -149,7 +149,7 @@ class DatabaseAPI:
             response = requests.post(f"{self.base_url}/equipment/{equipment_id}/mark_setup_completed", timeout=5)
             return response.status_code == 200
         except Exception as e:
-            print(f"❌ セットアップ完了マークエラー: {e}")
+            print(f"[ERROR] セットアップ完了マークエラー: {e}")
             return False
     
     def send_log_data(self, equipment_id, log_data):
@@ -245,11 +245,11 @@ class DatabaseAPI:
 
         return (success_count, failure_count, len(pending))
 
-    def cleanup_buffer(self, days=7):
+    def cleanup_buffer(self, days=30):
         """古いバッファデータをクリーンアップ
 
         Args:
-            days: 保存期間（日数）
+            days: 保存期間（日数、デフォルト30日）
 
         Returns:
             削除されたレコード数
@@ -295,37 +295,37 @@ class ConfigManager:
             )
             
             if not equipment_info:
-                print("⚠️ データベースに設備が未登録 → 初回起動")
+                print("[WARNING] データベースに設備が未登録 → 初回起動")
                 return True
             
             equipment_id = equipment_info.get("equipment_id")
             if not equipment_id:
-                print("⚠️ 設備IDが取得できない → 初回起動")
+                print("[WARNING] 設備IDが取得できない → 初回起動")
                 return True
             
             # 設備の初回セットアップ完了状態をチェック
             setup_completed = self.db_api.check_equipment_setup_completed(equipment_id)
             if not setup_completed:
-                print(f"⚠️ 設備 {equipment_id} のセットアップ未完了 → 初回起動")
+                print(f"[WARNING] 設備 {equipment_id} のセットアップ未完了 → 初回起動")
                 return True
             
             # PLCデータ設定が存在し、有効な項目があるかチェック
             plc_configs = self.db_api.get_plc_data_configs(equipment_id)
             if not plc_configs:
-                print(f"⚠️ 設備 {equipment_id} のPLC設定が存在しない → 初回起動")
+                print(f"[WARNING] 設備 {equipment_id} のPLC設定が存在しない → 初回起動")
                 return True
             
             # 有効なPLC設定があるかチェック
             enabled_configs = [config for config in plc_configs if config.get("enabled", False)]
             if not enabled_configs:
-                print(f"⚠️ 設備 {equipment_id} に有効なPLC設定がない → 初回起動")
+                print(f"[WARNING] 設備 {equipment_id} に有効なPLC設定がない → 初回起動")
                 return True
             
-            print(f"✅ 設備 {equipment_id} は設定済み → 通常起動")
+            print(f"[SUCCESS] 設備 {equipment_id} は設定済み → 通常起動")
             return False
             
         except Exception as e:
-            print(f"❌ 初回起動判定エラー: {e} → 初回起動として扱う")
+            print(f"[ERROR] 初回起動判定エラー: {e} → 初回起動として扱う")
             return True
     
     def load_plc_config(self):
@@ -335,7 +335,7 @@ class ConfigManager:
         equipment_id = local_config.get("equipment_id")
         
         if not equipment_id:
-            print("⚠️ 設備IDが未設定です。")
+            print("[WARNING] 設備IDが未設定です。")
             return local_config
         
         # DBから設備設定を取得
@@ -370,10 +370,10 @@ class ConfigManager:
                     "enabled": plc_config.get("enabled", False)
                 }
             
-            print(f"✅ DB設定読み込み成功: {equipment_id}")
+            print(f"[SUCCESS] DB設定読み込み成功: {equipment_id}")
             return config
         else:
-            print("⚠️ DB設定読み込み失敗、JSONファイルを使用")
+            print("[WARNING] DB設定読み込み失敗、JSONファイルを使用")
             return local_config
     
     def save_plc_config(self, config_data):
@@ -383,7 +383,7 @@ class ConfigManager:
         
         new_equipment_id = config_data.get("equipment_id")
         if not new_equipment_id:
-            print("❌ 設備IDが未設定のためDB保存をスキップ")
+            print("[ERROR] 設備IDが未設定のためDB保存をスキップ")
             return False
         
         # 現在の設備をMACアドレスで特定
@@ -409,7 +409,7 @@ class ConfigManager:
                         current_equipment_id = json_equipment_id
                         print(f"🔍 現在の設備を特定（JSON）: {current_equipment_id} → {new_equipment_id}")
                 except Exception as e:
-                    print(f"⚠️ JSONファイルから既存設備ID取得に失敗: {e}")
+                    print(f"[WARNING] JSONファイルから既存設備ID取得に失敗: {e}")
         
         # 追加チェック：新しい設備IDが既存設備として中央サーバーに存在するか確認
         if not current_equipment_id and new_equipment_id:
@@ -419,7 +419,7 @@ class ConfigManager:
                     current_equipment_id = new_equipment_id
                     print(f"🔍 設備IDによる既存設備を特定: {new_equipment_id}")
             except Exception as e:
-                print(f"⚠️ 設備ID検索に失敗: {e}")
+                print(f"[WARNING] 設備ID検索に失敗: {e}")
         
         # 設備基本情報をDB保存
         equipment_data = {
@@ -462,10 +462,10 @@ class ConfigManager:
         if equipment_success and plc_success:
             # セットアップ完了フラグは新しい設備IDで設定
             self.db_api.mark_setup_completed(new_equipment_id)
-            print(f"✅ DB設定保存成功: {target_equipment_id} → {new_equipment_id}")
+            print(f"[SUCCESS] DB設定保存成功: {target_equipment_id} → {new_equipment_id}")
             return True
         else:
-            print("❌ DB設定保存失敗")
+            print("[ERROR] DB設定保存失敗")
             return False
     
     def _load_json_config(self):
@@ -513,7 +513,7 @@ class ConfigManager:
             
             return True
         except Exception as e:
-            print(f"❌ 設備ID保存エラー: {e}")
+            print(f"[ERROR] 設備ID保存エラー: {e}")
             return False
     
     def save_admin_password(self, password_hash):
@@ -531,7 +531,7 @@ class ConfigManager:
             
             return True
         except Exception as e:
-            print(f"❌ 管理者パスワード保存エラー: {e}")
+            print(f"[ERROR] 管理者パスワード保存エラー: {e}")
             return False
     
     def get_admin_password_hash(self):
@@ -541,12 +541,12 @@ class ConfigManager:
             local_hash = config_data.get("admin_password_hash")
             
             if local_hash:
-                print("✅ ローカル設定のパスワードハッシュを使用")
+                print("[SUCCESS] ローカル設定のパスワードハッシュを使用")
                 return local_hash
             else:
-                print("⚠️ ローカル設定にパスワードなし、デフォルトを使用")
+                print("[WARNING] ローカル設定にパスワードなし、デフォルトを使用")
                 return None  # デフォルトまたは環境変数を使用
                 
         except Exception as e:
-            print(f"❌ パスワードハッシュ取得エラー: {e}")
+            print(f"[ERROR] パスワードハッシュ取得エラー: {e}")
             return None 

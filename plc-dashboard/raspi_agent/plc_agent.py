@@ -91,7 +91,7 @@ def read_from_plc(config):
 
     # 環境変数によるダミーモード設定
     if USE_DUMMY_PLC:
-        logger.info("⚠️ [DUMMY MODE] ダミーデータを返します。")
+        logger.info("[WARNING] [DUMMY MODE] ダミーデータを返します。")
         return generate_dummy_data(data_points)
 
     # 実際のPLC接続を試行
@@ -101,16 +101,16 @@ def read_from_plc(config):
         response_time_ms = (time.time() - start_time) * 1000  # ミリ秒に変換
 
         if result is None:
-            logger.error("❌ PLC接続失敗 - ダミーモードにフォールバック")
+            logger.error("[ERROR] PLC接続失敗 - ダミーモードにフォールバック")
             update_error_stats(False, "connection", response_time_ms)
             return generate_dummy_data(data_points)
         else:
-            logger.info("✅ PLC接続成功")
+            logger.info("[SUCCESS] PLC接続成功")
             update_error_stats(True, response_time_ms=response_time_ms)
             return result
     except Exception as e:
         response_time_ms = (time.time() - start_time) * 1000
-        logger.error(f"❌ PLC接続例外: {e}")
+        logger.error(f"[ERROR] PLC接続例外: {e}")
         logger.info("🔄 自動的にダミーモードに切り替えます。")
         update_error_stats(False, "connection", response_time_ms)
         return generate_dummy_data(data_points)
@@ -163,10 +163,10 @@ def read_from_real_plc(config, ip, port, manufacturer, data_points):
             return read_siemens_plc(plc, data_points)
 
         else:
-            raise ValueError(f"❌ 不明なメーカー: {manufacturer}")
+            raise ValueError(f"[ERROR] 不明なメーカー: {manufacturer}")
 
     except Exception as e:
-        logger.error(f"❌ PLC読取エラー: {e}")
+        logger.error(f"[ERROR] PLC読取エラー: {e}")
         return None
 
 
@@ -194,7 +194,7 @@ def auto_identify_equipment():
 
         if equipment_config:
             equipment_id = equipment_config.get("equipment_id")
-            print(f"✅ 設備識別成功: {equipment_id}")
+            print(f"[SUCCESS] 設備識別成功: {equipment_id}")
 
             # 設定に保存（設備IDを永続化）
             config_manager.save_equipment_id(equipment_id)
@@ -202,14 +202,14 @@ def auto_identify_equipment():
 
             return equipment_id
         else:
-            print("⚠️ 対応する設備が見つかりませんでした")
+            print("[WARNING] 対応する設備が見つかりませんでした")
             if cpu_serial and cpu_serial == "FALLBACK_FIXED_ID":
                 print("ℹ️ フォールバック固定IDが使用されています")
             print("💡 設備登録を行ってください: python register_equipment.py")
             return None
 
     except Exception as e:
-        print(f"❌ 設備自動識別エラー: {e}")
+        print(f"[ERROR] 設備自動識別エラー: {e}")
         return None
 
 
@@ -235,13 +235,13 @@ def main_loop():
         equipment_id = config.get("equipment_id")
 
         if not equipment_id:
-            print("⚠️ 設備IDが未設定です。自動識別を試行します...")
+            print("[WARNING] 設備IDが未設定です。自動識別を試行します...")
 
             # CPUシリアル番号による自動識別を実行
             equipment_id = auto_identify_equipment()
 
             if not equipment_id:
-                print("⚠️ 設備自動識別に失敗しました。10秒後に再試行します。")
+                print("[WARNING] 設備自動識別に失敗しました。10秒後に再試行します。")
                 time.sleep(10)
                 continue
 
@@ -256,11 +256,11 @@ def main_loop():
             success = db_api.send_log_data(equipment_id, values)
 
             if success:
-                print(f"✅ DB送信成功: {equipment_id} / {values}")
+                print(f"[SUCCESS] DB送信成功: {equipment_id} / {values}")
             else:
-                print(f"⚠️ DB送信失敗（バッファに保存済み）: {equipment_id}")
+                print(f"[WARNING] DB送信失敗（バッファに保存済み）: {equipment_id}")
         else:
-            print("⚠️ データ取得失敗。")
+            print("[WARNING] データ取得失敗。")
 
         # 設定された間隔で待機
         interval = config.get("interval", INTERVAL)
@@ -277,7 +277,7 @@ def main_loop():
                 if total > 0:
                     print(f"🔄 未送信データ再送完了: 成功={success}, 失敗={failure}")
             except Exception as e:
-                print(f"❌ 未送信データ再送エラー: {e}")
+                print(f"[ERROR] 未送信データ再送エラー: {e}")
             finally:
                 retry_counter = 0
 
@@ -288,7 +288,7 @@ def main_loop():
                 if deleted > 0:
                     print(f"🗑️ 古いバッファデータを削除: {deleted}件")
             except Exception as e:
-                print(f"❌ バッファクリーンアップエラー: {e}")
+                print(f"[ERROR] バッファクリーンアップエラー: {e}")
             finally:
                 cleanup_counter = 0
 

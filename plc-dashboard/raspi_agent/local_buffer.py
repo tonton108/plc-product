@@ -46,7 +46,7 @@ class LocalBuffer:
         self.conn.row_factory = sqlite3.Row  # カラム名でアクセス可能にする
 
         self.create_table()
-        logger.info(f"📦 ローカルバッファ初期化完了: {db_path}")
+        logger.info(f"[BUFFER] ローカルバッファ初期化完了: {db_path}")
 
     def create_table(self):
         """バッファテーブルを作成"""
@@ -74,7 +74,7 @@ class LocalBuffer:
         ''')
 
         self.conn.commit()
-        logger.debug("✅ バッファテーブル作成完了")
+        logger.debug("[SUCCESS] バッファテーブル作成完了")
 
     def save(self, equipment_id: str, data: Dict) -> int:
         """データをバッファに保存
@@ -97,7 +97,7 @@ class LocalBuffer:
             logger.debug(f"💾 バッファ保存: ID={record_id}, 設備={equipment_id}")
             return record_id
         except Exception as e:
-            logger.error(f"❌ バッファ保存エラー: {e}")
+            logger.error(f"[ERROR] バッファ保存エラー: {e}")
             return -1
 
     def get_pending(self, limit: int = 100) -> List[Tuple[int, str, Dict]]:
@@ -125,13 +125,13 @@ class LocalBuffer:
                     data = json.loads(row['data'])
                     results.append((row['id'], row['equipment_id'], data))
                 except json.JSONDecodeError as e:
-                    logger.error(f"❌ JSONデコードエラー（ID={row['id']}）: {e}")
+                    logger.error(f"[ERROR] JSONデコードエラー（ID={row['id']}）: {e}")
                     # 破損データは削除
                     self.delete(row['id'])
 
             return results
         except Exception as e:
-            logger.error(f"❌ 未送信データ取得エラー: {e}")
+            logger.error(f"[ERROR] 未送信データ取得エラー: {e}")
             return []
 
     def mark_as_sent(self, record_id: int):
@@ -143,9 +143,9 @@ class LocalBuffer:
         try:
             self.conn.execute('DELETE FROM pending_data WHERE id = ?', (record_id,))
             self.conn.commit()
-            logger.debug(f"✅ バッファから削除: ID={record_id}")
+            logger.debug(f"[SUCCESS] バッファから削除: ID={record_id}")
         except Exception as e:
-            logger.error(f"❌ バッファ削除エラー（ID={record_id}）: {e}")
+            logger.error(f"[ERROR] バッファ削除エラー（ID={record_id}）: {e}")
 
     def delete(self, record_id: int):
         """データを削除（エイリアス）"""
@@ -170,7 +170,7 @@ class LocalBuffer:
             self.conn.commit()
             logger.debug(f"🔄 再試行カウント更新: ID={record_id}")
         except Exception as e:
-            logger.error(f"❌ 再試行カウント更新エラー（ID={record_id}）: {e}")
+            logger.error(f"[ERROR] 再試行カウント更新エラー（ID={record_id}）: {e}")
 
     def cleanup_old_data(self, days: int = 7) -> int:
         """古いデータを削除
@@ -195,7 +195,7 @@ class LocalBuffer:
 
             return deleted_count
         except Exception as e:
-            logger.error(f"❌ クリーンアップエラー: {e}")
+            logger.error(f"[ERROR] クリーンアップエラー: {e}")
             return 0
 
     def cleanup_max_retry_exceeded(self) -> int:
@@ -213,11 +213,11 @@ class LocalBuffer:
             deleted_count = cursor.rowcount
 
             if deleted_count > 0:
-                logger.warning(f"⚠️ 再試行上限を超えたデータを削除: {deleted_count}件")
+                logger.warning(f"[WARNING] 再試行上限を超えたデータを削除: {deleted_count}件")
 
             return deleted_count
         except Exception as e:
-            logger.error(f"❌ 再試行上限超過データ削除エラー: {e}")
+            logger.error(f"[ERROR] 再試行上限超過データ削除エラー: {e}")
             return 0
 
     def get_stats(self) -> Dict:
@@ -266,7 +266,7 @@ class LocalBuffer:
                 'oldest_date': oldest_date
             }
         except Exception as e:
-            logger.error(f"❌ 統計情報取得エラー: {e}")
+            logger.error(f"[ERROR] 統計情報取得エラー: {e}")
             return {
                 'total_count': 0,
                 'equipment_stats': {},

@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 from db_utils import ConfigManager, get_cpu_serial_number
 from functools import wraps
 import hashlib
+import logging
 # ラズパイではローカルDBを使用しない
 # from backend.db import init_db
 # from backend.api.routes import register_routes
@@ -23,6 +24,26 @@ import hashlib
 from plc_agent import main_loop as plc_main_loop
 
 load_dotenv()
+
+# Windows環境でのUnicodeEncodeError回避用ヘルパー関数
+def safe_print(*args, **kwargs):
+    """Windows環境でemojiを含むprint文のエンコードエラーを回避"""
+    try:
+        print(*args, **kwargs)
+    except UnicodeEncodeError:
+        # emojiと特殊文字を削除してから出力
+        import re
+        safe_args = []
+        for arg in args:
+            if isinstance(arg, str):
+                # Unicode emoji・記号文字を削除（広範囲をカバー）
+                # U+1F000-U+1FFFF: 絵文字
+                # U+2000-U+2BFF: 各種記号
+                safe_arg = re.sub(r'[\U0001F000-\U0001FFFF\u2000-\u2BFF\uFE00-\uFE0F]', '', arg)
+                safe_args.append(safe_arg)
+            else:
+                safe_args.append(arg)
+        print(*safe_args, **kwargs)
 
 # PLCエージェントプロセス管理
 plc_agent_thread = None
@@ -145,10 +166,10 @@ def index():
         mac_address = get_mac_address()
         ip_address = get_ip_address()
         
-        print(f"🔍 [自動分岐] デバイス情報取得完了")
-        print(f"   CPUシリアル番号: {cpu_serial_number}")
-        print(f"   MACアドレス: {mac_address}")
-        print(f"   IPアドレス: {ip_address}")
+        safe_print(f"🔍 [自動分岐] デバイス情報取得完了")
+        safe_print(f"   CPUシリアル番号: {cpu_serial_number}")
+        safe_print(f"   MACアドレス: {mac_address}")
+        safe_print(f"   IPアドレス: {ip_address}")
         
         # DB APIで設備検索（CPUシリアル番号最優先）
         db_api = config.config_manager.db_api
@@ -157,50 +178,50 @@ def index():
         
         # 1. CPUシリアル番号で検索（最優先・最も確実）
         if cpu_serial_number:
-            print(f"🔍 [自動分岐] CPUシリアル番号 '{cpu_serial_number}' で設備検索中...")
+            safe_print(f"🔍 [自動分岐] CPUシリアル番号 '{cpu_serial_number}' で設備検索中...")
             equipment_info = db_api.get_equipment_by_device_info(cpu_serial_number=cpu_serial_number)
             if equipment_info:
                 search_method = "CPUシリアル番号"
-                print(f"✅ [自動分岐] CPUシリアル番号で設備発見: {equipment_info.get('equipment_id')}")
+                safe_print(f"✅ [自動分岐] CPUシリアル番号で設備発見: {equipment_info.get('equipment_id')}")
         
         # 2. CPUシリアル番号で見つからない場合、MACアドレスで検索
         if not equipment_info and mac_address:
-            print(f"🔍 [自動分岐] MACアドレス '{mac_address}' で設備検索中...")
+            safe_print(f"🔍 [自動分岐] MACアドレス '{mac_address}' で設備検索中...")
             equipment_info = db_api.get_equipment_by_device_info(mac_address=mac_address)
             if equipment_info:
                 search_method = "MACアドレス"
-                print(f"✅ [自動分岐] MACアドレスで設備発見: {equipment_info.get('equipment_id')}")
+                safe_print(f"✅ [自動分岐] MACアドレスで設備発見: {equipment_info.get('equipment_id')}")
         
         # 3. MACアドレスでも見つからない場合、IPアドレスで検索
         if not equipment_info and ip_address:
-            print(f"🔍 [自動分岐] IPアドレス '{ip_address}' で設備検索中...")
+            safe_print(f"🔍 [自動分岐] IPアドレス '{ip_address}' で設備検索中...")
             equipment_info = db_api.get_equipment_by_device_info(ip_address=ip_address)
             if equipment_info:
                 search_method = "IPアドレス"
-                print(f"✅ [自動分岐] IPアドレスで設備発見: {equipment_info.get('equipment_id')}")
+                safe_print(f"✅ [自動分岐] IPアドレスで設備発見: {equipment_info.get('equipment_id')}")
         
         # 分岐判定
         if equipment_info:
             equipment_id = equipment_info.get('equipment_id')
-            print(f"🎯 [自動分岐] 設備発見 → モニタリング画面へ遷移")
-            print(f"   設備ID: {equipment_id}")
-            print(f"   検索方法: {search_method}")
-            print(f"   製造元: {equipment_info.get('manufacturer', '未設定')}")
-            print(f"   シリーズ: {equipment_info.get('series', '未設定')}")
+            safe_print(f"🎯 [自動分岐] 設備発見 → モニタリング画面へ遷移")
+            safe_print(f"   設備ID: {equipment_id}")
+            safe_print(f"   検索方法: {search_method}")
+            safe_print(f"   製造元: {equipment_info.get('manufacturer', '未設定')}")
+            safe_print(f"   シリーズ: {equipment_info.get('series', '未設定')}")
             
             # 設備IDをローカル設定に保存（plc_agent用）
             config.config_manager.save_equipment_id(equipment_id)
-            print(f"📝 [自動分岐] 設備ID '{equipment_id}' をローカル設定に保存しました")
+            safe_print(f"📝 [自動分岐] 設備ID '{equipment_id}' をローカル設定に保存しました")
             
             return redirect(url_for("monitoring"))
         else:
-            print(f"❌ [自動分岐] 設備未発見 → 初期設定画面へ遷移")
-            print(f"💡 [自動分岐] 設備登録が必要です")
+            safe_print(f"❌ [自動分岐] 設備未発見 → 初期設定画面へ遷移")
+            safe_print(f"💡 [自動分岐] 設備登録が必要です")
             return redirect(url_for("initial_setup"))
             
     except Exception as e:
-        print(f"❌ [自動分岐] エラー発生: {e}")
-        print(f"🔄 [自動分岐] エラーのため初期設定画面へ遷移")
+        safe_print(f"❌ [自動分岐] エラー発生: {e}")
+        safe_print(f"🔄 [自動分岐] エラーのため初期設定画面へ遷移")
         return redirect(url_for("initial_setup"))
 
 @app.route("/initial_setup", methods=["GET", "POST"])
@@ -233,7 +254,7 @@ def initial_setup():
             "raspi_ip": ip_address  # ラズパイのIPアドレス
         }
         
-        print(f"[INFO] 設定画面から送信するデータ: {plc_data}")
+        safe_print(f"[INFO] 設定画面から送信するデータ: {plc_data}")
 
         # PLCデータ項目設定を追加（動的JSON形式に対応）
         data_points = {}
@@ -244,7 +265,7 @@ def initial_setup():
         if plc_configs_json:
             try:
                 plc_configs = json.loads(plc_configs_json)
-                print(f"[INFO] 動的PLC設定を受信: {len(plc_configs)}項目")
+                safe_print(f"[INFO] 動的PLC設定を受信: {len(plc_configs)}項目")
 
                 for plc_config in plc_configs:
                     data_type = plc_config.get("data_type")
@@ -261,14 +282,14 @@ def initial_setup():
                         "enabled": plc_config.get("enabled", True)
                     }
 
-                print(f"[INFO] 処理したPLC項目: {list(data_points.keys())}")
+                safe_print(f"[INFO] 処理したPLC項目: {list(data_points.keys())}")
 
             except json.JSONDecodeError as e:
-                print(f"❌ JSON解析エラー: {e}")
+                safe_print(f"❌ JSON解析エラー: {e}")
                 # JSONエラーの場合は空の設定を使用
                 data_points = {}
         else:
-            print("⚠️ plc_configs_jsonが見つかりません（古いフォーマットの可能性）")
+            safe_print("⚠️ plc_configs_jsonが見つかりません（古いフォーマットの可能性）")
         
         # data_pointsを基本設定に追加
         plc_data["data_points"] = data_points
@@ -295,13 +316,13 @@ def initial_setup():
             import requests
             api_url = f"http://{plc_data['central_server_ip']}:{plc_data['central_server_port']}/api/register"
             
-            print(f"[INFO] API サーバーに設備登録中: {api_url}")
-            print(f"[INFO] 送信データ: {api_data}")
+            safe_print(f"[INFO] API サーバーに設備登録中: {api_url}")
+            safe_print(f"[INFO] 送信データ: {api_data}")
             
             response = requests.post(api_url, json=api_data, timeout=10)
             
             if response.status_code == 200:
-                print("✅ API サーバーへの設備登録成功")
+                safe_print("✅ API サーバーへの設備登録成功")
                 
                 # PLCデータ設定もAPI サーバーに送信
                 try:
@@ -319,24 +340,24 @@ def initial_setup():
                         })
 
                     plc_config_url = f"http://{plc_data['central_server_ip']}:{plc_data['central_server_port']}/api/equipment/{plc_data['equipment_id']}/plc_configs"
-                    print(f"[INFO] 送信するPLC設定: {plc_configs}")  # デバッグ用
+                    safe_print(f"[INFO] 送信するPLC設定: {plc_configs}")  # デバッグ用
                     plc_response = requests.put(plc_config_url, json=plc_configs, timeout=10)
                     
                     if plc_response.status_code == 200:
-                        print("✅ PLCデータ設定も送信成功")
+                        safe_print("✅ PLCデータ設定も送信成功")
                     else:
-                        print(f"⚠️ PLCデータ設定送信失敗: {plc_response.status_code}")
+                        safe_print(f"⚠️ PLCデータ設定送信失敗: {plc_response.status_code}")
                         
                 except Exception as plc_e:
-                    print(f"❌ PLCデータ設定送信エラー: {plc_e}")
+                    safe_print(f"❌ PLCデータ設定送信エラー: {plc_e}")
                 
             else:
-                print(f"⚠️ API サーバーへの設備登録失敗: {response.status_code}")
-                print(f"   レスポンス: {response.text}")
+                safe_print(f"⚠️ API サーバーへの設備登録失敗: {response.status_code}")
+                safe_print(f"   レスポンス: {response.text}")
                 
         except Exception as e:
-            print(f"❌ API サーバーへの設備登録エラー: {e}")
-            print("ℹ️ ローカル設定は保存されました")
+            safe_print(f"❌ API サーバーへの設備登録エラー: {e}")
+            safe_print("ℹ️ ローカル設定は保存されました")
         
         # PLC Agentを再起動（設定反映）
         restart_plc_agent()
@@ -525,13 +546,13 @@ def api_update_local_equipment_id():
         success = config.config_manager.save_equipment_id(new_equipment_id)
 
         if success:
-            print(f"✅ ローカル設備ID更新成功: {new_equipment_id}")
+            safe_print(f"✅ ローカル設備ID更新成功: {new_equipment_id}")
             return jsonify({"success": True, "message": "ローカル設備IDを更新しました"})
         else:
             return jsonify({"success": False, "error": "ローカル設備IDの更新に失敗しました"}), 500
 
     except Exception as e:
-        print(f"❌ ローカル設備ID更新エラー: {e}")
+        safe_print(f"❌ ローカル設備ID更新エラー: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/equipment/<equipment_id>", methods=["PUT"])
@@ -569,7 +590,7 @@ def api_update_equipment(equipment_id):
 
         # ローカル設定を保存
         config.save_plc_config(updated_config)
-        print(f"✅ ローカル設定保存成功: {equipment_id}")
+        safe_print(f"✅ ローカル設定保存成功: {equipment_id}")
 
         # 中央サーバーに設備情報を送信
         try:
@@ -589,17 +610,17 @@ def api_update_equipment(equipment_id):
             }
 
             api_url = f"http://{updated_config['central_server_ip']}:{updated_config['central_server_port']}/api/register"
-            print(f"📡 中央サーバーに設備更新を送信: {api_url}")
+            safe_print(f"📡 中央サーバーに設備更新を送信: {api_url}")
 
             response = requests.post(api_url, json=api_data, timeout=10)
 
             if response.status_code == 200:
-                print(f"✅ 中央サーバーへの設備更新成功")
+                safe_print(f"✅ 中央サーバーへの設備更新成功")
             else:
-                print(f"⚠️ 中央サーバーへの設備更新失敗: {response.status_code}")
+                safe_print(f"⚠️ 中央サーバーへの設備更新失敗: {response.status_code}")
 
         except Exception as e:
-            print(f"❌ 中央サーバーへの設備更新エラー: {e}")
+            safe_print(f"❌ 中央サーバーへの設備更新エラー: {e}")
             # 中央サーバー転送失敗でもローカル保存は成功しているのでエラーにしない
 
         # PLCエージェントを再起動して設定を反映
@@ -608,7 +629,7 @@ def api_update_equipment(equipment_id):
         return jsonify({"success": True, "message": "設備設定を更新しました"})
 
     except Exception as e:
-        print(f"❌ 設備設定更新エラー: {e}")
+        safe_print(f"❌ 設備設定更新エラー: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/equipment/<equipment_id>/plc_configs", methods=["PUT"])
@@ -639,23 +660,23 @@ def api_update_plc_configs(equipment_id):
 
         # ローカル設定を保存
         config.save_plc_config(current_config)
-        print(f"✅ PLCデータ設定保存成功: {equipment_id}")
+        safe_print(f"✅ PLCデータ設定保存成功: {equipment_id}")
 
         # 中央サーバーにPLCデータ設定を送信
         try:
             import requests
             plc_config_url = f"http://{current_config.get('central_server_ip', config.central_server_ip)}:{current_config.get('central_server_port', config.central_server_port)}/api/equipment/{equipment_id}/plc_configs"
-            print(f"📡 中央サーバーにPLCデータ設定を送信: {plc_config_url}")
+            safe_print(f"📡 中央サーバーにPLCデータ設定を送信: {plc_config_url}")
 
             response = requests.put(plc_config_url, json=plc_configs, timeout=10)
 
             if response.status_code == 200:
-                print(f"✅ 中央サーバーへのPLCデータ設定送信成功")
+                safe_print(f"✅ 中央サーバーへのPLCデータ設定送信成功")
             else:
-                print(f"⚠️ 中央サーバーへのPLCデータ設定送信失敗: {response.status_code}")
+                safe_print(f"⚠️ 中央サーバーへのPLCデータ設定送信失敗: {response.status_code}")
 
         except Exception as e:
-            print(f"❌ 中央サーバーへのPLCデータ設定送信エラー: {e}")
+            safe_print(f"❌ 中央サーバーへのPLCデータ設定送信エラー: {e}")
             # 中央サーバー転送失敗でもローカル保存は成功しているのでエラーにしない
 
         # PLCエージェントを再起動して設定を反映
@@ -664,7 +685,7 @@ def api_update_plc_configs(equipment_id):
         return jsonify({"success": True, "message": "PLCデータ設定を更新しました"})
 
     except Exception as e:
-        print(f"❌ PLCデータ設定更新エラー: {e}")
+        safe_print(f"❌ PLCデータ設定更新エラー: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/equipment/<equipment_id>/plc_configs", methods=["GET"])
@@ -677,11 +698,11 @@ def api_get_plc_configs(equipment_id):
         plc_configs = db_api.get_plc_data_configs(equipment_id)
 
         if plc_configs:
-            print(f"✅ DBからPLC設定を取得: {equipment_id} - {len(plc_configs)}項目")
+            safe_print(f"✅ DBからPLC設定を取得: {equipment_id} - {len(plc_configs)}項目")
             return jsonify(plc_configs), 200
 
         # 2. DB設定が空の場合、ローカルplc_config.jsonから取得（フォールバック）
-        print(f"⚠️ DB設定が空のため、ローカル設定をフォールバック: {equipment_id}")
+        safe_print(f"⚠️ DB設定が空のため、ローカル設定をフォールバック: {equipment_id}")
         local_config = config.load_plc_config()
         data_points = local_config.get("data_points", {})
 
@@ -699,11 +720,11 @@ def api_get_plc_configs(equipment_id):
                 "plc_data_type": setting.get("data_type", "word")
             })
 
-        print(f"✅ ローカル設定からPLC設定を取得: {equipment_id} - {len(configs)}項目")
+        safe_print(f"✅ ローカル設定からPLC設定を取得: {equipment_id} - {len(configs)}項目")
         return jsonify(configs), 200
 
     except Exception as e:
-        print(f"❌ PLC設定取得エラー: {e}")
+        safe_print(f"❌ PLC設定取得エラー: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/current-equipment-info")
@@ -718,7 +739,7 @@ def api_current_equipment_info():
         mac_address = get_mac_address()
         ip_address = get_ip_address()
         
-        print(f"🔍 [DEBUG] デバイス情報 - CPU: {cpu_serial_number}, MAC: {mac_address}, IP: {ip_address}")
+        safe_print(f"🔍 [DEBUG] デバイス情報 - CPU: {cpu_serial_number}, MAC: {mac_address}, IP: {ip_address}")
         
         # DB APIで設備検索（CPUシリアル番号最優先）
         db_api = config.config_manager.db_api
@@ -728,13 +749,13 @@ def api_current_equipment_info():
         if cpu_serial_number:
             equipment_info = db_api.get_equipment_by_device_info(cpu_serial_number=cpu_serial_number)
             if equipment_info:
-                print(f"✅ [DEBUG] CPUシリアル番号で設備発見: {equipment_info.get('equipment_id')}")
+                safe_print(f"✅ [DEBUG] CPUシリアル番号で設備発見: {equipment_info.get('equipment_id')}")
         
         # CPUシリアル番号で見つからない場合、MACアドレスで検索
         if not equipment_info and mac_address:
             equipment_info = db_api.get_equipment_by_device_info(mac_address=mac_address)
             if equipment_info:
-                print(f"✅ [DEBUG] MACアドレスで設備発見: {equipment_info.get('equipment_id')}")
+                safe_print(f"✅ [DEBUG] MACアドレスで設備発見: {equipment_info.get('equipment_id')}")
         
         if equipment_info:
             # DB設備情報が見つかった場合
@@ -776,11 +797,11 @@ def api_current_equipment_info():
                     }
                 }
                 
-                print(f"✅ [DEBUG] DB優先の設備情報を返却: {equipment_id}")
+                safe_print(f"✅ [DEBUG] DB優先の設備情報を返却: {equipment_id}")
                 return jsonify(result)
         
         # DB設備情報が見つからない場合、ローカル設定をフォールバック
-        print("⚠️ [DEBUG] DB設備情報が見つからず、ローカル設定をフォールバック")
+        safe_print("⚠️ [DEBUG] DB設備情報が見つからず、ローカル設定をフォールバック")
         local_config = config.load_plc_config()
         local_config["source"] = "local_config"
         local_config["device_info"] = {
@@ -793,7 +814,7 @@ def api_current_equipment_info():
         return jsonify(local_config)
         
     except Exception as e:
-        print(f"❌ [DEBUG] 設備情報取得エラー: {e}")
+        safe_print(f"❌ [DEBUG] 設備情報取得エラー: {e}")
         return jsonify({"error": str(e)}), 500
 
 def restart_plc_agent():
@@ -805,14 +826,14 @@ def restart_plc_agent():
     
     # 新しいPLCエージェントを起動
     start_plc_agent()
-    print("✅ PLCエージェントを再起動しました")
+    safe_print("✅ PLCエージェントを再起動しました")
 
 def start_plc_agent():
     """PLCエージェントをバックグラウンドで起動"""
     global plc_agent_thread, plc_agent_stop_event
     
     if plc_agent_thread and plc_agent_thread.is_alive():
-        print("⚠️ PLCエージェントは既に起動中です")
+        safe_print("⚠️ PLCエージェントは既に起動中です")
         return
     
     # 停止イベントをリセット
@@ -821,7 +842,7 @@ def start_plc_agent():
     # PLCエージェントをスレッドで起動
     plc_agent_thread = threading.Thread(target=plc_agent_wrapper, daemon=True)
     plc_agent_thread.start()
-    print("🚀 PLCエージェントを起動しました")
+    safe_print("🚀 PLCエージェントを起動しました")
 
 def stop_plc_agent():
     """PLCエージェントを停止"""
@@ -835,9 +856,9 @@ def stop_plc_agent():
         plc_agent_thread.join(timeout=5)
         
         if plc_agent_thread.is_alive():
-            print("⚠️ PLCエージェントの停止に時間がかかっています")
+            safe_print("⚠️ PLCエージェントの停止に時間がかかっています")
         else:
-            print("🛑 PLCエージェントを停止しました")
+            safe_print("🛑 PLCエージェントを停止しました")
     
     plc_agent_thread = None
 
@@ -853,7 +874,7 @@ def plc_agent_wrapper():
             equipment_id = config.get("equipment_id")
             
             if not equipment_id:
-                print("⚠️ 設備IDが未設定です。10秒後に再試行します。")
+                safe_print("⚠️ 設備IDが未設定です。10秒後に再試行します。")
                 plc_agent_stop_event.wait(10)
                 continue
             
@@ -869,35 +890,43 @@ def plc_agent_wrapper():
                 success = db_api.send_log_data(equipment_id, values)
                 
                 if success:
-                    print(f"✅ DB送信成功: {equipment_id} / {values}")
+                    safe_print(f"✅ DB送信成功: {equipment_id} / {values}")
                 else:
-                    print(f"❌ DB送信エラー: {equipment_id}")
+                    safe_print(f"❌ DB送信エラー: {equipment_id}")
             else:
-                print("⚠️ データ取得失敗。")
+                safe_print("⚠️ データ取得失敗。")
 
             # 設定された間隔で待機（停止イベントも監視）
             interval = config.get("interval", 5000)
             plc_agent_stop_event.wait(interval / 1000.0)
             
     except Exception as e:
-        print(f"❌ PLCエージェントエラー: {e}")
+        safe_print(f"[ERROR] PLCエージェントエラー: {e}")
 
 def cleanup_on_exit():
     """アプリケーション終了時のクリーンアップ"""
-    print("🔄 アプリケーション終了処理...")
+    safe_print("[INFO] アプリケーション終了処理...")
     stop_plc_agent()
 
 # 終了時のクリーンアップを登録
 atexit.register(cleanup_on_exit)
 
 if __name__ == "__main__":
-    print("🚀 PLC UI システム起動中...")
-    
+    safe_print("[INFO] PLC UI システム起動中...")
+
+    # ログローテーション実行（起動時に自動チェック）
+    try:
+        from log_rotator import rotate_all_logs
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        rotate_all_logs(log_dir=current_dir, keep_days=7)
+    except Exception as e:
+        safe_print(f"[WARNING] ログローテーションスキップ: {e}")
+
     # PLCエージェントを自動起動
     start_plc_agent()
-    
+
     # Flaskアプリケーション起動（SocketIO対応）
     port = int(config.raspi_ui_port)
-    print(f"🌐 WebUI起動: http://0.0.0.0:{port}")
-    print("📡 WebSocket機能が有効化されました")
+    safe_print(f"[INFO] WebUI起動: http://0.0.0.0:{port}")
+    safe_print("[INFO] WebSocket機能が有効化されました")
     socketio.run(app, debug=True, host="0.0.0.0", port=port, allow_unsafe_werkzeug=True) 
