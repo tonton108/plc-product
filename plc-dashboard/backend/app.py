@@ -20,7 +20,14 @@ def create_app():
     CORS(app, origins=allowed_origins)
 
     database_url = os.getenv("DATABASE_URL")
-    if database_url and database_url.startswith("postgresql://"):
+
+    # Electron環境からDATABASE_PORTが渡された場合（PostgreSQL Portable使用時）
+    database_port = os.getenv("DATABASE_PORT")
+    if database_port and not database_url:
+        # PostgreSQL Portable用の接続URL（ユーザー: postgres, パスワードなし, DB: postgres）
+        database_url = f"postgresql+psycopg2://postgres@localhost:{database_port}/postgres"
+        print(f"[App] PostgreSQL Portable接続: {database_url}")
+    elif database_url and database_url.startswith("postgresql://"):
         database_url = database_url.replace("postgresql://", "postgresql+psycopg2://")
     elif not database_url:
         # DATABASE_URLが設定されていない場合はSQLiteを使用（絶対パス）
@@ -63,18 +70,26 @@ def create_app():
         engineio_logger=False
     )
 
-    # ✅ モデルとルートをここでインポート
+    #  モデルとルートをここでインポート
     from db import models
     from api.routes import register_routes
     from error_handlers import register_error_handlers
 
     register_routes(app, socketio)  # socketioを渡す
-    register_error_handlers(app)  # エラーハンドラーを登録
+    # register_error_handlers(app)  # エラーハンドラーを一時的に無効化してエラー詳細を確認
 
-    print(f"✅ Registered tables: {db.Model.metadata.tables.keys()}")
-    print(f"✅ URL Map:\n{app.url_map}")
-    print(f"✅ Socket.IO initialized with threading mode")
-    print(f"✅ Error handlers registered")
+    print(f" Registered tables: {db.Model.metadata.tables.keys()}")
+    print(f" URL Map:\n{app.url_map}")
+    print(f" Socket.IO initialized with threading mode")
+    print(f" Error handlers registered")
+
+    # データベーステーブルを自動作成（開発環境・PostgreSQL Portable用）
+    # AUTO_CREATE_TABLESが設定されている、またはDATABASE_PORTが設定されている場合
+    if os.getenv("AUTO_CREATE_TABLES") == "1" or os.getenv("DATABASE_PORT"):
+        with app.app_context():
+            print(f"[App] データベーステーブルを自動作成中...")
+            db.create_all()
+            print(f"[App] テーブル作成完了")
 
     return app, socketio  # socketioも一緒に返す
 
@@ -90,7 +105,7 @@ def wait_for_db(session):
             # SQLAlchemy 2.x対応: textを使用
             session.execute(text("SELECT 1"))
             session.commit()  # トランザクションをコミット
-            print("✅ データベース接続確認完了")
+            print(" データベース接続確認完了")
             break
         except Exception as e:
             time.sleep(1)

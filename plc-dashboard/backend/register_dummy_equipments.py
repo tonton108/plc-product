@@ -161,7 +161,7 @@ def register_equipment(equipment_data):
         response = requests.get(check_url, params=params)
 
         if response.status_code == 200 and response.json():
-            print(f"⚠️  {equipment_data['equipment_id']} は既に登録されています（スキップ）")
+            print(f"  {equipment_data['equipment_id']} は既に登録されています（スキップ）")
             return False
 
         # 設備登録
@@ -169,15 +169,15 @@ def register_equipment(equipment_data):
         response = requests.post(register_url, json=equipment_data)
 
         if response.status_code == 200 or response.status_code == 201:
-            print(f"✅ {equipment_data['equipment_id']} を登録しました")
+            print(f" {equipment_data['equipment_id']} を登録しました")
             return True
         else:
-            print(f"❌ {equipment_data['equipment_id']} の登録に失敗: {response.status_code}")
+            print(f" {equipment_data['equipment_id']} の登録に失敗: {response.status_code}")
             print(f"   エラー内容: {response.text}")
             return False
 
     except Exception as e:
-        print(f"❌ {equipment_data['equipment_id']} の登録エラー: {e}")
+        print(f" {equipment_data['equipment_id']} の登録エラー: {e}")
         return False
 
 def add_plc_configs(equipment_id):
@@ -221,10 +221,10 @@ def add_plc_configs(equipment_id):
             print(f"   📋 {equipment_id} のPLC設定を追加しました")
             return True
         else:
-            print(f"   ⚠️  {equipment_id} のPLC設定追加に失敗: {response.status_code}")
+            print(f"     {equipment_id} のPLC設定追加に失敗: {response.status_code}")
             return False
     except Exception as e:
-        print(f"   ❌ {equipment_id} のPLC設定追加エラー: {e}")
+        print(f"    {equipment_id} のPLC設定追加エラー: {e}")
         return False
 
 def main():
@@ -252,7 +252,7 @@ def main():
     print(f"スキップ: {skipped_count}件")
     print("=" * 60)
     print()
-    print("✅ ブラウザで http://localhost:3000 にアクセスして確認してください")
+    print(" ブラウザで http://localhost:3000 にアクセスして確認してください")
 
 if __name__ == "__main__":
     main()

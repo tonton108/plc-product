@@ -6,7 +6,7 @@
   "manufacturer": "三菱",
   "series": "FX",
   "interval": 2000,
-  "central_server_ip": "backend",
+  "central_server_ip": "localhost",
   "central_server_port": "5000",
   "data_points": {
     "production_count": {
@@ -45,5 +45,6 @@
       "scale": 1,
       "enabled": true
     }
-  }
+  },
+  "admin_password_hash": "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9"
 }

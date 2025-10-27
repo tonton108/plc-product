@@ -18,12 +18,12 @@ app, socketio = create_app()
 with app.app_context():
     try:
         db.create_all()
-        print("✅ Database tables created successfully!")
+        print(" Database tables created successfully!")
 
         # Verify tables exist
         tables = list(db.metadata.tables.keys())
         print(f"📊 Created tables: {tables}")
 
     except Exception as e:
-        print(f"❌ Error creating tables: {e}")
+        print(f" Error creating tables: {e}")
         raise

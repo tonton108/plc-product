@@ -55,12 +55,12 @@ def cleanup_old_logs():
                     # CPU負荷軽減のため少し待機
                     time.sleep(0.1)
 
-                print(f"✅ クリーンアップ完了: {total_deleted}件のログを削除しました")
+                print(f" クリーンアップ完了: {total_deleted}件のログを削除しました")
             else:
                 print("ℹ️ 削除対象のログはありません")
 
     except Exception as e:
-        print(f"❌ クリーンアップエラー: {e}")
+        print(f" クリーンアップエラー: {e}")
         db.session.rollback()
 
 
@@ -131,10 +131,10 @@ def create_daily_summary(target_date):
                 created_count += 1
 
             db.session.commit()
-            print(f"✅ {target_date}の日次集計を作成しました: {created_count}設備")
+            print(f" {target_date}の日次集計を作成しました: {created_count}設備")
 
     except Exception as e:
-        print(f"❌ 日次集計作成エラー: {e}")
+        print(f" 日次集計作成エラー: {e}")
         db.session.rollback()
 
 
@@ -200,10 +200,10 @@ def create_monthly_summary(year, month):
                 created_count += 1
 
             db.session.commit()
-            print(f"✅ {year}年{month}月の月次集計を作成しました: {created_count}設備")
+            print(f" {year}年{month}月の月次集計を作成しました: {created_count}設備")
 
     except Exception as e:
-        print(f"❌ 月次集計作成エラー: {e}")
+        print(f" 月次集計作成エラー: {e}")
         db.session.rollback()
 
 
@@ -230,9 +230,9 @@ def start_cleanup_scheduler():
                 cleanup_old_logs()
 
             except Exception as e:
-                print(f"❌ スケジューラーエラー: {e}")
+                print(f" スケジューラーエラー: {e}")
 
     # バックグラウンドスレッドで実行
     cleanup_thread = threading.Thread(target=cleanup_job, daemon=True)
     cleanup_thread.start()
-    print("🚀 クリーンアップスケジューラーを開始しました")
+    print("クリーンアップスケジューラーを開始しました")

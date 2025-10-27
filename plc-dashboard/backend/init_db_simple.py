@@ -20,7 +20,7 @@ def init_database():
     with app.app_context():
         # Create all tables
         db.create_all()
-        print("✅ Database initialized successfully!")
+        print(" Database initialized successfully!")
         print(f"📊 Tables created: {list(db.metadata.tables.keys())}")
 
 if __name__ == "__main__":

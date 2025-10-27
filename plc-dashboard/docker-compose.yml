@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQLデータベース（共通）
   db:

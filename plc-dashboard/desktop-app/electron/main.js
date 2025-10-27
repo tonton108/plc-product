@@ -3,18 +3,28 @@ import { spawn } from 'child_process'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import axios from 'axios'
+import express from 'express'
+import fs from 'fs'
+import net from 'net'
+import { promisify } from 'util'
+
+const execFile = promisify(spawn)
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// 開発環境とプロダクション環境の判定
-const isDev = process.env.NODE_ENV !== 'production'
-const NUXT_UI_URL = 'http://localhost:3000'  // Nuxt UIのURL
+// 開発環境とプロダクション環境の判定（app.isPackagedが最も確実）
+const isDev = !app.isPackaged
+const NUXT_UI_PORT = 3000
+const NUXT_UI_URL = `http://localhost:${NUXT_UI_PORT}`  // Nuxt UIのURL
 
 let mainWindow = null
 let tray = null
 let flaskProcess = null
+let postgresProcess = null
+let nuxtServer = null
 const FLASK_PORT = 5000
+let POSTGRES_PORT = 5432
 
 // Flask backendのパス（プロダクション時はapp.getAppPath()を使用）
 const getFlaskPath = () => {
@@ -27,14 +37,49 @@ const getFlaskPath = () => {
   }
 }
 
+// PostgreSQL Portableのパス
+const getPostgresPath = () => {
+  const backendPath = getFlaskPath()
+  return path.join(backendPath, 'postgres-portable')
+}
+
+/**
+ * 利用可能なポートを自動検出（ポート衝突回避）
+ */
+function findAvailablePort(startPort = 5432) {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer()
+
+    server.listen(startPort, () => {
+      const port = server.address().port
+      server.close(() => {
+        console.log(`[PostgreSQL] ポート ${port} が利用可能です`)
+        resolve(port)
+      })
+    })
+
+    server.on('error', () => {
+      // ポートが使用中なら次のポートを試す
+      console.log(`[PostgreSQL] ポート ${startPort} は使用中、次のポートを試します`)
+      resolve(findAvailablePort(startPort + 1))
+    })
+  })
+}
+
 /**
  * Flask backendが起動しているかチェック
  */
 async function checkFlaskRunning() {
   try {
-    const response = await axios.get(`http://localhost:${FLASK_PORT}/api/equipment`, { timeout: 2000 })
-    return response.status === 200
+    // IPv6の問題を避けるため、localhostではなく127.0.0.1を使用
+    console.log(`[Flask Health] ヘルスチェック開始: http://127.0.0.1:${FLASK_PORT}/api/health`)
+    const response = await axios.get(`http://127.0.0.1:${FLASK_PORT}/api/health`, { timeout: 5000 })
+    console.log(`[Flask Health] レスポンス: status=${response.status}, data=`, response.data)
+    const isHealthy = response.status === 200 && response.data.status === 'healthy'
+    console.log(`[Flask Health] 判定: ${isHealthy}`)
+    return isHealthy
   } catch (error) {
+    console.error(`[Flask Health] エラー: ${error.message}`)
     return false
   }
 }
@@ -56,12 +101,28 @@ function startFlaskBackend() {
     const flaskPath = getFlaskPath()
     const managePath = path.join(flaskPath, 'manage.py')
 
-    // Windows用のpythonコマンド（.venv/Scripts/python.exe or python）
-    const pythonCmd = process.platform === 'win32' ? 'python' : 'python3'
+    // Windows用のpythonコマンド（フルパスで指定）
+    const pythonCmd = process.platform === 'win32'
+      ? 'C:\\Users\\ton_1\\AppData\\Local\\Programs\\Python\\Python313\\python.exe'
+      : 'python3'
 
-    flaskProcess = spawn(pythonCmd, [managePath, 'run', '--host=0.0.0.0', '--port=' + FLASK_PORT], {
+    console.log(`[Flask] Pythonコマンド: ${pythonCmd}`)
+    console.log(`[Flask] manage.pyパス: ${managePath}`)
+
+    let flaskReady = false
+
+    // flask runではなくpython manage.pyを直接実行（リローダーをバイパス）
+    flaskProcess = spawn(pythonCmd, [managePath], {
       cwd: flaskPath,
-      env: { ...process.env, FLASK_ENV: 'production' },
+      env: {
+        ...process.env,
+        FLASK_ENV: 'development',  // デスクトップアプリはセキュリティチェック不要（単一ユーザー向け）
+        FLASK_DEBUG: '0',  // デバッグモードを無効化（自動リローダーも無効化）
+        PORT: FLASK_PORT.toString(),  // manage.pyがPORTを読み取る
+        DATABASE_PORT: POSTGRES_PORT.toString(),
+        PYTHONIOENCODING: 'utf-8',  // Python出力をUTF-8に設定
+        PYTHONUTF8: '1'  // Python 3.7以降でUTF-8モードを有効化
+      },
       shell: true
     })
 
@@ -70,7 +131,16 @@ function startFlaskBackend() {
     })
 
     flaskProcess.stderr.on('data', (data) => {
-      console.error(`[Flask] ${data.toString()}`)
+      const output = data.toString()
+      console.error(`[Flask] ${output}`)
+
+      // "Running on"メッセージを検知したらFlask起動完了とみなす（ANSIカラーコードを考慮）
+      if (output.includes('Running on') && output.includes(':' + FLASK_PORT)) {
+        if (!flaskReady) {
+          flaskReady = true
+          console.log('[Flask] Flaskサーバーが起動しました、ヘルスチェックを開始します')
+        }
+      }
     })
 
     flaskProcess.on('error', (err) => {
@@ -85,17 +155,24 @@ function startFlaskBackend() {
       }
     })
 
-    // Flask起動待機（最大30秒）
-    let retries = 30
+    // Flask起動待機（最大60秒）
+    let retries = 60
     const checkInterval = setInterval(async () => {
-      const running = await checkFlaskRunning()
-      if (running) {
-        clearInterval(checkInterval)
-        console.log('[Flask] Flask backend起動完了')
-        resolve()
+      // flaskReadyフラグがtrueの場合のみヘルスチェックを実行
+      if (flaskReady) {
+        const running = await checkFlaskRunning()
+        if (running) {
+          clearInterval(checkInterval)
+          console.log('[Flask] Flask backend起動完了（ヘルスチェック成功）')
+          resolve()
+        } else if (--retries <= 0) {
+          clearInterval(checkInterval)
+          console.error('[Flask] Flask起動タイムアウト')
+          reject(new Error('Flask起動タイムアウト'))
+        }
       } else if (--retries <= 0) {
         clearInterval(checkInterval)
-        console.error('[Flask] Flask起動タイムアウト')
+        console.error('[Flask] Flask起動タイムアウト（Flaskサーバーが起動しませんでした）')
         reject(new Error('Flask起動タイムアウト'))
       }
     }, 1000)
@@ -110,6 +187,214 @@ function stopFlaskBackend() {
     console.log('[Flask] Flask backendを停止中...')
     flaskProcess.kill()
     flaskProcess = null
+  }
+}
+
+/**
+ * PostgreSQLデータベースの初期化（初回起動時のみ）
+ */
+async function initializePostgres() {
+  const postgresPath = getPostgresPath()
+  const pgDataPath = path.join(postgresPath, 'data')
+
+  // 初回起動チェック（dataディレクトリの有無）
+  if (fs.existsSync(pgDataPath)) {
+    console.log('[PostgreSQL] データディレクトリが存在します。初期化をスキップします。')
+    return
+  }
+
+  console.log('[PostgreSQL] 初回起動：データベースを初期化中...')
+
+  const initdbPath = path.join(postgresPath, 'bin', 'initdb.exe')
+
+  // initdbを実行
+  return new Promise((resolve, reject) => {
+    const initdbProcess = spawn(
+      initdbPath,
+      [
+        '-D', pgDataPath,
+        '-U', 'postgres',
+        '-E', 'UTF8',
+        '--locale=C',
+        '--auth=trust'  // 開発用：パスワード不要
+      ],
+      { cwd: postgresPath }
+    )
+
+    initdbProcess.stdout.on('data', (data) => {
+      console.log(`[PostgreSQL initdb] ${data.toString()}`)
+    })
+
+    initdbProcess.stderr.on('data', (data) => {
+      console.log(`[PostgreSQL initdb] ${data.toString()}`)
+    })
+
+    initdbProcess.on('error', (err) => {
+      console.error('[PostgreSQL] initdb実行エラー:', err)
+      reject(err)
+    })
+
+    initdbProcess.on('exit', (code) => {
+      if (code === 0) {
+        console.log('[PostgreSQL] データベース初期化完了')
+
+        // postgresql.confを自動設定
+        const configPath = path.join(pgDataPath, 'postgresql.conf')
+        const configContent = `
+# PLC Monitoring System設定
+port = ${POSTGRES_PORT}
+max_connections = 50
+shared_buffers = 128MB
+log_destination = 'stderr'
+logging_collector = on
+log_directory = 'log'
+`
+        fs.appendFileSync(configPath, configContent)
+        console.log('[PostgreSQL] postgresql.conf設定完了')
+        resolve()
+      } else {
+        console.error(`[PostgreSQL] initdb異常終了 (code: ${code})`)
+        reject(new Error(`initdb failed with code ${code}`))
+      }
+    })
+  })
+}
+
+/**
+ * PostgreSQLを起動
+ */
+function startPostgres() {
+  return new Promise(async (resolve, reject) => {
+    console.log('[PostgreSQL] PostgreSQLを起動中...')
+
+    const postgresPath = getPostgresPath()
+    const pgBinPath = path.join(postgresPath, 'bin', 'postgres.exe')
+    const pgDataPath = path.join(postgresPath, 'data')
+
+    // PostgreSQLプロセスを起動
+    postgresProcess = spawn(
+      pgBinPath,
+      ['-D', pgDataPath, '-p', POSTGRES_PORT.toString()],
+      {
+        cwd: postgresPath,
+        env: { ...process.env }
+      }
+    )
+
+    postgresProcess.stdout.on('data', (data) => {
+      const message = data.toString()
+      console.log(`[PostgreSQL] ${message}`)
+
+      // 起動完了メッセージを検知
+      if (message.includes('database system is ready to accept connections')) {
+        console.log('[PostgreSQL] PostgreSQL起動完了')
+        resolve()
+      }
+    })
+
+    postgresProcess.stderr.on('data', (data) => {
+      const message = data.toString()
+      console.log(`[PostgreSQL] ${message}`)
+
+      // 起動完了メッセージを検知（stderrにも出力される場合がある）
+      if (message.includes('database system is ready to accept connections')) {
+        console.log('[PostgreSQL] PostgreSQL起動完了')
+        resolve()
+      }
+    })
+
+    postgresProcess.on('error', (err) => {
+      console.error('[PostgreSQL] PostgreSQL起動エラー:', err)
+      reject(err)
+    })
+
+    postgresProcess.on('exit', (code) => {
+      console.log(`[PostgreSQL] PostgreSQL終了 (code: ${code})`)
+      if (code !== 0 && code !== null) {
+        console.error('[PostgreSQL] PostgreSQL異常終了')
+      }
+    })
+
+    // タイムアウト処理（3秒に短縮 - 通常は1-2秒で起動する）
+    setTimeout(() => {
+      if (postgresProcess && !postgresProcess.killed) {
+        console.log('[PostgreSQL] 起動メッセージが確認できませんでしたが、継続します')
+        resolve()
+      }
+    }, 3000)
+  })
+}
+
+/**
+ * PostgreSQLを停止
+ */
+function stopPostgres() {
+  if (postgresProcess) {
+    console.log('[PostgreSQL] PostgreSQLを停止中...')
+
+    const postgresPath = getPostgresPath()
+    const pgCtlPath = path.join(postgresPath, 'bin', 'pg_ctl.exe')
+    const pgDataPath = path.join(postgresPath, 'data')
+
+    // pg_ctlを使用してグレースフルシャットダウン
+    const stopProcess = spawn(
+      pgCtlPath,
+      ['stop', '-D', pgDataPath, '-m', 'fast'],
+      { cwd: postgresPath }
+    )
+
+    stopProcess.on('exit', (code) => {
+      console.log(`[PostgreSQL] PostgreSQL停止完了 (code: ${code})`)
+    })
+
+    postgresProcess = null
+  }
+}
+
+/**
+ * Nuxt UI（静的ファイル）をserve
+ */
+function startNuxtServer() {
+  return new Promise((resolve, reject) => {
+    console.log('[Nuxt] Nuxt UIサーバーを起動中...')
+
+    // Nuxt静的ファイルのパス
+    const nuxtDistPath = isDev
+      ? path.join(__dirname, '..', 'nuxt-dist')  // 開発時
+      : path.join(process.resourcesPath, 'nuxt-dist')  // プロダクション時
+
+    // Expressサーバーを作成
+    const expressApp = express()
+
+    // 静的ファイルをserve
+    expressApp.use(express.static(nuxtDistPath))
+
+    // SPAのため、すべてのルートをindex.htmlにリダイレクト
+    expressApp.get('*', (req, res) => {
+      res.sendFile(path.join(nuxtDistPath, 'index.html'))
+    })
+
+    // サーバー起動
+    nuxtServer = expressApp.listen(NUXT_UI_PORT, () => {
+      console.log(`[Nuxt] Nuxt UIサーバー起動完了: http://localhost:${NUXT_UI_PORT}`)
+      resolve()
+    })
+
+    nuxtServer.on('error', (err) => {
+      console.error('[Nuxt] Nuxt UIサーバー起動エラー:', err)
+      reject(err)
+    })
+  })
+}
+
+/**
+ * Nuxt UIサーバーを停止
+ */
+function stopNuxtServer() {
+  if (nuxtServer) {
+    console.log('[Nuxt] Nuxt UIサーバーを停止中...')
+    nuxtServer.close()
+    nuxtServer = null
   }
 }
 
@@ -219,16 +504,32 @@ app.whenReady().then(async () => {
   console.log('[App] アプリケーション起動中...')
 
   try {
-    // Flask backendを起動
-    await startFlaskBackend()
+    // 1. ポート自動選択（PostgreSQL）
+    // 既存のPostgreSQLと競合しないように5433から開始
+    POSTGRES_PORT = await findAvailablePort(5433)
+    console.log(`[App] PostgreSQLポート: ${POSTGRES_PORT}`)
 
-    // メインウィンドウを作成
+    // 2. PostgreSQLデータベースを初期化（初回のみ）
+    await initializePostgres()
+
+    // 3. メインウィンドウを早期に作成（ユーザー体感速度向上）
     createWindow()
 
-    // タスクトレイを作成
+    // 4. タスクトレイを作成
     createTray()
 
-    console.log('[App] アプリケーション起動完了')
+    // 5. バックグラウンドでサービスを起動（ウィンドウ表示をブロックしない）
+    // PostgreSQLを起動
+    startPostgres().catch(err => console.error('[App] PostgreSQL起動エラー:', err))
+
+    // Nuxt UIサーバーを起動（静的ファイル）
+    startNuxtServer().catch(err => console.error('[App] Nuxt UI起動エラー:', err))
+
+    // Flask backendを起動（PostgreSQLのポートを環境変数で渡す）
+    process.env.DATABASE_PORT = POSTGRES_PORT.toString()
+    startFlaskBackend().catch(err => console.error('[App] Flask起動エラー:', err))
+
+    console.log('[App] アプリケーション起動完了（バックエンドサービスはバックグラウンドで起動中）')
   } catch (error) {
     console.error('[App] 起動エラー:', error)
     app.quit()
@@ -263,6 +564,8 @@ app.on('before-quit', () => {
  * アプリケーション終了時
  */
 app.on('will-quit', () => {
+  stopPostgres()
+  stopNuxtServer()
   stopFlaskBackend()
 })
 

@@ -1,0 +1,12 @@
+{
+  "equipment_id": "TEST_E2E",
+  "manufacturer": "Mitsubishi",
+  "series": "Q",
+  "plc_ip": "192.168.1.99",
+  "port": 5000,
+  "interval": 2000,
+  "ip": "192.168.1.200",
+  "hostname": "TEST_HOST",
+  "mac_address": "00:11:22:33:44:55",
+  "cpu_serial_number": "TEST_CPU_E2E"
+}

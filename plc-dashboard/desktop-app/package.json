@@ -8,9 +8,10 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "electron:dev": "wait-on http://localhost:3000 && electron .",
-    "electron:build": "npm run build && electron-builder",
-    "electron:build:win": "npm run build && electron-builder --win"
+    "electron:dev": "electron .",
+    "prepare:postgres": "node scripts/prepare-postgres.cjs",
+    "electron:build": "npm run prepare:postgres && npm run build && electron-builder",
+    "electron:build:win": "npm run prepare:postgres && npm run build && electron-builder --win"
   },
   "keywords": ["electron", "vue", "plc", "monitoring"],
   "author": "Your Company",
@@ -22,7 +23,8 @@
     "@mdi/font": "^7.4.0",
     "chart.js": "^4.4.0",
     "socket.io-client": "^4.6.0",
-    "axios": "^1.6.0"
+    "axios": "^1.6.0",
+    "express": "^4.18.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",
@@ -36,17 +38,38 @@
   "build": {
     "appId": "com.yourcompany.plc-monitoring",
     "productName": "PLC Monitoring",
+    "afterPack": "./scripts/afterPack.cjs",
     "directories": {
       "output": "dist-electron"
     },
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "../backend/postgres-portable/**/*",
+      "../backend/**/*.py",
+      "../backend/requirements.txt",
+      "../backend/.env.example",
       "package.json"
     ],
+    "extraResources": [
+      {
+        "from": "../backend/postgres-portable",
+        "to": "backend/postgres-portable",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../backend",
+        "to": "backend",
+        "filter": ["**/*.py", "requirements.txt", ".env.example"]
+      },
+      {
+        "from": "nuxt-dist",
+        "to": "nuxt-dist",
+        "filter": ["**/*"]
+      }
+    ],
     "win": {
-      "target": "nsis",
-      "icon": "public/icon.ico"
+      "target": "nsis"
     },
     "nsis": {
       "oneClick": false,

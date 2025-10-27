@@ -41,7 +41,7 @@ class PLCDataSender:
         """デモデータを生成"""
         data = {
             "equipment_id": self.equipment_id,
-            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "production_count": self.base_values["production_count"],
             "current": round(
                 self.base_values["current"] + random.uniform(
@@ -89,20 +89,20 @@ class PLCDataSender:
             response = requests.post(url, json=data, headers=headers, timeout=5)
             
             if response.status_code == 200:
-                print(f"✅ データ送信成功: {data['timestamp']} - 生産数: {data['production_count']}, 電流: {data['current']}A, 温度: {data['temperature']}℃")
+                print(f" データ送信成功: {data['timestamp']} - 生産数: {data['production_count']}, 電流: {data['current']}A, 温度: {data['temperature']}℃")
                 return True
             else:
-                print(f"❌ データ送信失敗: {response.status_code} - {response.text}")
+                print(f" データ送信失敗: {response.status_code} - {response.text}")
                 return False
                 
         except requests.exceptions.RequestException as e:
-            print(f"❌ 通信エラー: {e}")
+            print(f" 通信エラー: {e}")
             return False
     
     def start_continuous_sending(self, interval=2.0):
         """連続データ送信を開始"""
         self.running = True
-        print(f"🚀 連続データ送信開始: 設備ID={self.equipment_id}, 送信間隔={interval}秒")
+        print(f"連続データ送信開始: 設備ID={self.equipment_id}, 送信間隔={interval}秒")
         print("停止するには Ctrl+C を押してください")
         
         try:
@@ -113,10 +113,10 @@ class PLCDataSender:
         except KeyboardInterrupt:
             print("\n⏹️ ユーザーによる停止")
         except Exception as e:
-            print(f"❌ エラー発生: {e}")
+            print(f" エラー発生: {e}")
         finally:
             self.running = False
-            print("📊 データ送信終了")
+            print("データ送信終了")
     
     def stop(self):
         """送信停止"""
@@ -125,7 +125,7 @@ class PLCDataSender:
     def send_single_data(self):
         """単発データ送信"""
         data = self.generate_demo_data()
-        print(f"📤 単発データ送信:")
+        print(f"単発データ送信:")
         print(json.dumps(data, indent=2, ensure_ascii=False))
         return self.send_data(data)
     
@@ -147,14 +147,14 @@ class PLCDataSender:
             response = requests.post(url, json=registration_data, timeout=5)
             
             if response.status_code == 200:
-                print(f"✅ 設備登録成功: {self.equipment_id}")
+                print(f" 設備登録成功: {self.equipment_id}")
                 return True
             else:
-                print(f"❌ 設備登録失敗: {response.status_code} - {response.text}")
+                print(f" 設備登録失敗: {response.status_code} - {response.text}")
                 return False
                 
         except requests.exceptions.RequestException as e:
-            print(f"❌ 設備登録エラー: {e}")
+            print(f" 設備登録エラー: {e}")
             return False
 
 def main():
@@ -174,7 +174,7 @@ def main():
     sender = PLCDataSender(args.server, args.equipment_id)
     
     print("=" * 60)
-    print("🏭 PLCデータ送信デモツール")
+    print("PLCデータ送信デモツール")
     print("=" * 60)
     print(f"サーバー: {args.server}")
     print(f"設備ID: {args.equipment_id}")
@@ -187,7 +187,7 @@ def main():
         sender.send_single_data()
     elif args.mode == 'continuous':
         # 設備登録も実行
-        print("📋 設備登録中...")
+        print("設備登録中...")
         sender.register_equipment()
         time.sleep(1)
         

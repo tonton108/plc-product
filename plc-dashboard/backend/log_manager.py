@@ -114,7 +114,7 @@ def cleanup_old_data(days):
             deleted_count += len(batch)
             print(f"削除済み: {deleted_count:,}/{count:,}件")
         
-        print(f"✅ 削除完了: {deleted_count:,}件")
+        print(f" 削除完了: {deleted_count:,}件")
 
 def create_daily_summary_manual(date_str):
     """指定日の日次集計を手動作成"""
@@ -124,7 +124,7 @@ def create_daily_summary_manual(date_str):
         try:
             target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
         except ValueError:
-            print("❌ 日付形式が正しくありません (YYYY-MM-DD)")
+            print(" 日付形式が正しくありません (YYYY-MM-DD)")
             return
         
         print(f"📊 {target_date}の日次集計を作成します")
@@ -132,7 +132,7 @@ def create_daily_summary_manual(date_str):
         # 既存データの確認
         existing = DailyLogSummary.query.filter_by(date=target_date).count()
         if existing > 0:
-            print(f"⚠️ {target_date}の集計は既に{existing}件存在します")
+            print(f" {target_date}の集計は既に{existing}件存在します")
             confirm = input("上書きしますか？ (y/N): ")
             if confirm.lower() != 'y':
                 print("キャンセルしました")
@@ -196,7 +196,7 @@ def create_daily_summary_manual(date_str):
             print(f"  {equipment.equipment_id}: {len(daily_logs)}件のログから集計作成")
         
         db.session.commit()
-        print(f"✅ 日次集計作成完了: {created_count}設備")
+        print(f" 日次集計作成完了: {created_count}設備")
 
 def create_monthly_summary_manual(year, month):
     """指定月の月次集計を手動作成"""
@@ -208,7 +208,7 @@ def create_monthly_summary_manual(year, month):
         # 既存データの確認
         existing = MonthlyLogSummary.query.filter_by(year=year, month=month).count()
         if existing > 0:
-            print(f"⚠️ {year}年{month}月の集計は既に{existing}件存在します")
+            print(f" {year}年{month}月の集計は既に{existing}件存在します")
             confirm = input("上書きしますか？ (y/N): ")
             if confirm.lower() != 'y':
                 print("キャンセルしました")
@@ -262,7 +262,7 @@ def create_monthly_summary_manual(year, month):
             print(f"  {equipment.equipment_id}: {len(daily_summaries)}日分から集計作成")
         
         db.session.commit()
-        print(f"✅ 月次集計作成完了: {created_count}設備")
+        print(f" 月次集計作成完了: {created_count}設備")
 
 def main():
     parser = argparse.ArgumentParser(description='PLCログデータ管理ツール')

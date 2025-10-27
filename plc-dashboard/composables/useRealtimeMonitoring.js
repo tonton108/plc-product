@@ -3,6 +3,7 @@ import { ref, onBeforeUnmount } from 'vue'
 /**
  * リアルタイムモニタリング用コンポーザブル
  * WebSocket接続とデータ受信を管理
+ * 最終更新: 2025-10-27
  */
 export const useRealtimeMonitoring = (equipmentId, options = {}) => {
   const {
@@ -19,7 +20,6 @@ export const useRealtimeMonitoring = (equipmentId, options = {}) => {
   const debugLogs = ref([])
   const debugCounters = ref({
     plc_data_update: 0,
-    equipment_data_update: 0,
     status: 0,
     connect: 0,
     disconnect: 0
@@ -31,16 +31,12 @@ export const useRealtimeMonitoring = (equipmentId, options = {}) => {
 
     try {
       const timestamp = new Date().toLocaleTimeString('ja-JP')
+      const newLog = { type, message, timestamp }
 
-      if (!debugLogs.value) {
-        debugLogs.value = []
-      }
-
-      debugLogs.value.push({ type, message, timestamp })
-
-      if (debugLogs.value.length > 100) {
-        debugLogs.value = debugLogs.value.slice(-50)
-      }
+      // 新しい配列を作成してリアクティビティを正しく管理
+      const currentLogs = debugLogs.value || []
+      const newLogs = [...currentLogs, newLog]
+      debugLogs.value = newLogs.slice(-100)  // 最大100件まで
     } catch (error) {
       console.error('デバッグログエラー:', error)
     }
@@ -101,7 +97,7 @@ export const useRealtimeMonitoring = (equipmentId, options = {}) => {
       addDebugLog('error', `接続エラー: ${error.message}`)
     })
 
-    // PLCデータ更新イベント
+    // PLCデータ更新イベント（重複回避のためこのイベントのみ使用）
     $socket.on('plc_data_update', (data) => {
       debugCounters.value.plc_data_update++
       lastDataUpdate.value = new Date().toLocaleTimeString('ja-JP')
@@ -132,20 +128,6 @@ export const useRealtimeMonitoring = (equipmentId, options = {}) => {
           'warning',
           `設備ID不一致: 受信=${data.equipment_id}, 期待=${equipmentId}`
         )
-      }
-    })
-
-    // 設備固有データ更新イベント
-    $socket.on('equipment_data_update', (data) => {
-      debugCounters.value.equipment_data_update++
-      console.log('📥 equipment_data_update 受信:', data)
-      addDebugLog('info', `equipment_data_update 受信 (${data.equipment_id})`)
-
-      if (data.equipment_id === equipmentId) {
-        console.log('🔄 設備データ受信 (equipment_data_update):', data)
-
-        // コールバック実行
-        if (onDataUpdate) onDataUpdate(data)
       }
     })
 

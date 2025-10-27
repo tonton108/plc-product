@@ -84,7 +84,7 @@ class Log(db.Model):
     cycle_time = db.Column(db.Float)              # サイクルタイム
     error_code = db.Column(db.Integer)            # エラーコード
 
-    # ✅ 動的データ対応JSON型カラム（新規追加）
+    #  動的データ対応JSON型カラム（新規追加）
     # 例: {"temp_a": 25.5, "pressure_b": 100.2, "custom_sensor": 42}
     data = db.Column(db.JSON, nullable=True)
 
@@ -112,7 +112,7 @@ class DailyLogSummary(db.Model):
     error_count = db.Column(db.Integer)                 # エラー発生回数
     data_count = db.Column(db.Integer)                  # 元データ件数
 
-    # ✅ 動的データ対応JSON型カラム（新規追加）
+    #  動的データ対応JSON型カラム（新規追加）
     # 例: {"temp_a_avg": 25.5, "temp_a_max": 30.0, "pressure_b_avg": 100.2}
     data_summary = db.Column(db.JSON, nullable=True)
 
@@ -161,7 +161,7 @@ class MonthlyLogSummary(db.Model):
     error_count_total = db.Column(db.Integer)
     operational_days = db.Column(db.Integer)            # 稼働日数
 
-    # ✅ 動的データ対応JSON型カラム（新規追加）
+    #  動的データ対応JSON型カラム（新規追加）
     # 例: {"temp_a_avg": 25.5, "temp_a_max": 30.0, "pressure_b_avg": 100.2}
     data_summary = db.Column(db.JSON, nullable=True)
 

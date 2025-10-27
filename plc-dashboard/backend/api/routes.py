@@ -17,9 +17,9 @@ from api.scheduler import (
 
 
 def register_routes(app, socketio=None):
-    print(f"🚀 [DEBUG] ===== APIルート登録開始 =====")
-    print(f"🚀 [DEBUG] Flask app: {app}")
-    print(f"🚀 [DEBUG] SocketIO: {socketio}")
+    print(f"[DEBUG] ===== APIルート登録開始 =====")
+    print(f"[DEBUG] Flask app: {app}")
+    print(f"[DEBUG] SocketIO: {socketio}")
     
     @app.route("/api/register", methods=["POST"])
     def api_register():
@@ -172,58 +172,58 @@ def register_routes(app, socketio=None):
     @app.route("/api/equipment/<equipment_id>", methods=["PUT"])
     def save_equipment_config(equipment_id):
         """設備基本設定を保存"""
-        print(f"🔧 [DEBUG] ===== save_equipment_config 開始 =====")
-        print(f"🔧 [DEBUG] URL equipment_id: {equipment_id}")
-        print(f"🔧 [DEBUG] リクエストメソッド: PUT")
+        print(f"[DEBUG] ===== save_equipment_config 開始 =====")
+        print(f"[DEBUG] URL equipment_id: {equipment_id}")
+        print(f"[DEBUG] リクエストメソッド: PUT")
         
         try:
             data = request.get_json()
-            print(f"🔧 [DEBUG] 受信データ: {data}")
+            print(f"[DEBUG] 受信データ: {data}")
             
             if not data:
-                print("❌ [DEBUG] データが空です")
+                print("[ERROR] データが空です")
                 return jsonify({"error": "Invalid JSON"}), 400
 
             # データベース内の全設備IDを確認
-            print(f"🔍 [DEBUG] データベース内の既存設備を確認中...")
+            print(f"[DEBUG] データベース内の既存設備を確認中...")
             try:
                 all_equipment = Equipment.query.all()
                 existing_ids = [eq.equipment_id for eq in all_equipment]
                 existing_cpus = [getattr(eq, 'cpu_serial_number', 'N/A') for eq in all_equipment]
-                print(f"🔍 [DEBUG] 既存設備ID一覧: {existing_ids}")
-                print(f"🔍 [DEBUG] 既存CPUシリアル番号一覧: {existing_cpus}")
+                print(f"[DEBUG] 既存設備ID一覧: {existing_ids}")
+                print(f"[DEBUG] 既存CPUシリアル番号一覧: {existing_cpus}")
             except Exception as db_check_error:
-                print(f"⚠️ [DEBUG] データベース確認エラー: {db_check_error}")
+                print(f"[ERROR] データベース確認エラー: {db_check_error}")
 
             # CPUシリアル番号で既存設備を検索（不変識別子による確実な特定）
             cpu_serial_number = data.get("cpu_serial_number")
-            print(f"🔍 [DEBUG] 受信したCPUシリアル番号: '{cpu_serial_number}'")
+            print(f"[DEBUG] 受信したCPUシリアル番号: '{cpu_serial_number}'")
             
             equipment = None
             
             if cpu_serial_number:
-                print(f"🔍 [DEBUG] CPUシリアル番号 '{cpu_serial_number}' で設備を検索中...")
+                print(f"[DEBUG] CPUシリアル番号 '{cpu_serial_number}' で設備を検索中...")
                 # CPUシリアル番号で既存設備を検索（最優先）
                 equipment = Equipment.query.filter_by(cpu_serial_number=cpu_serial_number).first()
                 
                 if equipment:
-                    print(f"✅ [DEBUG] CPUシリアル番号で既存設備を発見!")
+                    print(f"[ERROR] CPUシリアル番号で既存設備を発見!")
                     print(f"    既存設備ID: '{equipment.equipment_id}'")
                     print(f"    新設備ID: '{equipment_id}'")
                     print(f"    CPUシリアル番号: '{cpu_serial_number}'")
                     # 設備IDを新しい値に更新（設備IDは可変）
                     equipment.equipment_id = equipment_id
-                    print(f"🔄 [DEBUG] 設備IDを更新しました: '{equipment.equipment_id}' → '{equipment_id}'")
+                    print(f"[DEBUG] 設備IDを更新しました: '{equipment.equipment_id}' → '{equipment_id}'")
                 else:
-                    print(f"❌ [DEBUG] CPUシリアル番号 '{cpu_serial_number}' に対応する設備が見つかりません")
-                    print(f"🔄 [DEBUG] 新規作成を準備します: {equipment_id}")
+                    print(f"[ERROR] CPUシリアル番号 '{cpu_serial_number}' に対応する設備が見つかりません")
+                    print(f"[DEBUG] 新規作成を準備します: {equipment_id}")
             else:
-                print(f"⚠️ [DEBUG] CPUシリアル番号が未提供です (None or empty)")
-                print(f"🔄 [DEBUG] CPUシリアル番号なしで新規作成を準備します: {equipment_id}")
+                print(f"[ERROR] CPUシリアル番号が未提供です (None or empty)")
+                print(f"[DEBUG] CPUシリアル番号なしで新規作成を準備します: {equipment_id}")
             
             # 既存設備が見つからない場合は新規作成
             if not equipment:
-                print(f"🔄 [DEBUG] 新規設備を作成します: {equipment_id}")
+                print(f"[DEBUG] 新規設備を作成します: {equipment_id}")
                 equipment = Equipment(
                     equipment_id=equipment_id,
                     manufacturer=data.get("manufacturer"),
@@ -239,10 +239,10 @@ def register_routes(app, socketio=None):
                     status="設定済み"
                 )
                 db.session.add(equipment)
-                print(f"🔄 [DEBUG] 新規設備をセッションに追加しました")
+                print(f"[DEBUG] 新規設備をセッションに追加しました")
             
             # 設備情報を更新（既存設備・新規設備共通）
-            print(f"🔄 [DEBUG] 設備情報を更新中...")
+            print(f"[DEBUG] 設備情報を更新中...")
             equipment.manufacturer = data.get("manufacturer", equipment.manufacturer)
             equipment.series = data.get("series", equipment.series)
             equipment.ip = data.get("raspi_ip", data.get("ip", equipment.ip))
@@ -255,20 +255,20 @@ def register_routes(app, socketio=None):
             equipment.hostname = data.get("hostname", equipment.hostname)
             equipment.status = "設定済み"
             equipment.updated_at = datetime.now(timezone.utc)
-            print(f"🔄 [DEBUG] 設備情報更新完了")
+            print(f"[DEBUG] 設備情報更新完了")
 
-            print(f"💾 [DEBUG] データベースコミット実行中...")
+            print(f"💾[ERROR] データベースコミット実行中...")
             db.session.commit()
-            print(f"✅ [DEBUG] 設備設定保存成功: {equipment_id}")
-            print(f"🔧 [DEBUG] ===== save_equipment_config 正常終了 =====")
+            print(f"[ERROR] 設備設定保存成功: {equipment_id}")
+            print(f"[DEBUG] ===== save_equipment_config 正常終了 =====")
             return jsonify({"message": "Equipment config saved"}), 200
             
         except Exception as e:
-            print(f"❌ [DEBUG] 設備設定保存エラー: {str(e)}")
-            print(f"❌ [DEBUG] エラー詳細: {repr(e)}")
+            print(f"[ERROR] 設備設定保存エラー: {str(e)}")
+            print(f"[ERROR] エラー詳細: {repr(e)}")
             import traceback
-            print(f"❌ [DEBUG] スタックトレース: {traceback.format_exc()}")
-            print(f"🔧 [DEBUG] ===== save_equipment_config エラー終了 =====")
+            print(f"[ERROR] スタックトレース: {traceback.format_exc()}")
+            print(f"[DEBUG] ===== save_equipment_config エラー終了 =====")
             db.session.rollback()
             return jsonify({"error": str(e)}), 500
 
@@ -367,11 +367,13 @@ def register_routes(app, socketio=None):
             configs = []
             for config in plc_configs:
                 configs.append({
+                    "name": getattr(config, "name", ""),
                     "data_type": config.data_type,
                     "enabled": config.enabled,
                     "address": config.address,
                     "scale_factor": config.scale_factor,
-                    "plc_data_type": getattr(config, "plc_data_type", "word")
+                    "plc_data_type": getattr(config, "plc_data_type", "word"),
+                    "unit": getattr(config, "unit", "")
                 })
             
             return jsonify(configs), 200
@@ -383,10 +385,10 @@ def register_routes(app, socketio=None):
         """PLCデータ設定を保存"""
         try:
             data = request.get_json()
-            print(f"🔧 [DEBUG] PUT /api/equipment/{equipment_id}/plc_configs 受信データ: {data}")
+            print(f"[DEBUG] PUT /api/equipment/{equipment_id}/plc_configs 受信データ: {data}")
             
             if not isinstance(data, list):
-                print(f"❌ [DEBUG] PLCデータ形式エラー: リストではない")
+                print(f"[ERROR] PLCデータ形式エラー: リストではない")
                 return jsonify({"error": "Expected list of configurations"}), 400
 
             # 直接SQLで設備IDから内部IDを取得
@@ -394,42 +396,44 @@ def register_routes(app, socketio=None):
                 equipment = Equipment.query.filter_by(equipment_id=equipment_id).first()
                 if equipment:
                     equipment_internal_id = equipment.id
-                    print(f"✅ [DEBUG] SQLAlchemyで設備発見: internal_id={equipment_internal_id}")
+                    print(f"[ERROR] SQLAlchemyで設備発見: internal_id={equipment_internal_id}")
                 else:
-                    print(f"🔄 [DEBUG] SQLAlchemyで設備が見つからない、直接SQLで検索")
+                    print(f"[DEBUG] SQLAlchemyで設備が見つからない、直接SQLで検索")
                     result = db.session.execute(text("SELECT id FROM equipments WHERE equipment_id = :eq_id"), {"eq_id": equipment_id})
                     equipment_row = result.fetchone()
                     if equipment_row:
                         equipment_internal_id = equipment_row[0]
-                        print(f"🔍 [DEBUG] 直接SQLで設備発見: internal_id={equipment_internal_id}")
+                        print(f"[DEBUG] 直接SQLで設備発見: internal_id={equipment_internal_id}")
                     else:
-                        print(f"❌ [DEBUG] 設備が見つかりません: {equipment_id}")
+                        print(f"[ERROR] 設備が見つかりません: {equipment_id}")
                         return jsonify({"error": "Equipment not found"}), 404
             except Exception as eq_error:
-                print(f"🔄 [DEBUG] 設備検索エラー、直接SQLで対応: {eq_error}")
+                print(f"[DEBUG] 設備検索エラー、直接SQLで対応: {eq_error}")
                 result = db.session.execute(text("SELECT id FROM equipments WHERE equipment_id = :eq_id"), {"eq_id": equipment_id})
                 equipment_row = result.fetchone()
                 if equipment_row:
                     equipment_internal_id = equipment_row[0]
-                    print(f"🔍 [DEBUG] 直接SQLで設備発見: internal_id={equipment_internal_id}")
+                    print(f"[DEBUG] 直接SQLで設備発見: internal_id={equipment_internal_id}")
                 else:
-                    print(f"❌ [DEBUG] 設備が見つかりません: {equipment_id}")
+                    print(f"[ERROR] 設備が見つかりません: {equipment_id}")
                     return jsonify({"error": "Equipment not found"}), 404
 
             # 直接SQLでPLC設定を削除
-            print(f"🔄 [DEBUG] 既存PLCデータ設定を削除: equipment_id={equipment_internal_id}")
+            print(f"[DEBUG] 既存PLCデータ設定を削除: equipment_id={equipment_internal_id}")
             db.session.execute(text("DELETE FROM plc_data_configs WHERE equipment_id = :eq_id"), {"eq_id": equipment_internal_id})
 
             # 直接SQLで新しい設定を追加
-            print(f"🔄 [DEBUG] 新しいPLCデータ設定を追加: {len(data)}件")
+            print(f"[DEBUG] 新しいPLCデータ設定を追加: {len(data)}件")
             for config_data in data:
                 insert_data = {
                     "equipment_id": equipment_internal_id,
+                    "name": config_data.get("name", ""),
                     "data_type": config_data.get("data_type"),
                     "enabled": config_data.get("enabled", False),
                     "address": config_data.get("address", ""),
                     "scale_factor": config_data.get("scale_factor", 1),
-                    "plc_data_type": config_data.get("plc_data_type", "word")
+                    "plc_data_type": config_data.get("plc_data_type", "word"),
+                    "unit": config_data.get("unit", "")
                 }
                 
                 # NULL値を除外
@@ -439,23 +443,23 @@ def register_routes(app, socketio=None):
                 placeholders = ", ".join([f":{k}" for k in filtered_data.keys()])
                 sql = f"INSERT INTO plc_data_configs ({columns}) VALUES ({placeholders})"
                 
-                print(f"🔄 [DEBUG] PLCデータ設定追加: {config_data.get('data_type')} -> {config_data.get('address')}")
+                print(f"[DEBUG] PLCデータ設定追加: {config_data.get('data_type')} -> {config_data.get('address')}")
                 db.session.execute(text(sql), filtered_data)
 
             # PLCデータ設定保存後、設備ステータスを「設定済み」に更新
             if equipment:
                 equipment.status = "設定済み"
                 equipment.updated_at = datetime.now(timezone.utc)
-                print(f"🔄 [DEBUG] 設備ステータスを「設定済み」に更新: {equipment_id}")
+                print(f"[DEBUG] 設備ステータスを「設定済み」に更新: {equipment_id}")
 
             db.session.commit()
-            print(f"✅ [DEBUG] PLCデータ設定保存成功: {equipment_id}")
+            print(f"[ERROR] PLCデータ設定保存成功: {equipment_id}")
             return jsonify({"message": "PLC configs saved (SQL fallback)"}), 200
         except Exception as e:
-            print(f"❌ [DEBUG] PLCデータ設定保存エラー: {str(e)}")
-            print(f"❌ [DEBUG] エラー詳細: {repr(e)}")
+            print(f"[ERROR] PLCデータ設定保存エラー: {str(e)}")
+            print(f"[ERROR] エラー詳細: {repr(e)}")
             import traceback
-            print(f"❌ [DEBUG] スタックトレース: {traceback.format_exc()}")
+            print(f"[ERROR] スタックトレース: {traceback.format_exc()}")
             db.session.rollback()
             return jsonify({"error": str(e)}), 500
 
@@ -472,8 +476,8 @@ def register_routes(app, socketio=None):
             if not equipment_id:
                 return jsonify({"error": "equipment_id is required"}), 400
 
-            # ✅ データ受信ログを追加
-            print(f"📥 PLCデータ受信: 設備ID={equipment_id}, タイムスタンプ={data.get('timestamp')}")
+            #  データ受信ログを追加
+            print(f"[PLC_DATA] PLCデータ受信: 設備ID={equipment_id}, タイムスタンプ={data.get('timestamp')}")
             print(f"   生産数={data.get('production_count')}, 電流={data.get('current')}A, 温度={data.get('temperature')}℃")
 
             # 設備の存在確認
@@ -504,11 +508,11 @@ def register_routes(app, socketio=None):
                 db.session.add(log_entry)
                 db.session.commit()
                 
-                print(f"💾 DB保存完了: ログID={log_entry.id}")
+                print(f"[DB] DB保存完了: ログID={log_entry.id}")
                 
             except Exception as db_error:
                 db.session.rollback()
-                print(f"❌ DB保存エラー: {db_error}")
+                print(f" DB保存エラー: {db_error}")
                 return jsonify({"error": f"Database error: {str(db_error)}"}), 500
 
             # WebSocketでNuxtUIにリアルタイム配信
@@ -527,15 +531,12 @@ def register_routes(app, socketio=None):
                 
                 # WebSocket送信を別のtry-catchで囲む
                 try:
-                    # NuxtUIの全モニタリングクライアントに送信
+                    # NuxtUIの全モニタリングクライアントに送信（plc_data_updateのみ使用）
                     socketio.emit('plc_data_update', realtime_data, to='monitoring')
-                    
-                    # 特定設備のモニタリングクライアントに送信
-                    socketio.emit('equipment_data_update', realtime_data, to=f'equipment_{equipment_id}')
-                    
-                    print(f"📡 WebSocket送信完了: monitoring + equipment_{equipment_id}")
+
+                    print(f"[WEBSOCKET] WebSocket送信完了: monitoring")
                 except Exception as ws_error:
-                    print(f"⚠️ WebSocket送信エラー (処理継続): {ws_error}")
+                    print(f" WebSocket送信エラー (処理継続): {ws_error}")
 
             return jsonify({
                 "message": "Data saved and broadcasted",
@@ -545,7 +546,7 @@ def register_routes(app, socketio=None):
             }), 200
             
         except Exception as e:
-            print(f"❌ PLCデータ処理エラー: {e}")
+            print(f" PLCデータ処理エラー: {e}")
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/logs/<equipment_id>/latest", methods=["GET"])
@@ -672,7 +673,7 @@ def register_routes(app, socketio=None):
                                 }
                                 emit('realtime_status', response_data)
             except Exception as e:
-                print(f"❌ get_realtime_status エラー: {e}")
+                print(f" get_realtime_status エラー: {e}")
                 emit('error', {'msg': 'Failed to get status'})
 
     # 管理用API
@@ -840,13 +841,18 @@ def register_routes(app, socketio=None):
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
+    @app.route("/api/health", methods=["GET"])
+    def health_check():
+        """ヘルスチェックエンドポイント"""
+        return jsonify({"status": "healthy", "message": "OK"}), 200
+
     # スケジューラー開始
     start_cleanup_scheduler()
     
     # APIルート登録完了ログ
-    print(f"🚀 [DEBUG] ===== APIルート登録完了 =====")
-    print(f"🚀 [DEBUG] 登録されたルート:")
+    print(f"[DEBUG] ===== APIルート登録完了 =====")
+    print(f"[DEBUG] 登録されたルート:")
     for rule in app.url_map.iter_rules():
         if rule.rule.startswith('/api/'):
             print(f"    {rule.methods} {rule.rule}")
-    print(f"🚀 [DEBUG] ==========================") 
+    print(f"[DEBUG] ==========================") 

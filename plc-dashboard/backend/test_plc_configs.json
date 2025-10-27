@@ -1,0 +1,47 @@
+[
+  {
+    "data_type": "current",
+    "name": "電流",
+    "unit": "A",
+    "address": "D100",
+    "scale_factor": 1,
+    "plc_data_type": "word",
+    "enabled": true
+  },
+  {
+    "data_type": "temperature",
+    "name": "温度",
+    "unit": "℃",
+    "address": "D102",
+    "scale_factor": 1,
+    "plc_data_type": "word",
+    "enabled": true
+  },
+  {
+    "data_type": "pressure",
+    "name": "圧力",
+    "unit": "MPa",
+    "address": "D104",
+    "scale_factor": 1,
+    "plc_data_type": "word",
+    "enabled": true
+  },
+  {
+    "data_type": "cycle_time",
+    "name": "サイクルタイム",
+    "unit": "秒",
+    "address": "D106",
+    "scale_factor": 1,
+    "plc_data_type": "word",
+    "enabled": true
+  },
+  {
+    "data_type": "production_count",
+    "name": "生産数",
+    "unit": "個",
+    "address": "D108",
+    "scale_factor": 1,
+    "plc_data_type": "word",
+    "enabled": true
+  }
+]

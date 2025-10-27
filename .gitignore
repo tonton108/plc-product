@@ -166,3 +166,7 @@ test-results/
 # ----------------------------------------
 .vagrant/
 *.code-workspace
+nul
+PLC Monitoring/
+desktop-app/
+plc-dashboard/backend/postgres-portable/

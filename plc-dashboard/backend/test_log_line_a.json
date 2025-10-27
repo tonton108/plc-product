@@ -1,0 +1,11 @@
+{
+  "equipment_id": "LINE_A_001",
+  "data": {
+    "temperature": 28.7,
+    "pressure": 1015.50,
+    "production_count": 5678,
+    "current": 12.3,
+    "cycle_time": 4200,
+    "error_code": 0
+  }
+}

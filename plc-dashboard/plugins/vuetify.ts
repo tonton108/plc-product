@@ -1,12 +1,12 @@
 // plugins/vuetify.ts
-import { createVuetify, ThemeDefinition } from 'vuetify'
+import { createVuetify } from 'vuetify'
 import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 import 'vuetify/styles'
 import '@mdi/font/css/materialdesignicons.css'
 
 // ライトテーマのカスタマイズ
-const lightTheme: ThemeDefinition = {
+const lightTheme = {
   dark: false,
   colors: {
     primary: '#1976D2',
@@ -20,7 +20,7 @@ const lightTheme: ThemeDefinition = {
 }
 
 // ダークテーマのカスタマイズ
-const darkTheme: ThemeDefinition = {
+const darkTheme = {
   dark: true,
   colors: {
     primary: '#2196F3',

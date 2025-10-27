@@ -1,19 +1,22 @@
 <template>
-  <v-container>
+  <v-container class="fade-in">
     <v-row class="mb-6">
       <v-col>
-        <v-card class="pa-6" color="primary" dark elevation="8">
+        <v-card class="glass-card-primary pa-6">
           <v-row align="center">
             <v-col>
-              <v-card-title class="text-h4 mb-2">PLC リアルタイムモニタリング</v-card-title>
-              <v-card-subtitle class="text-subtitle-1">設備一覧からモニタリングしたい設備を選択してください</v-card-subtitle>
+              <v-card-title class="text-h4 mb-2 gradient-text">
+                <v-icon size="x-large" class="mr-3">mdi-factory</v-icon>
+                PLC リアルタイムモニタリング
+              </v-card-title>
+              <v-card-subtitle class="text-subtitle-1 text-white">設備一覧からモニタリングしたい設備を選択してください</v-card-subtitle>
             </v-col>
             <v-col cols="auto">
               <ThemeToggle />
               <v-btn
                 color="white"
                 size="large"
-                class="ml-3 mr-3"
+                class="ml-3 mr-3 modern-btn"
                 @click="$router.push('/dashboard')"
               >
                 <v-icon>mdi-view-dashboard</v-icon>
@@ -22,19 +25,29 @@
               <v-btn
                 color="white"
                 size="large"
-                class="mr-3"
+                class="mr-3 modern-btn"
                 :loading="loading"
                 @click="fetchEquipment"
               >
                 <v-icon>mdi-refresh</v-icon>
                 <span class="ml-2">更新</span>
               </v-btn>
+              <v-btn
+                color="white"
+                size="large"
+                class="mr-3 modern-btn"
+                @click="logout"
+              >
+                <v-icon>mdi-logout</v-icon>
+                <span class="ml-2">ログアウト</span>
+              </v-btn>
               <v-btn-toggle
                 v-model="viewMode"
                 mandatory
                 color="white"
                 divided
-                rounded="lg"
+                rounded="xl"
+                class="modern-btn"
               >
                 <v-btn value="card" size="large">
                   <v-icon>mdi-view-grid</v-icon>
@@ -69,55 +82,60 @@
     <!-- カード表示 -->
     <v-row v-else-if="viewMode === 'card'">
       <v-col
-        v-for="equipment in equipmentList"
+        v-for="(equipment, index) in equipmentList"
         :key="equipment.id"
         cols="12" sm="6" md="4"
+        class="card-grid-item"
+        :style="{ 'animation-delay': `${index * 0.1}s` }"
       >
-        <v-card class="mx-auto" elevation="4" hover>
+        <v-card class="glass-card mx-auto">
           <v-card-title class="text-h5 d-flex align-center pa-4">
-            <span class="flex-grow-1">{{ equipment.equipment_id }}</span>
+            <v-icon size="large" color="primary" class="mr-2">mdi-server</v-icon>
+            <span class="flex-grow-1 font-weight-bold">{{ equipment.equipment_id }}</span>
             <v-chip
               :color="getStatusColor(equipment.status)"
               text-color="white"
               size="small"
+              variant="elevated"
             >
+              <v-icon size="x-small" class="mr-1">mdi-circle</v-icon>
               {{ equipment.status }}
             </v-chip>
           </v-card-title>
-          <v-divider></v-divider>
-          <v-card-subtitle class="pt-3 pb-2">
-            <v-icon size="small" class="mr-1">mdi-factory</v-icon>
-            {{ equipment.manufacturer }} - {{ equipment.series }}
+          <v-divider opacity="0.2"></v-divider>
+          <v-card-subtitle class="pt-3 pb-2 d-flex align-center">
+            <v-icon size="small" class="mr-2" color="primary">mdi-factory</v-icon>
+            <span class="font-weight-medium">{{ equipment.manufacturer }} - {{ equipment.series }}</span>
           </v-card-subtitle>
           <v-card-text class="pb-2">
             <v-list density="compact" class="bg-transparent">
-              <v-list-item density="compact">
+              <v-list-item density="compact" class="px-0">
                 <template #prepend>
-                  <v-icon size="small">mdi-raspberry-pi</v-icon>
+                  <v-icon size="small" color="success">mdi-raspberry-pi</v-icon>
                 </template>
                 <v-list-item-title class="text-body-2">
                   <strong>ラズパイIP:</strong> {{ equipment.ip }}
                 </v-list-item-title>
               </v-list-item>
-              <v-list-item density="compact">
+              <v-list-item density="compact" class="px-0">
                 <template #prepend>
-                  <v-icon size="small">mdi-server-network</v-icon>
+                  <v-icon size="small" color="info">mdi-server-network</v-icon>
                 </template>
                 <v-list-item-title class="text-body-2">
                   <strong>PLC IP:</strong> {{ equipment.plc_ip || 'N/A' }}
                 </v-list-item-title>
               </v-list-item>
-              <v-list-item density="compact">
+              <v-list-item density="compact" class="px-0">
                 <template #prepend>
-                  <v-icon size="small">mdi-ethernet</v-icon>
+                  <v-icon size="small" color="warning">mdi-ethernet</v-icon>
                 </template>
                 <v-list-item-title class="text-body-2">
                   <strong>ポート:</strong> {{ equipment.port }}
                 </v-list-item-title>
               </v-list-item>
-              <v-list-item density="compact">
+              <v-list-item density="compact" class="px-0">
                 <template #prepend>
-                  <v-icon size="small">mdi-timer-outline</v-icon>
+                  <v-icon size="small" color="purple">mdi-timer-outline</v-icon>
                 </template>
                 <v-list-item-title class="text-body-2">
                   <strong>更新間隔:</strong> {{ equipment.interval }}秒
@@ -125,8 +143,8 @@
               </v-list-item>
             </v-list>
           </v-card-text>
-          <v-divider></v-divider>
-          <v-card-actions class="pa-3">
+          <v-divider opacity="0.2"></v-divider>
+          <v-card-actions class="pa-4">
             <v-row dense>
               <v-col cols="6">
                 <v-tooltip text="リアルタイムモニタリング" location="bottom">
@@ -137,9 +155,10 @@
                       variant="elevated"
                       block
                       size="large"
+                      class="modern-btn"
                       @click="goToMonitoring(equipment.equipment_id)"
                     >
-                      <v-icon class="mr-1" color="white">mdi-monitor-dashboard</v-icon>監視
+                      <v-icon class="mr-1">mdi-monitor-dashboard</v-icon>監視
                     </v-btn>
                   </template>
                 </v-tooltip>
@@ -153,9 +172,10 @@
                       variant="elevated"
                       block
                       size="large"
+                      class="modern-btn"
                       @click="goToLogs(equipment.equipment_id)"
                     >
-                      <v-icon class="mr-1" color="white">mdi-chart-line</v-icon>ログ
+                      <v-icon class="mr-1">mdi-chart-line</v-icon>ログ
                     </v-btn>
                   </template>
                 </v-tooltip>
@@ -173,7 +193,7 @@
           :headers="tableHeaders"
           :items="equipmentList"
           item-value="equipment_id"
-          class="elevation-2"
+          class="glass-card"
         >
           <template #[`item.equipment_id`]="{ item }">
             <strong>{{ item.equipment_id }}</strong>
@@ -201,7 +221,7 @@
               color="primary"
               size="small"
               variant="elevated"
-              class="mr-2"
+              class="mr-2 modern-btn"
               @click="goToMonitoring(item.equipment_id)"
             >
               <template #prepend>
@@ -213,6 +233,7 @@
               color="secondary"
               size="small"
               variant="elevated"
+              class="modern-btn"
               @click="goToLogs(item.equipment_id)"
             >
               <template #prepend>
@@ -235,6 +256,11 @@
 import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from '~/composables/useToast'
+
+// 認証ミドルウェアを適用
+definePageMeta({
+  middleware: 'auth'
+})
 
 const router = useRouter()
 const config = useRuntimeConfig()
@@ -301,6 +327,15 @@ const goToMonitoring = (equipmentId) => {
 
 const goToLogs = (equipmentId) => {
   router.push(`/equipment/${equipmentId}`)
+}
+
+const logout = () => {
+  if (process.client) {
+    localStorage.removeItem('plc_auth_token')
+    localStorage.removeItem('plc_auth_user')
+    toast.success('ログアウトしました')
+    router.push('/login')
+  }
 }
 
 // localStorageから表示モードを復元

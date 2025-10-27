@@ -1,0 +1,11 @@
+{
+  "equipment_id": "TEST_E2E",
+  "data": {
+    "temperature": 25.5,
+    "pressure": 1013.25,
+    "production_count": 1234,
+    "current": 15.8,
+    "cycle_time": 3600,
+    "error_code": 0
+  }
+}
