@@ -19,6 +19,7 @@ Claudeは以下のルールを厳守すること：
 3. フォーマットは「タイプ: 概要」形式（例：`refactor: 古いディレクトリを整理し重複を解消`）。
 4. Claude Codeは**自動署名（🤖やCo-Authored行）を付与しないこと。**
 5. 英語が混ざった場合は即座に修正し、再コミット前に確認を求めること。
+6. **作業の最後には必ずPlaywrightで動作確認を行うこと。**
 
 ---
 
@@ -244,6 +245,37 @@ plc.connect(ip, port)
 ```
 
 詳細は `_docs/plc-knowledge/timeout-settings.md` を参照。
+
+---
+
+## Playwrightによる動作確認
+
+**重要:** フロントエンド、バックエンド、または統合的な機能を変更した場合は、**作業完了前に必ずPlaywrightで動作確認を実施すること。**
+
+### テストの実行
+
+```bash
+# モニタリング画面のグラフ更新テスト（推奨）
+python scripts/test_monitoring_chart.py
+
+# クイック動作確認
+python scripts/quick_verify.py
+
+# E2Eデプロイメントテスト
+python scripts/test_e2e_deployment.py
+```
+
+### 確認ポイント
+
+- ログイン画面が正常に表示されるか
+- モニタリング画面でグラフが表示されるか
+- リアルタイムデータ更新が正常に動作するか
+- カード全体ではなく、グラフ（canvas）のみが更新されるか
+- JavaScriptエラーが発生していないか
+
+### テストスクリプトの作成
+
+新機能を追加した場合は、`scripts/`ディレクトリに対応するPlaywrightテストスクリプトを作成することを推奨します。
 
 ---
 

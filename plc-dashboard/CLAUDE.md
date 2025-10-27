@@ -325,6 +325,35 @@ READ_ONLY_MODE=true
 - `ALLOWED_PLC_IPS`: 空の場合はすべてのIPを許可（推奨しません）
 - `READ_ONLY_MODE`: 本番環境では必ずtrueに設定（データ改ざん防止）
 
+## Playwrightによる動作確認
+
+**重要:** フロントエンド、バックエンド、または統合的な機能を変更した場合は、**作業完了前に必ずPlaywrightで動作確認を実施すること。**
+
+### テストの実行
+
+```bash
+# モニタリング画面のグラフ更新テスト（推奨）
+python scripts/test_monitoring_chart.py
+
+# クイック動作確認
+python scripts/quick_verify.py
+
+# E2Eデプロイメントテスト
+python scripts/test_e2e_deployment.py
+```
+
+### 確認ポイント
+
+- ログイン画面が正常に表示されるか
+- モニタリング画面でグラフが表示されるか
+- リアルタイムデータ更新が正常に動作するか
+- カード全体ではなく、グラフ（canvas）のみが更新されるか
+- JavaScriptエラーが発生していないか
+
+### テストスクリプトの作成
+
+新機能を追加した場合は、`scripts/`ディレクトリに対応するPlaywrightテストスクリプトを作成することを推奨します。
+
 ## 重要な実装上の注意点
 
 ### Socket.IOのGreenletエラー回避
