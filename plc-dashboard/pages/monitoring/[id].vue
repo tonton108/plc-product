@@ -3,36 +3,37 @@
 このコメントはブラウザキャッシュを無効化するために追加されました
 -->
 <template>
-  <v-container fluid>
+  <v-container fluid class="fade-in">
     <!-- ヘッダー部分 -->
     <v-row class="mb-6">
       <v-col cols="12">
-        <v-card color="primary" dark class="pa-6" elevation="8">
+        <v-card class="glass-card-primary pa-6">
           <v-row align="center">
             <v-col>
               <v-card-title class="text-h4 mb-2 d-flex align-center">
                 <v-icon size="x-large" class="mr-4">mdi-monitor-dashboard</v-icon>
-                {{ equipmentInfo?.equipment_id || 'N/A' }} - リアルタイムモニタリング
+                <span class="gradient-text">{{ equipmentInfo?.equipment_id || 'N/A' }}</span>
+                <span class="text-white ml-3">- リアルタイムモニタリング</span>
               </v-card-title>
-              <v-card-subtitle class="text-subtitle-1 d-flex align-center mt-2">
+              <v-card-subtitle class="text-subtitle-1 d-flex align-center mt-2 text-white">
                 <v-icon size="small" class="mr-2">mdi-factory</v-icon>
                 {{ equipmentInfo?.manufacturer }} {{ equipmentInfo?.series }}
                 <v-chip
-                  :color="connectionStatus ? 'success' : 'error'"
+                  :color="realtimeMonitoring.connectionStatus.value ? 'success' : 'error'"
                   text-color="white"
                   size="small"
                   class="ml-3"
-                  variant="flat"
+                  variant="elevated"
                 >
                   <v-icon size="small" class="mr-1">
-                    {{ connectionStatus ? 'mdi-check-circle' : 'mdi-close-circle' }}
+                    {{ realtimeMonitoring.connectionStatus.value ? 'mdi-check-circle' : 'mdi-close-circle' }}
                   </v-icon>
-                  {{ connectionStatus ? '接続中' : '切断' }}
+                  {{ realtimeMonitoring.connectionStatus.value ? '接続中' : '切断' }}
                 </v-chip>
               </v-card-subtitle>
             </v-col>
             <v-col cols="auto">
-              <v-btn @click="goBack" variant="elevated" color="white" size="x-large">
+              <v-btn @click="goBack" variant="elevated" color="white" size="x-large" class="modern-btn">
                 <template v-slot:prepend>
                   <v-icon>mdi-arrow-left</v-icon>
                 </template>
@@ -46,8 +47,8 @@
 
     <!-- ステータスカード -->
     <v-row class="mb-6">
-      <v-col cols="12" sm="6" md="2" v-for="(item, key) in monitoringData" :key="key">
-        <v-card :color="getCardColor(item.status)" class="text-center pa-4" dark elevation="6" hover>
+      <v-col cols="12" sm="6" md="2" v-for="(item, key) in monitoringData" :key="key" class="card-grid-item">
+        <v-card :color="getCardColor(item.status)" class="status-card text-center pa-4" dark>
           <v-icon size="48" class="mb-3">{{ item.icon }}</v-icon>
           <div class="text-h3 font-weight-bold mb-2">{{ item.value || 'N/A' }}</div>
           <div class="text-h6 mb-1">{{ item.label }}</div>
@@ -90,25 +91,38 @@
     </v-row>
 
     <!-- リアルタイムグラフ -->
-    <v-row class="mb-6">
-      <v-col cols="12" md="6" v-for="chart in chartManagement.chartConfigs.value" :key="chart.id">
-        <v-card class="pa-6" elevation="6">
+    <v-row class="mb-6" v-if="chartConfigs && chartConfigs.length > 0">
+      <v-col cols="12" md="6" v-for="(chart, index) in chartConfigs" :key="chart.id" class="card-grid-item" v-memo="[chart.id, chart.title]">
+        <v-card class="glass-card pa-6">
           <v-card-title class="text-h5 mb-4 d-flex align-center">
             <v-icon size="large" class="mr-3" color="primary">{{ chart.icon }}</v-icon>
             {{ chart.title }}
+            <v-chip size="x-small" color="info" class="ml-2" variant="flat" v-if="debugMode">
+              {{ chart.data?.datasets?.[0]?.data?.length || 0 }}点
+            </v-chip>
           </v-card-title>
           <v-divider class="mb-4"></v-divider>
-          <div style="height: 350px;">
-            <Chart
-              v-if="chart.data && chart.data.datasets[0].data.length > 0"
-              :data="chart.data"
-              :options="chart.options"
-              type="line"
-            />
+          <div class="chart-container" style="height: 350px;">
+            <!-- デバッグ用情報 -->
+            <div v-if="debugMode" class="text-caption mb-2">
+              チャート状態: data={{ !!chart.data }}, datasets={{ !!chart.data?.datasets }}, length={{ chart.data?.datasets?.length || 0 }}, options={{ !!chart.options }}
+            </div>
+            <!-- v-if/v-elseを正しく隣接させる -->
+            <ClientOnly v-if="chart.data && chart.data.datasets && chart.options">
+              <Line
+                :ref="el => setChartRef(el, chart.id)"
+                :data="chart.data"
+                :options="chart.options"
+              />
+            </ClientOnly>
             <div v-else class="d-flex align-center justify-center" style="height: 100%;">
               <div class="text-center">
                 <v-icon size="80" color="grey-lighten-1">mdi-chart-line</v-icon>
                 <div class="text-h6 text-grey mt-4">データ待機中...</div>
+                <v-progress-circular indeterminate color="primary" size="40" class="mt-4"></v-progress-circular>
+                <div class="text-caption text-grey mt-2">
+                  data: {{ !!chart.data }}, datasets: {{ !!chart.data?.datasets }}, options: {{ !!chart.options }}
+                </div>
               </div>
             </div>
           </div>
@@ -119,7 +133,7 @@
     <!-- 最新データログ -->
     <v-row class="mb-6">
       <v-col cols="12">
-        <v-card class="pa-6" elevation="6">
+        <v-card class="glass-card pa-6">
           <v-card-title class="text-h5 mb-4 d-flex align-center">
             <v-icon size="large" class="mr-3" color="primary">mdi-table</v-icon>
             最新データ履歴
@@ -130,6 +144,7 @@
             <v-btn
               color="primary"
               variant="elevated"
+              class="modern-btn"
               @click="exportDataHistoryToCSV"
             >
               <template #prepend>
@@ -208,12 +223,17 @@ import {
   LinearScale,
   PointElement,
 } from 'chart.js'
-import { Chart } from 'vue-chartjs'
-import { ref, onMounted, reactive } from 'vue'
+import { Line } from 'vue-chartjs'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from '~/composables/useToast'
 import { useRealtimeMonitoring } from '~/composables/useRealtimeMonitoring'
-import { useChartManagement } from '~/composables/useChartManagement'
+import { useChartManagement } from '~/composables/useChartManagement_v2'
+
+// 認証ミドルウェアを適用
+definePageMeta({
+  middleware: 'auth'
+})
 
 ChartJS.register(
   Title,
@@ -263,6 +283,43 @@ const chartManagement = useChartManagement({
   onDebugLog: realtimeMonitoring.addDebugLog
 })
 
+// chartConfigsを直接参照（computedは不要）
+const chartConfigs = chartManagement.chartConfigs
+
+// Chart.jsインスタンスをセットアップ
+const setChartRef = (el, chartId) => {
+  if (!el) return
+
+  // ClientOnlyコンポーネント内のレンダリングを待つため、少し遅延
+  setTimeout(() => {
+    // vue-chartjs v5では、複数の方法でChart.jsインスタンスを取得可能
+    const chartInstance =
+      el.chart ||                    // 直接プロパティ
+      el.chartInstance ||             // vue-chartjs v5の標準プロパティ
+      el.$data?.chart ||              // Options APIの場合
+      el.$?.exposed?.chart ||         // Composition APIのexposeの場合
+      el.$?.proxy?.chart              // Proxyの場合
+
+    console.log(`🔍 Chart.jsインスタンス検索: ${chartId}`, {
+      hasChart: !!el.chart,
+      hasChartInstance: !!el.chartInstance,
+      hasDataChart: !!el.$data?.chart,
+      hasExposedChart: !!el.$?.exposed?.chart,
+      hasProxyChart: !!el.$?.proxy?.chart,
+      elKeys: Object.keys(el)
+    })
+
+    if (chartInstance) {
+      console.log(`✅ Chart.jsインスタンス取得成功: ${chartId}`)
+      chartManagement.registerChartInstance(chartId, chartInstance)
+    } else {
+      console.warn(`⚠️ Chart.jsインスタンス取得失敗: ${chartId}`, el)
+    }
+  }, 100) // 100ms遅延でClientOnlyのレンダリングを待つ
+}
+
+// watch関数を削除: Chart.jsインスタンスを直接操作するため、Vueのリアクティビティは不要
+
 // メソッド
 const getCardColor = (status) => {
   switch (status) {
@@ -297,11 +354,9 @@ function handleDataUpdate(data) {
   updateMonitoringData(data)
   chartManagement.updateChartData(data)
 
-  // データ履歴に追加
-  dataHistory.value.unshift(data)
-  if (dataHistory.value.length > 100) {
-    dataHistory.value = dataHistory.value.slice(0, 100)
-  }
+  // データ履歴に追加（新しい配列を作成してリアクティビティを維持）
+  const newHistory = [data, ...dataHistory.value]
+  dataHistory.value = newHistory.slice(0, 100)  // 最大100件まで
 
   // エラーアラート
   if (data.error_code) {
@@ -396,7 +451,7 @@ const fetchPLCConfigs = async () => {
       console.log('📋 PLC設定:', plcConfigs.value)
 
       // 動的にデータ構造を生成
-      initializeDynamicStructures()
+      await initializeDynamicStructures()
     } else {
       realtimeMonitoring.addDebugLog('error', `PLC設定取得失敗: ${response.status}`)
     }
@@ -407,7 +462,8 @@ const fetchPLCConfigs = async () => {
 }
 
 // ✅ 動的データ構造の初期化
-const initializeDynamicStructures = () => {
+const initializeDynamicStructures = async () => {
+  console.log('[START] initializeDynamicStructures')
   try {
     console.log('🔧 動的データ構造を初期化中...')
     realtimeMonitoring.addDebugLog('info', '動的データ構造を初期化中...')
@@ -444,7 +500,7 @@ const initializeDynamicStructures = () => {
     console.log('✅ monitoringData初期化完了:', Object.keys(newMonitoringData))
     realtimeMonitoring.addDebugLog('success', `monitoringData初期化: ${Object.keys(newMonitoringData).length}項目`)
 
-    // 2. chartConfigsを動的生成
+    // 2. chartConfigsを動的生成（各項目ごとにカードを作成）
     const newChartConfigs = []
     plcConfigs.value.forEach(config => {
       if (config.enabled) {
@@ -460,7 +516,32 @@ const initializeDynamicStructures = () => {
 
     // チャート管理コンポーザブルを使って初期化
     chartManagement.initializeCharts(newChartConfigs, monitoringData.value)
+
+    // DOMの更新を待つ（複数回実行して確実に反映）
+    await nextTick()
+    await new Promise(resolve => setTimeout(resolve, 100)) // 100ms待機
+    await nextTick()
+
     console.log('✅ chartConfigs初期化完了:', newChartConfigs.length, '個')
+    console.log('🔍 chartManagement.chartConfigs.value:', chartManagement.chartConfigs.value)
+    console.log('🔍 chartManagement.chartConfigs.value.length:', chartManagement.chartConfigs.value?.length)
+
+    // チャートの準備完了
+    await nextTick()
+    console.log('✅ チャート準備完了')
+
+    // 各チャートの状態を確認
+    chartManagement.chartConfigs.value?.forEach((chart, i) => {
+      console.log(`📊 チャート[${i}]:`, {
+        id: chart.id,
+        title: chart.title,
+        hasData: !!chart.data,
+        hasDatasets: !!chart.data?.datasets,
+        datasetsLength: chart.data?.datasets?.length,
+        hasOptions: !!chart.options
+      })
+    })
+
     realtimeMonitoring.addDebugLog('success', `chartConfigs初期化: ${newChartConfigs.length}個`)
 
     // 3. tableHeadersを動的生成
@@ -482,8 +563,10 @@ const initializeDynamicStructures = () => {
 
     console.log('✅ 全動的データ構造の初期化完了')
     realtimeMonitoring.addDebugLog('success', '全動的データ構造の初期化完了')
+    console.log('[END] initializeDynamicStructures SUCCESS')
   } catch (error) {
     console.error('❌ 動的データ構造初期化エラー:', error)
+    console.error('[END] initializeDynamicStructures ERROR:', error)
     realtimeMonitoring.addDebugLog('error', `動的データ構造初期化エラー: ${error.message}`)
   }
 }
