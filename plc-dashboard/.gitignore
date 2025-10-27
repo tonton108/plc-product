@@ -12,6 +12,8 @@ node_modules
 # Logs
 logs
 *.log
+*.log.*
+*.gz
 
 # Misc
 .DS_Store
@@ -33,3 +35,9 @@ electron/node_modules/
 electron/dist/
 electron/renderer/
 electron/config.json
+
+# Temporary files
+*.broken
+docker-wrapper.sh
+fix_*.py
+**/logrotate.conf
