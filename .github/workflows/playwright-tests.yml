@@ -68,14 +68,18 @@ jobs:
 
       - name: Initialize database
         run: |
-          cd plc-dashboard/backend
+          cd plc-dashboard
+          export PYTHONPATH="${PWD}/backend:${PYTHONPATH}"
+          cd backend
           flask --app manage.py db upgrade
         env:
           DATABASE_URL: postgresql+psycopg2://plc_user:plc_pass@localhost:5432/plc_monitor
 
       - name: Start backend server
         run: |
-          cd plc-dashboard/backend
+          cd plc-dashboard
+          export PYTHONPATH="${PWD}/backend:${PYTHONPATH}"
+          cd backend
           python demo_data_sender.py --mode register --equipment-id LINE_A_001 &
           flask --app manage.py run --host=0.0.0.0 --port=5000 &
           sleep 5
@@ -90,7 +94,9 @@ jobs:
 
       - name: Start demo data sender
         run: |
-          cd plc-dashboard/backend
+          cd plc-dashboard
+          export PYTHONPATH="${PWD}/backend:${PYTHONPATH}"
+          cd backend
           python demo_data_sender.py --mode continuous --interval 2.0 &
           sleep 3
 
