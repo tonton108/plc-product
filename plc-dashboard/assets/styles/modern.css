@@ -1,0 +1,286 @@
+/* モダンUIスタイル */
+
+/* グラデーション背景 */
+body {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+/* ダークモード対応 */
+.v-theme--dark body {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+/* グラスモーフィズムカード */
+.glass-card {
+  background: rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37) !important;
+  border-radius: 16px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.glass-card:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.5) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+/* プライマリカード（ヘッダー用） */
+.glass-card-primary {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.8) 0%, rgba(118, 75, 162, 0.8) 100%) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 8px 32px 0 rgba(102, 126, 234, 0.4) !important;
+  border-radius: 20px !important;
+}
+
+/* ダークモード時のグラスカード */
+.v-theme--dark .glass-card {
+  background: rgba(22, 33, 62, 0.6) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.v-theme--dark .glass-card-primary {
+  background: linear-gradient(135deg, rgba(26, 26, 46, 0.9) 0%, rgba(22, 33, 62, 0.9) 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+/* モダンボタン */
+.modern-btn {
+  border-radius: 12px !important;
+  text-transform: none !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.5px !important;
+  padding: 12px 24px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.modern-btn:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25) !important;
+}
+
+.modern-btn:active {
+  transform: translateY(0) !important;
+}
+
+/* ステータスカード */
+.status-card {
+  border-radius: 20px !important;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.status-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.status-card:hover::before {
+  opacity: 1;
+}
+
+.status-card:hover {
+  transform: translateY(-8px) scale(1.02) !important;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* データテーブル */
+.v-data-table {
+  background: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(10px) !important;
+  border-radius: 16px !important;
+  overflow: hidden;
+}
+
+.v-data-table thead {
+  background: rgba(102, 126, 234, 0.2) !important;
+}
+
+.v-data-table tbody tr {
+  transition: all 0.2s ease !important;
+}
+
+.v-data-table tbody tr:hover {
+  background: rgba(102, 126, 234, 0.1) !important;
+  transform: scale(1.01) !important;
+}
+
+/* チップ */
+.v-chip {
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.5px !important;
+  transition: all 0.2s ease !important;
+}
+
+.v-chip:hover {
+  transform: scale(1.05) !important;
+}
+
+/* アラート */
+.v-alert {
+  border-radius: 16px !important;
+  border-left: 4px solid !important;
+  backdrop-filter: blur(10px) !important;
+  animation: slideInRight 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* プログレスバー */
+.v-progress-circular {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* フェードインアニメーション */
+.fade-in {
+  animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* カードグリッドアニメーション */
+.card-grid-item {
+  animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+}
+
+.card-grid-item:nth-child(1) { animation-delay: 0.1s; }
+.card-grid-item:nth-child(2) { animation-delay: 0.2s; }
+.card-grid-item:nth-child(3) { animation-delay: 0.3s; }
+.card-grid-item:nth-child(4) { animation-delay: 0.4s; }
+.card-grid-item:nth-child(5) { animation-delay: 0.5s; }
+.card-grid-item:nth-child(6) { animation-delay: 0.6s; }
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* スクロールバーのカスタマイズ */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+/* テキストグラデーション */
+.gradient-text {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+}
+
+/* FABボタン */
+.v-fab {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.v-fab:hover {
+  transform: scale(1.1) rotate(5deg) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* リップル効果強化 */
+.v-ripple__container {
+  opacity: 0.3 !important;
+}
+
+/* カードコンテナ */
+.card-container {
+  perspective: 1000px;
+}
+
+/* ツールチップ */
+.v-tooltip > .v-overlay__content {
+  background: rgba(0, 0, 0, 0.9) !important;
+  backdrop-filter: blur(10px) !important;
+  border-radius: 8px !important;
+  padding: 8px 16px !important;
+  font-weight: 500 !important;
+}
+
+/* フォーカスリング */
+.v-input:focus-within,
+.v-btn:focus-visible {
+  outline: 2px solid rgba(102, 126, 234, 0.5);
+  outline-offset: 2px;
+}
+
+/* モーダル・ダイアログ */
+.v-dialog > .v-overlay__content {
+  border-radius: 24px !important;
+  backdrop-filter: blur(20px) !important;
+}
+
+/* グラフコンテナ */
+.chart-container {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
