@@ -1,186 +1,35 @@
 <!--
-🔧 キャッシュバスター: 2025-07-23 08:51:00 
-このコメントはブラウザキャッシュを無効化するために追加されました
+🔧 リファクタリング完了: コンポーネント分割による保守性向上
 -->
 <template>
   <v-container fluid class="fade-in">
     <!-- ヘッダー部分 -->
-    <v-row class="mb-6">
-      <v-col cols="12">
-        <v-card class="glass-card-primary pa-6">
-          <v-row align="center">
-            <v-col>
-              <v-card-title class="text-h4 mb-2 d-flex align-center">
-                <v-icon size="x-large" class="mr-4">mdi-monitor-dashboard</v-icon>
-                <span class="gradient-text">{{ equipmentInfo?.equipment_id || 'N/A' }}</span>
-                <span class="text-white ml-3">- リアルタイムモニタリング</span>
-              </v-card-title>
-              <v-card-subtitle class="text-subtitle-1 d-flex align-center mt-2 text-white">
-                <v-icon size="small" class="mr-2">mdi-factory</v-icon>
-                {{ equipmentInfo?.manufacturer }} {{ equipmentInfo?.series }}
-                <v-chip
-                  :color="realtimeMonitoring.connectionStatus.value ? 'success' : 'error'"
-                  text-color="white"
-                  size="small"
-                  class="ml-3"
-                  variant="elevated"
-                >
-                  <v-icon size="small" class="mr-1">
-                    {{ realtimeMonitoring.connectionStatus.value ? 'mdi-check-circle' : 'mdi-close-circle' }}
-                  </v-icon>
-                  {{ realtimeMonitoring.connectionStatus.value ? '接続中' : '切断' }}
-                </v-chip>
-              </v-card-subtitle>
-            </v-col>
-            <v-col cols="auto">
-              <v-btn @click="goBack" variant="elevated" color="white" size="x-large" class="modern-btn">
-                <template v-slot:prepend>
-                  <v-icon>mdi-arrow-left</v-icon>
-                </template>
-                戻る
-              </v-btn>
-            </v-col>
-          </v-row>
-        </v-card>
-      </v-col>
-    </v-row>
+    <MonitoringHeader
+      :equipment-info="equipmentInfo"
+      :connection-status="realtimeMonitoring.connectionStatus.value"
+      @go-back="goBack"
+    />
 
-    <!-- ステータスカード -->
-    <v-row class="mb-6">
-      <v-col cols="12" sm="6" md="2" v-for="(item, key) in monitoringData" :key="key" class="card-grid-item">
-        <v-card :color="getCardColor(item.status)" class="status-card text-center pa-4" dark>
-          <v-icon size="48" class="mb-3">{{ item.icon }}</v-icon>
-          <div class="text-h3 font-weight-bold mb-2">{{ item.value || 'N/A' }}</div>
-          <div class="text-h6 mb-1">{{ item.label }}</div>
-          <div class="text-body-2 mb-2">{{ item.unit }}</div>
-          <v-chip
-            size="small"
-            :color="item.status === 'normal' ? 'success' : 'error'"
-            class="mt-2"
-            variant="flat"
-          >
-            <v-icon size="x-small" class="mr-1">
-              {{ item.status === 'normal' ? 'mdi-check-circle' : 'mdi-alert-circle' }}
-            </v-icon>
-            {{ item.status === 'normal' ? '正常' : '異常' }}
-          </v-chip>
-        </v-card>
-      </v-col>
-    </v-row>
-
-    <!-- アラート表示 -->
-    <v-row v-if="alerts.length > 0" class="mb-4">
-      <v-col cols="12">
-        <v-alert
-          v-for="alert in alerts"
-          :key="alert.id"
-          :type="alert.type"
-          prominent
-          border="start"
-          :icon="alert.icon"
-          closable
-          @click:close="removeAlert(alert.id)"
-        >
-          <v-alert-title>{{ alert.title }}</v-alert-title>
-          {{ alert.message }}
-          <template v-slot:append>
-            <div class="text-caption">{{ alert.timestamp }}</div>
-          </template>
-        </v-alert>
-      </v-col>
-    </v-row>
+    <!-- ステータスカード & アラート -->
+    <StatusCards
+      :monitoring-data="monitoringData"
+      :alerts="alerts"
+      @remove-alert="removeAlert"
+    />
 
     <!-- リアルタイムグラフ -->
-    <v-row class="mb-6" v-if="chartConfigs && chartConfigs.length > 0">
-      <v-col cols="12" md="6" v-for="(chart, index) in chartConfigs" :key="chart.id" class="card-grid-item" v-memo="[chart.id, chart.title]">
-        <v-card class="glass-card pa-6">
-          <v-card-title class="text-h5 mb-4 d-flex align-center">
-            <v-icon size="large" class="mr-3" color="primary">{{ chart.icon }}</v-icon>
-            {{ chart.title }}
-            <v-chip size="x-small" color="info" class="ml-2" variant="flat" v-if="debugMode">
-              {{ chart.data?.datasets?.[0]?.data?.length || 0 }}点
-            </v-chip>
-          </v-card-title>
-          <v-divider class="mb-4"></v-divider>
-          <div class="chart-container" style="height: 350px;">
-            <!-- デバッグ用情報 -->
-            <div v-if="debugMode" class="text-caption mb-2">
-              チャート状態: data={{ !!chart.data }}, datasets={{ !!chart.data?.datasets }}, length={{ chart.data?.datasets?.length || 0 }}, options={{ !!chart.options }}
-            </div>
-            <!-- v-if/v-elseを正しく隣接させる -->
-            <ClientOnly v-if="chart.data && chart.data.datasets && chart.options">
-              <Line
-                :ref="el => setChartRef(el, chart.id)"
-                :data="chart.data"
-                :options="chart.options"
-              />
-            </ClientOnly>
-            <div v-else class="d-flex align-center justify-center" style="height: 100%;">
-              <div class="text-center">
-                <v-icon size="80" color="grey-lighten-1">mdi-chart-line</v-icon>
-                <div class="text-h6 text-grey mt-4">データ待機中...</div>
-                <v-progress-circular indeterminate color="primary" size="40" class="mt-4"></v-progress-circular>
-                <div class="text-caption text-grey mt-2">
-                  data: {{ !!chart.data }}, datasets: {{ !!chart.data?.datasets }}, options: {{ !!chart.options }}
-                </div>
-              </div>
-            </div>
-          </div>
-        </v-card>
-      </v-col>
-    </v-row>
+    <ChartCards
+      :chart-configs="chartConfigs"
+      :debug-mode="debugMode"
+      @chart-ref-set="({ el, chartId }) => setChartRef(el, chartId)"
+    />
 
     <!-- 最新データログ -->
-    <v-row class="mb-6">
-      <v-col cols="12">
-        <v-card class="glass-card pa-6">
-          <v-card-title class="text-h5 mb-4 d-flex align-center">
-            <v-icon size="large" class="mr-3" color="primary">mdi-table</v-icon>
-            最新データ履歴
-            <v-chip size="small" color="info" class="ml-3" variant="flat">
-              {{ dataHistory.length }}件
-            </v-chip>
-            <v-spacer></v-spacer>
-            <v-btn
-              color="primary"
-              variant="elevated"
-              class="modern-btn"
-              @click="exportDataHistoryToCSV"
-            >
-              <template #prepend>
-                <v-icon>mdi-download</v-icon>
-              </template>
-              CSV出力
-            </v-btn>
-          </v-card-title>
-          <v-divider class="mb-4"></v-divider>
-          <v-data-table
-            :headers="tableHeaders"
-            :items="dataHistory"
-            density="comfortable"
-            :items-per-page="15"
-            class="elevation-0"
-          >
-            <template #[`item.timestamp`]="{ item }">
-              <span class="text-body-2">{{ formatDateTime(item.timestamp) }}</span>
-            </template>
-            <template #[`item.error_code`]="{ item }">
-              <v-chip
-                size="small"
-                :color="item.error_code ? 'error' : 'success'"
-                text-color="white"
-                variant="flat"
-              >
-                <v-icon size="x-small" class="mr-1">
-                  {{ item.error_code ? 'mdi-alert-circle' : 'mdi-check-circle' }}
-                </v-icon>
-                {{ item.error_code || '正常' }}
-              </v-chip>
-            </template>
-          </v-data-table>
-        </v-card>
-      </v-col>
-    </v-row>
+    <DataCards
+      :data-history="dataHistory"
+      :table-headers="tableHeaders"
+      @export-csv="exportDataHistoryToCSV"
+    />
 
     <!-- デバッグパネル -->
     <v-row class="mb-6" v-if="debugMode">
@@ -223,12 +72,17 @@ import {
   LinearScale,
   PointElement,
 } from 'chart.js'
-import { Line } from 'vue-chartjs'
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from '~/composables/useToast'
 import { useRealtimeMonitoring } from '~/composables/useRealtimeMonitoring'
-import { useChartManagement } from '~/composables/useChartManagement_v2'
+import { useChartManagement } from '~/composables/useChartManagement'
+
+// コンポーネントのインポート
+import MonitoringHeader from '~/components/monitoring/MonitoringHeader.vue'
+import StatusCards from '~/components/monitoring/StatusCards.vue'
+import ChartCards from '~/components/monitoring/ChartCards.vue'
+import DataCards from '~/components/monitoring/DataCards.vue'
 
 // 認証ミドルウェアを適用
 definePageMeta({
@@ -321,18 +175,6 @@ const setChartRef = (el, chartId) => {
 // watch関数を削除: Chart.jsインスタンスを直接操作するため、Vueのリアクティビティは不要
 
 // メソッド
-const getCardColor = (status) => {
-  switch (status) {
-    case 'error': return 'error'
-    case 'warning': return 'warning'
-    default: return 'primary'
-  }
-}
-
-const formatDateTime = (timestamp) => {
-  return new Date(timestamp).toLocaleString('ja-JP')
-}
-
 const goBack = () => {
   // ブラウザ履歴があれば戻る、なければトップページへ
   if (window.history.length > 1) {
