@@ -204,10 +204,12 @@ def create_monthly_summary(year, month):
         db.session.rollback()
 
 
-def start_cleanup_scheduler():
-    """クリーンアップスケジューラーを開始"""
-    # Flaskアプリオブジェクトをキャプチャ（スレッドで使用するため）
-    app = current_app._get_current_object()
+def start_cleanup_scheduler(app):
+    """クリーンアップスケジューラーを開始
+
+    Args:
+        app: Flaskアプリケーションオブジェクト
+    """
 
     def cleanup_job():
         while True:
