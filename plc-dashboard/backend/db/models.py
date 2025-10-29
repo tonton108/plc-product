@@ -157,6 +157,8 @@ class MonthlyLogSummary(db.Model):
     temperature_max = db.Column(db.Float)
     temperature_min = db.Column(db.Float)
     pressure_avg = db.Column(db.Float)
+    pressure_max = db.Column(db.Float)
+    pressure_min = db.Column(db.Float)
     cycle_time_avg = db.Column(db.Float)
     error_count_total = db.Column(db.Integer)
     operational_days = db.Column(db.Integer)            # 稼働日数
@@ -170,9 +172,9 @@ class MonthlyLogSummary(db.Model):
     # ユニーク制約
     __table_args__ = (db.UniqueConstraint('equipment_id', 'year', 'month', name='uq_equipment_year_month'),)
     
-    def __init__(self, equipment_id, year, month, production_count_total=None, current_avg=None, current_max=None, 
+    def __init__(self, equipment_id, year, month, production_count_total=None, current_avg=None, current_max=None,
                  current_min=None, temperature_avg=None, temperature_max=None, temperature_min=None, pressure_avg=None,
-                 cycle_time_avg=None, error_count_total=None, operational_days=None):
+                 pressure_max=None, pressure_min=None, cycle_time_avg=None, error_count_total=None, operational_days=None):
         self.equipment_id = equipment_id
         self.year = year
         self.month = month
@@ -184,6 +186,8 @@ class MonthlyLogSummary(db.Model):
         self.temperature_max = temperature_max
         self.temperature_min = temperature_min
         self.pressure_avg = pressure_avg
+        self.pressure_max = pressure_max
+        self.pressure_min = pressure_min
         self.cycle_time_avg = cycle_time_avg
         self.error_count_total = error_count_total
         self.operational_days = operational_days
