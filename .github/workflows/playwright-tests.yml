@@ -1,0 +1,126 @@
+name: Playwright Tests
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: plc_user
+          POSTGRES_PASSWORD: plc_pass
+          POSTGRES_DB: plc_monitor
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'plc-dashboard/backend/requirements.txt'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'plc-dashboard/package-lock.json'
+
+      - name: Install Python dependencies
+        run: |
+          cd plc-dashboard/backend
+          pip install -r requirements.txt
+
+      - name: Install Playwright
+        run: |
+          pip install playwright pytest-playwright
+          playwright install chromium
+          playwright install-deps
+
+      - name: Install Node.js dependencies
+        run: |
+          cd plc-dashboard
+          npm ci
+
+      - name: Setup environment variables
+        run: |
+          cd plc-dashboard
+          cp .env.example .env
+          echo "DATABASE_URL=postgresql+psycopg2://plc_user:plc_pass@localhost:5432/plc_monitor" >> .env
+
+      - name: Initialize database
+        run: |
+          cd plc-dashboard
+          export PYTHONPATH="${PWD}/backend:${PYTHONPATH}"
+          cd backend
+          flask --app manage.py db upgrade
+        env:
+          DATABASE_URL: postgresql+psycopg2://plc_user:plc_pass@localhost:5432/plc_monitor
+
+      - name: Start backend server
+        run: |
+          cd plc-dashboard
+          export PYTHONPATH="${PWD}/backend:${PYTHONPATH}"
+          cd backend
+          python demo_data_sender.py --mode register --equipment-id LINE_A_001 &
+          flask --app manage.py run --host=0.0.0.0 --port=5000 &
+          sleep 5
+        env:
+          DATABASE_URL: postgresql+psycopg2://plc_user:plc_pass@localhost:5432/plc_monitor
+
+      - name: Start frontend server
+        run: |
+          cd plc-dashboard
+          npm run dev &
+          sleep 10
+
+      - name: Start demo data sender
+        run: |
+          cd plc-dashboard
+          export PYTHONPATH="${PWD}/backend:${PYTHONPATH}"
+          cd backend
+          python demo_data_sender.py --mode continuous --interval 2.0 &
+          sleep 3
+
+      - name: Run Playwright tests
+        run: |
+          cd plc-dashboard
+          python scripts/test_monitoring_chart.py
+        env:
+          CI: true
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-screenshots
+          path: plc-dashboard/scripts/*.png
+          retention-days: 7
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: |
+            plc-dashboard/playwright-report/
+            plc-dashboard/test-results/
+          retention-days: 7

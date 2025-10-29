@@ -847,7 +847,7 @@ def register_routes(app, socketio=None):
         return jsonify({"status": "healthy", "message": "OK"}), 200
 
     # スケジューラー開始
-    start_cleanup_scheduler()
+    start_cleanup_scheduler(app)
     
     # APIルート登録完了ログ
     print(f"[DEBUG] ===== APIルート登録完了 =====")

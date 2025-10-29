@@ -41,3 +41,6 @@ electron/config.json
 docker-wrapper.sh
 fix_*.py
 **/logrotate.conf
+
+# Test screenshots
+scripts/*.png

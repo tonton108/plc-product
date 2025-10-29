@@ -141,20 +141,94 @@ class PLCDataSender:
             "port": 502,
             "interval": 2
         }
-        
+
         try:
             url = f"{self.server_url}/api/register"
             response = requests.post(url, json=registration_data, timeout=5)
-            
+
             if response.status_code == 200:
                 print(f" 設備登録成功: {self.equipment_id}")
+
+                # PLC設定を登録
+                self.register_plc_configs()
+
                 return True
             else:
                 print(f" 設備登録失敗: {response.status_code} - {response.text}")
                 return False
-                
+
         except requests.exceptions.RequestException as e:
             print(f" 設備登録エラー: {e}")
+            return False
+
+    def register_plc_configs(self):
+        """PLC設定を登録"""
+        plc_configs = [
+            {
+                "name": "温度",
+                "data_type": "temperature",
+                "enabled": True,
+                "address": "D100",
+                "scale_factor": 10,
+                "plc_data_type": "word",
+                "icon": "",
+                "unit": "°C"
+            },
+            {
+                "name": "電流",
+                "data_type": "current",
+                "enabled": True,
+                "address": "D200",
+                "scale_factor": 100,
+                "plc_data_type": "word",
+                "icon": "",
+                "unit": "A"
+            },
+            {
+                "name": "圧力",
+                "data_type": "pressure",
+                "enabled": True,
+                "address": "D300",
+                "scale_factor": 10,
+                "plc_data_type": "word",
+                "icon": "",
+                "unit": "MPa"
+            },
+            {
+                "name": "回転数",
+                "data_type": "rotation",
+                "enabled": True,
+                "address": "D400",
+                "scale_factor": 1,
+                "plc_data_type": "word",
+                "icon": "",
+                "unit": "rpm"
+            },
+            {
+                "name": "振動",
+                "data_type": "vibration",
+                "enabled": True,
+                "address": "D500",
+                "scale_factor": 100,
+                "plc_data_type": "word",
+                "icon": "",
+                "unit": "mm/s"
+            }
+        ]
+
+        try:
+            url = f"{self.server_url}/api/equipment/{self.equipment_id}/plc_configs"
+            response = requests.put(url, json={"plc_configs": plc_configs}, timeout=5)
+
+            if response.status_code == 200:
+                print(f" PLC設定登録成功: {len(plc_configs)}個の設定を登録しました")
+                return True
+            else:
+                print(f" PLC設定登録失敗: {response.status_code} - {response.text}")
+                return False
+
+        except requests.exceptions.RequestException as e:
+            print(f" PLC設定登録エラー: {e}")
             return False
 
 def main():
