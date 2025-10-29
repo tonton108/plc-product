@@ -32,7 +32,10 @@ def upgrade():
         batch_op.add_column(sa.Column('name', sa.String(length=100), nullable=True, server_default=''))
         batch_op.add_column(sa.Column('icon', sa.String(length=10), nullable=True, server_default=''))
         batch_op.add_column(sa.Column('unit', sa.String(length=20), nullable=True, server_default=''))
-        batch_op.add_column(sa.Column('plc_data_type', sa.String(length=20), nullable=True, server_default='word'))
+        # plc_data_typeは既にb90e2093e414で追加されているため、ここでは追加しない
+
+    # 既存のplc_data_typeカラムのNULL値をデフォルト値'word'で埋める
+    op.execute("UPDATE plc_data_configs SET plc_data_type = 'word' WHERE plc_data_type IS NULL")
 
     # 既存データのnameをdata_typeで埋める
     op.execute("UPDATE plc_data_configs SET name = data_type WHERE name = '' OR name IS NULL")
@@ -51,7 +54,7 @@ def downgrade():
     with op.batch_alter_table('plc_data_configs', schema=None) as batch_op:
         batch_op.create_unique_constraint('uq_equipment_data_type', ['equipment_id', 'data_type'])
         batch_op.alter_column('name', nullable=True)
-        batch_op.drop_column('plc_data_type')
+        # plc_data_typeはb90e2093e414で追加されたため、ここでは削除しない（元の状態に戻すためNULLにする）
         batch_op.drop_column('unit')
         batch_op.drop_column('icon')
         batch_op.drop_column('name')
