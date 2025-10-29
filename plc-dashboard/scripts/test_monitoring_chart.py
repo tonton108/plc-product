@@ -19,9 +19,14 @@ def test_monitoring_chart():
 
     with sync_playwright() as p:
         try:
-            # ブラウザを起動（実際のブラウザを表示）
-            print("\n[1/7] Launching browser...")
-            browser = p.chromium.launch(headless=False)
+            # CI環境ではheadlessモードで実行
+            import os
+            is_ci = os.environ.get('CI', 'false').lower() == 'true'
+            headless_mode = is_ci
+
+            # ブラウザを起動
+            print(f"\n[1/7] Launching browser (headless={headless_mode})...")
+            browser = p.chromium.launch(headless=headless_mode)
             page = browser.new_page()
 
             # ログインページを開く

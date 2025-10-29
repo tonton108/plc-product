@@ -17,9 +17,14 @@ def verify_application():
 
     with sync_playwright() as p:
         try:
-            # ブラウザを起動（ヘッドレスモード）
-            print("\n[1/5] ブラウザを起動中...")
-            browser = p.chromium.launch(headless=False)  # headless=Falseで実際のブラウザを表示
+            # CI環境ではheadlessモードで実行
+            import os
+            is_ci = os.environ.get('CI', 'false').lower() == 'true'
+            headless_mode = is_ci
+
+            # ブラウザを起動
+            print(f"\n[1/5] ブラウザを起動中 (headless={headless_mode})...")
+            browser = p.chromium.launch(headless=headless_mode)
             page = browser.new_page()
 
             # JavaScriptエラーを記録
