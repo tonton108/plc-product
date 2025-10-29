@@ -65,6 +65,8 @@ def test_monitoring_chart():
             chart_cards = page.locator('.glass-card:has(canvas)').count()
             print(f"\n[6/7] Chart cards found: {chart_cards}")
 
+            screenshot_path_2 = None  # 初期化
+
             if chart_cards == 0:
                 print("  [WARNING] No chart cards found")
             else:
@@ -83,14 +85,24 @@ def test_monitoring_chart():
             print("\n" + "=" * 70)
             print("  Test Results")
             print("=" * 70)
-            print("\n[SUCCESS] Monitoring chart test completed")
-            print("\nPlease check:")
-            print("  1. Cards should NOT flicker or re-render")
-            print("  2. Only the line charts (canvas) should update")
-            print("  3. Chart data should increase smoothly")
-            print(f"\nScreenshots:")
-            print(f"  Before: {screenshot_path_1}")
-            print(f"  After:  {screenshot_path_2}")
+            print(f"\n[SUCCESS] Monitoring chart test completed (found {chart_cards} chart cards)")
+
+            if chart_cards > 0:
+                print("\nPlease check:")
+                print("  1. Cards should NOT flicker or re-render")
+                print("  2. Only the line charts (canvas) should update")
+                print("  3. Chart data should increase smoothly")
+                print(f"\nScreenshots:")
+                print(f"  Before: {screenshot_path_1}")
+                print(f"  After:  {screenshot_path_2}")
+            else:
+                print("\n[WARNING] No chart cards were found on the monitoring page")
+                print("This may indicate that:")
+                print("  1. The equipment has no PLC data configurations")
+                print("  2. The monitoring page did not load correctly")
+                print("  3. The demo data sender did not register the equipment")
+                print(f"\nScreenshot:")
+                print(f"  {screenshot_path_1}")
 
             print("\nBrowser will close in 5 seconds...")
             time.sleep(5)
