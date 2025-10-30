@@ -26,24 +26,38 @@ socketio.init_app(app, async_mode='threading', cors_allowed_origins="*")
 
 **役割:** 全APIエンドポイントとWebSocketイベントハンドラー
 
-**主要エンドポイント:**
+**REST APIエンドポイント一覧:**
 
-| エンドポイント | メソッド | 説明 |
-|------------|--------|------|
-| `/api/register` | POST | Raspberry Piからの設備登録 |
-| `/api/logs` | POST | PLCログデータ保存 + WebSocket配信 |
-| `/api/logs/<equipment_id>/history_optimized` | GET | 最適化履歴取得 |
-| `/api/equipment` | GET | 設備一覧取得 |
-| `/api/equipment/search` | GET | 設備検索（cpu_serial_number等） |
+| エンドポイント | メソッド | 説明 | 実装箇所 |
+|------------|--------|------|---------|
+| `/api/register` | POST | 設備登録（Raspberry Piからの初期登録） | routes.py:388-432 |
+| `/api/equipment` | GET | 全設備一覧取得 | routes.py |
+| `/api/equipment/<equipment_id>` | GET | 設備基本情報取得 | routes.py |
+| `/api/equipment/<equipment_id>` | PUT | 設備基本情報保存 | routes.py |
+| `/api/equipment/search` | GET | 設備検索（cpu_serial_number等） | routes.py |
+| `/api/equipment/<equipment_id>/plc_configs` | PUT | PLCデータ設定保存 | routes.py |
+| `/api/equipment/<equipment_id>/plc_configs` | GET | PLCデータ設定取得 | routes.py |
+| `/api/logs` | POST | PLCログデータ保存 + WebSocket配信 | routes.py:874-912 |
+| `/api/logs/<equipment_id>/latest` | GET | 最新ログ取得 | routes.py |
+| `/api/logs/<equipment_id>/history` | GET | 履歴データ取得 | routes.py |
+| `/api/logs/<equipment_id>/history_optimized` | GET | 最適化履歴取得（期間指定） | routes.py:979-1052 |
+| `/api/admin/cleanup` | POST | 手動クリーンアップ実行 | routes.py |
+| `/api/admin/stats` | GET | データベース統計取得 | routes.py |
+| `/api/admin/create_summary` | POST | 集計データ作成 | routes.py |
 
 **Socket.IOイベント:**
 
-| イベント | 方向 | 説明 |
-|---------|------|------|
-| `connect` | Client → Server | WebSocket接続確立 |
-| `join_monitoring` | Client → Server | モニタリングルーム参加 |
-| `plc_data_update` | Server → Client | PLCデータ更新通知 |
-| `equipment_data_update` | Server → Client | 設備別データ更新通知 |
+| イベント | 方向 | 説明 | 実装箇所 |
+|---------|------|------|---------|
+| `connect` | Client → Server | WebSocket接続確立 | routes.py |
+| `disconnect` | Client → Server | WebSocket接続切断 | routes.py |
+| `join_monitoring` | Client → Server | モニタリングルーム参加 | routes.py:1084-1092 |
+| `leave_monitoring` | Client → Server | モニタリングルーム退出 | routes.py |
+| `get_realtime_status` | Client → Server | リアルタイム状態取得要求 | routes.py |
+| `plc_data_update` | Server → Client | PLCデータ更新通知（全設備） | routes.py:874-912 |
+| `equipment_data_update` | Server → Client | 設備別データ更新通知 | routes.py:874-912 |
+
+詳細は `_docs/architecture/realtime-communication.md` を参照。
 
 ### `plc-dashboard/backend/db/models.py`
 
@@ -98,9 +112,32 @@ class Log(db.Model):
 **役割:** データクリーンアップと集計作成のスケジューラー
 
 **自動実行タスク:**
-- 24時間間隔で90日以上古いログを削除
-- 前日の日次集計を自動作成
-- 月初に前月の月次集計を自動作成
+
+1. **24時間間隔でクリーンアップ実行**
+   - 90日以上前の詳細ログ（`logs`テーブル）を削除
+   - 365日以上前の日次集計（`daily_log_summaries`テーブル）を削除
+   - 実行時刻: 起動後24時間ごと
+
+2. **前日の日次集計を自動作成**
+   - 前日の詳細データから統計値（min, max, avg, median, stddev）を計算
+   - `daily_log_summaries`テーブルに保存
+   - 実行時刻: 毎日午前0時
+
+3. **前月の月次集計を自動作成**
+   - 前月の日次集計から統計値を計算
+   - `monthly_log_summaries`テーブルに保存
+   - 実行時刻: 毎月1日午前0時
+
+**設定:**
+
+```python
+# routes.py
+DATA_RETENTION_CONFIG = {
+    'raw_data_days': 90,          # 詳細データ保持期間
+    'daily_data_days': 365,       # 日次集計保持期間
+    'cleanup_interval_hours': 24  # クリーンアップ実行間隔
+}
+```
 
 ### `plc-dashboard/backend/log_manager.py`
 
@@ -142,6 +179,57 @@ if equipment:
 
 詳細は `_docs/decisions/query-optimization.md` を参照。
 
+## 重要な実装上の注意点
+
+### 変数シャドーイング問題
+
+**問題:** ループ変数に`config`という名前を使用すると、グローバル変数`config`をシャドーイングしてUnboundLocalErrorが発生します。
+
+```python
+# ❌ 悪い例（変数シャドーイング）
+config = load_config()
+for config in plc_configs:  # グローバルのconfigをシャドーイング
+    process(config)
+
+# ✅ 良い例
+config = load_config()
+for plc_config in plc_configs:  # 別の変数名を使用
+    process(plc_config)
+```
+
+**実装箇所:** `raspi_agent/agent_app.py:236-271`
+
+### PLCデータ設定の保存
+
+PLCデータ設定は`PUT /api/equipment/<equipment_id>/plc_configs`で一括保存されます。既存設定を削除してから新しい設定を挿入するため、トランザクション内で実行してください。
+
+```python
+# routes.py
+@app.route('/api/equipment/<equipment_id>/plc_configs', methods=['PUT'])
+def update_plc_configs(equipment_id):
+    # 既存設定を削除
+    PLCDataConfig.query.filter_by(equipment_id=equipment_id).delete()
+
+    # 新しい設定を挿入
+    for config in configs:
+        plc_config = PLCDataConfig(**config)
+        db.session.add(plc_config)
+
+    db.session.commit()  # トランザクションをコミット
+```
+
+### データ最適化クエリの実装
+
+短期間（1h, 6h, 24h）は詳細データ、長期間（7d, 30d）は集計データを自動的に選択します：
+
+```python
+# routes.py:979-1052 参照
+if period in ['1h', '6h', '24h']:
+    logs = Log.query.filter(...).all()  # 詳細データ
+elif period in ['7d', '30d']:
+    summaries = DailyLogSummary.query.filter(...).all()  # 集計データ
+```
+
 ## 関連ドキュメント
 
 - `_docs/decisions/socketio-threading-mode.md` - Socket.IO設定
@@ -151,4 +239,4 @@ if equipment:
 
 ---
 
-**最終更新:** 2025-10-24
+**最終更新:** 2025-10-30

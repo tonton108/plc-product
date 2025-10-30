@@ -19,159 +19,95 @@ Claudeは以下のルールを厳守すること：
 3. フォーマットは「タイプ: 概要」形式（例：`refactor: 古いディレクトリを整理し重複を解消`）。
 4. Claude Codeは**自動署名（🤖やCo-Authored行）を付与しないこと。**
 5. 英語が混ざった場合は即座に修正し、再コミット前に確認を求めること。
-6. **作業完了後はローカルで動作確認を行い、その後PRを作成してGitHub ActionsとCodexレビューを確認すること。**
 
 ---
 
 ## 作業フロー
 
-すべての開発作業は以下のフローに従って進めてください：
+### 基本フロー
 
-### 1. コード変更
+1. **コード変更**
+2. **ローカル動作確認**（コンポーネント別）
+3. **コミット作成**
+4. **PR作成**
+5. **GitHub Actions実行**（自動テスト）
+6. **Codexレビュー**（自動または手動）
+7. **マージ**
 
-機能追加、バグ修正、リファクタリング等を実施
+### コンポーネント別ローカル動作確認
 
-### 2. ローカルで動作確認
-
-変更内容に応じて以下を実施：
-
-#### a) Nuxt UI (フロントエンド) を修正した場合
+#### a. Nuxt UI変更時
 
 ```bash
-# 1. データベース・バックエンド起動
-cd plc-dashboard
-docker compose up -d db backend
-
-# 2. フロントエンド起動
+# 1. 開発サーバー起動
 npm run dev
 
-# 3. デモデータ送信
-cd backend
-python demo_data_sender.py --mode continuous --interval 2.0
+# 2. ブラウザで動作確認（http://localhost:3000）
+
+# 3. Playwrightテスト実行（推奨）
+python scripts/test_monitoring_chart.py
 ```
 
-**確認項目:**
-- ✅ ブラウザで `http://localhost:3000/monitoring/DEMO_001` にアクセス
-- ✅ UIが正常に表示されるか
-- ✅ リアルタイムデータ更新が動作するか
-- ✅ ブラウザコンソールにJavaScriptエラーがないか
-- ✅ レイアウト崩れがないか
-
-#### b) Flask Backend (API) を修正した場合
+#### b. Flask Backend変更時
 
 ```bash
-# 1. データベース起動
-cd plc-dashboard
-docker compose up -d db
-
-# 2. バックエンド起動（ローカル）
+# 1. バックエンド起動
 cd backend
 flask --app manage.py run
 
-# または Docker で起動
-# docker compose up -d backend
+# 2. APIエンドポイントを確認
+curl http://localhost:5000/api/equipment
+
+# 3. データベースマイグレーション（モデル変更時）
+flask --app manage.py db migrate -m "変更内容"
+flask --app manage.py db upgrade
 ```
 
-**確認項目:**
-- ✅ サーバーが正常に起動するか（エラーログがないか）
-- ✅ APIエンドポイントが正常に動作するか
-  - curl/Postman でテスト、または
-  - `python demo_data_sender.py --mode single` でデータ送信テスト
-- ✅ Socket.IO通信が正常に動作するか
-- ✅ 必要に応じてフロントエンドも起動して統合テスト
-
-#### c) Database (マイグレーション/モデル) を修正した場合
+#### c. Database変更時
 
 ```bash
-# 1. データベース起動
-cd plc-dashboard
-docker compose up -d db
-
-# 2. マイグレーション実行
+# 1. マイグレーション作成
 cd backend
+flask --app manage.py db migrate -m "変更内容"
+
+# 2. マイグレーション適用
 flask --app manage.py db upgrade
 
-# 3. テーブル構造確認（必要に応じて）
-psql -U plc_user -h localhost -d plc_monitor -c "\d+ logs"
-
-# 4. バックエンド起動
-flask --app manage.py run
+# 3. テーブル確認
+python check_tables.py
 ```
 
-**確認項目:**
-- ✅ マイグレーションが正常に完了するか
-- ✅ エラーメッセージがないか
-- ✅ テーブル構造が期待通りか（カラム追加、インデックス作成等）
-- ✅ バックエンドが正常に起動するか
-- ✅ 既存データとの互換性があるか
-
-#### d) Raspberry Pi Agent を修正した場合
+#### d. Raspberry Piエージェント変更時
 
 ```bash
-# 1. ダミーPLCモードで起動テスト
-cd plc-dashboard/raspi_agent
+# 1. ダミーPLCモードで起動
+cd raspi_agent
 export USE_DUMMY_PLC=true
-python agent_app.py  # ポート8080で起動
+python agent_app.py
 
-# 2. ブラウザで初回設定画面を確認
-# http://localhost:8080/
+# 2. WebUI確認（http://localhost:5001）
 
-# 3. 中央サーバーを起動してデータ送信テスト
-cd ../backend
-docker compose up -d db
-flask --app manage.py run
-
-# 4. エージェントからデータ送信を確認
-# ラズパイエージェントのログを確認
+# 3. データ送信テスト
+python backend/demo_data_sender.py --mode single
 ```
 
-**確認項目:**
-- ✅ エージェントが正常に起動するか
-- ✅ PLC通信が正常に動作するか（ダミーモード or 実機）
-- ✅ 中央サーバーへのデータ送信が成功するか
-- ✅ エラーログがないか
-- ✅ タイムアウト・リトライ処理が正しく動作するか
-- ✅ エンディアン変換が正しく行われているか（float32, dword等）
-
-### 3. PR作成
-
-- 新しいブランチを作成: `git checkout -b feature/your-feature-name`
-- 変更をコミット（日本語コミットメッセージ）
-- リモートにプッシュ: `git push -u origin feature/your-feature-name`
-- GitHub上でPRを作成
-
-### 4. GitHub ActionsでPlaywrightテスト自動実行
-
-PR作成後、自動的に以下が実行されます：
-- PostgreSQL起動
-- マイグレーション実行
-- バックエンド・フロントエンド起動
-- PlaywrightによるE2Eテスト
-- スクリーンショット・テスト結果のアップロード
-
-### 5. Codex自動レビュー
-
-PR作成後、自動的にCodex AIがコードレビューを実施します：
-- `@codex`メンションが自動投稿される
-- `ai-review`ラベルが付与される
-- PLC特有の問題（エンディアン、タイムアウト設定等）をチェック
-- セキュリティ脆弱性、パフォーマンス問題を検出
-- 具体的な修正案をdiff形式で提示
-
-詳細は `_docs/features/codex-auto-review.md` を参照してください。
-
-### 6. 問題なければマージ
-
-- GitHub Actionsのテストが全てパス ✅
-- Codexレビューで重大な問題が指摘されていない ✅
-- 必要に応じて修正を反映
-- `main`ブランチにマージ
+**重要:** 作業完了前に必ずPlaywrightで動作確認を行うこと。
 
 ---
 
 ## プロジェクト概要
 
 このリポジトリには、PLC（Programmable Logic Controller）データの収集・監視・分析システムの**統合版**が含まれています。
+
+### アーキテクチャ構成
+
+- **フロントエンド**: Nuxt.js 3 + Vuetify 3 + Chart.js + Socket.IO Client
+- **バックエンド**: Flask + Flask-SocketIO + SQLAlchemy
+- **データベース**: PostgreSQL（推奨・本番環境・開発環境共通）
+- **リアルタイム通信**: Socket.IO（threading mode）
+- **データ収集**: Raspberry Pi + Python（PLCとModbus/FINS/MC Protocol通信）
+
+**重要:** このプロジェクトでは**PostgreSQLを優先して使用**してください。SQLiteはフォールバック用ですが、開発環境でもPostgreSQLを使用することを強く推奨します。
 
 ### 統合後のプロジェクト構成
 
@@ -183,20 +119,6 @@ PR作成後、自動的にCodex AIがコードレビューを実施します：
 5. **docker-compose.yml**: 統合Docker Compose設定
 
 **旧raspi_plc_uiディレクトリは_archive/raspi_plc_ui/にアーカイブされています。現在のシステムではplc-dashboard/raspi_agent/を使用してください。**
-
-### 📚 プロジェクト知識ベース
-
-設計判断や実装の背景、PLC特有の知見は `_docs/` ディレクトリに体系的に記録されています：
-
-- **`_docs/decisions/`** - 設計判断の根拠（なぜSocket.IOをthreadingモードにしたか、など）
-- **`_docs/features/`** - 機能実装の記録（Codex自動レビュー、ローカルバッファリング、など）
-- **`_docs/plc-knowledge/`** - PLC特有の知見（プロトコル、エンディアン、タイムアウト、トラブルシューティング）
-- **`_docs/architecture/`** - コードアーキテクチャの詳細
-- **`_docs/deployment/`** - デプロイメント手順
-- **`_docs/setup/`** - 環境セットアップ（MCP, CI/CD等）
-- **`_docs/commands/`** - 開発コマンド集
-
-詳細は `_docs/README.md` を参照してください。
 
 ### システムアーキテクチャ（イントラネット環境）
 
@@ -235,12 +157,25 @@ PR作成後、自動的にCodex AIがコードレビューを実施します：
 ```
 
 **データフロー:**
-1. Raspberry Pi各台がPLCからデータ収集（Modbus/FINS通信）
+1. Raspberry Pi各台がPLCからデータ収集（Modbus/FINS/MC Protocol通信）
 2. 収集データを中央サーバーにHTTP POST
 3. Flask Backendがデータベースに保存し、WebSocket経由でリアルタイム配信
 4. 不特定多数のクライアント端末がNuxt UIにブラウザでアクセスし、リアルタイムモニタリング
 
-詳細は `_docs/architecture/` を参照してください。
+### 📚 プロジェクト知識ベース
+
+設計判断や実装の背景、PLC特有の知見は `_docs/` ディレクトリに体系的に記録されています：
+
+- **`_docs/decisions/`** - 設計判断の根拠（なぜSocket.IOをthreadingモードにしたか、など）
+- **`_docs/features/`** - 機能実装の記録（Codex自動レビュー、ローカルバッファリング、など）
+- **`_docs/plc-knowledge/`** - PLC特有の知見（プロトコル、エンディアン、タイムアウト、トラブルシューティング）
+- **`_docs/architecture/`** - コードアーキテクチャの詳細
+- **`_docs/deployment/`** - デプロイメント手順
+- **`_docs/setup/`** - 環境セットアップ（MCP, CI/CD等）
+- **`_docs/commands/`** - 開発コマンド集
+- **`_docs/testing/`** - テスト・デバッグガイド
+
+詳細は `_docs/README.md` を参照してください。
 
 ---
 
@@ -303,6 +238,8 @@ python demo_data_sender.py --mode continuous --interval 2.0
 - `_docs/architecture/backend.md` - バックエンド（Flask）詳細
 - `_docs/architecture/frontend.md` - フロントエンド（Nuxt.js）詳細
 - `_docs/architecture/raspi-agent.md` - Raspberry Piエージェント詳細
+- `_docs/architecture/database.md` - データベース設計詳細
+- `_docs/architecture/realtime-communication.md` - リアルタイム通信実装詳細
 
 ### PLC知見（plc-knowledge）
 
@@ -312,6 +249,7 @@ PLCプロジェクト特有の実装ノウハウ：
 - `_docs/plc-knowledge/endianness.md` - エンディアン問題と対処法（Big-Endian必須）
 - `_docs/plc-knowledge/timeout-settings.md` - タイムアウト設定のベストプラクティス
 - `_docs/plc-knowledge/troubleshooting.md` - トラブルシューティングガイド
+- `_docs/plc-knowledge/plc-manufacturers.md` - 対応メーカーとプロトコル一覧
 
 ### 機能実装（features）
 
@@ -325,6 +263,12 @@ PLCプロジェクト特有の実装ノウハウ：
 
 - `_docs/deployment/raspi-deployment.md` - Raspberry Piデプロイメント
 - `_docs/deployment/environment-variables.md` - 環境変数設定ガイド
+
+### テスト（testing）
+
+テストとデバッグの詳細：
+
+- `_docs/testing/debugging-guide.md` - テスト・デバッグガイド
 
 ### セットアップ（setup）
 
@@ -352,15 +296,24 @@ PLCプロジェクト特有の実装ノウハウ：
 socketio.init_app(app, async_mode='threading', cors_allowed_origins="*")
 ```
 
+**理由:** Greenletエラーを回避し、Flaskとの互換性を確保するため。
+
 詳細は `_docs/decisions/socketio-threading-mode.md` を参照。
 
 ### 2. 設備識別の優先順位
 
 **設備識別は以下の優先順位で行ってください：**
 
-1. `cpu_serial_number`（最優先・不変）
-2. `mac_address`（準不変）
+1. `cpu_serial_number`（最優先・不変）- Raspberry PiのCPUシリアル番号
+2. `mac_address`（準不変）- MACアドレス
 3. `equipment_id`（可変・ユーザー定義）
+
+```python
+# routes.py:388-432 参照
+equipment = Equipment.query.filter_by(cpu_serial_number=cpu_serial_number).first()
+if equipment:
+    equipment.equipment_id = equipment_id  # 設備IDを新しい値に更新
+```
 
 詳細は `_docs/decisions/equipment-identification-strategy.md` を参照。
 
@@ -374,6 +327,19 @@ bytes_data = struct.pack('>HH', word1, word2)
 
 # ❌ 間違い: Little-Endian
 bytes_data = struct.pack('<HH', word1, word2)
+```
+
+**三菱PLCのfloat32/dword読み取り例:**
+
+```python
+# raspi_agent/plc_agent.py:442-463 参照
+# 2ワード読み取り (32bit)
+word_values = plc.batchread_wordunits(headdevice="D100", readsize=2)
+
+# Big-Endian形式で結合
+word1, word2 = word_values[0], word_values[1]
+combined = (word1 << 16) | word2
+float_value = struct.unpack('>f', struct.pack('>I', combined))[0]  # '>f' = Big-Endian
 ```
 
 詳細は `_docs/plc-knowledge/endianness.md` を参照。
@@ -392,38 +358,56 @@ plc.connect(ip, port)
 
 詳細は `_docs/plc-knowledge/timeout-settings.md` を参照。
 
+### 5. 変数シャドーイング問題
+
+**問題:** ループ変数に`config`という名前を使用すると、グローバル変数`config`をシャドーイングしてUnboundLocalErrorが発生します。
+
+```python
+# ❌ 悪い例（変数シャドーイング）
+config = load_config()
+for config in plc_configs:  # グローバルのconfigをシャドーイング
+    process(config)
+
+# ✅ 良い例
+config = load_config()
+for plc_config in plc_configs:  # 別の変数名を使用
+    process(plc_config)
+```
+
+**実装箇所:** `raspi_agent/agent_app.py:236-271`
+
 ---
 
 ## Playwrightによる動作確認
 
-**重要:** すべてのPRに対してGitHub ActionsでPlaywrightテストが自動実行されます。PR作成前にローカルで動作確認を行い、基本的な問題を事前に解決してください。
+**重要:** フロントエンド、バックエンド、または統合的な機能を変更した場合は、**作業完了前に必ずPlaywrightで動作確認を実施すること。**
 
-### 自動テスト（GitHub Actions）
+### テストの実行
 
-PR作成時に以下のE2Eテストが自動実行されます：
+```bash
+# モニタリング画面のグラフ更新テスト（推奨）
+python scripts/test_monitoring_chart.py
 
-- PostgreSQLデータベースの起動とマイグレーション実行
-- バックエンド・フロントエンドサーバーの起動
-- デモデータの送信
-- Playwrightによるブラウザテスト
-  - ログイン画面の表示確認
-  - モニタリング画面でグラフが表示されるか
-  - リアルタイムデータ更新が正常に動作するか
-  - JavaScriptエラーが発生していないか
-- スクリーンショット・テスト結果のアーティファクト保存
+# クイック動作確認
+python scripts/quick_verify.py
 
-設定ファイル: `.github/workflows/playwright-tests.yml`
+# E2Eデプロイメントテスト
+python scripts/test_e2e_deployment.py
+```
 
-### ローカルでの動作確認（推奨）
+### 確認ポイント
 
-PR作成前に、変更したコンポーネントに応じて基本的な動作確認を実施してください。
+- ✅ ログイン画面が正常に表示されるか
+- ✅ モニタリング画面でグラフが表示されるか
+- ✅ リアルタイムデータ更新が正常に動作するか
+- ✅ カード全体ではなく、グラフ（canvas）のみが更新されるか
+- ✅ JavaScriptエラーが発生していないか
 
-詳細な手順は「## 作業フロー > ### 2. ローカルで動作確認」を参照してください：
+### テストスクリプトの作成
 
-- **Nuxt UI (フロントエンド)** を修正した場合 → a) の手順
-- **Flask Backend (API)** を修正した場合 → b) の手順
-- **Database (マイグレーション/モデル)** を修正した場合 → c) の手順
-- **Raspberry Pi Agent** を修正した場合 → d) の手順
+新機能を追加した場合は、`scripts/`ディレクトリに対応するPlaywrightテストスクリプトを作成することを推奨します。
+
+詳細は `_docs/testing/debugging-guide.md` を参照。
 
 ---
 
@@ -431,10 +415,87 @@ PR作成前に、変更したコンポーネントに応じて基本的な動作
 
 問題が発生したら、まず以下を確認してください：
 
-1. **`_docs/plc-knowledge/troubleshooting.md`** - よくある問題と解決策
-2. **環境変数設定** - `_docs/deployment/environment-variables.md`
-3. **ログ確認** - `docker compose logs -f backend`
+### 1. データベース接続エラー
+
+```bash
+# PostgreSQL接続確認
+psql -U plc_user -h localhost -d plc_monitor -c "SELECT version();"
+
+# PostgreSQLの起動状態確認
+docker compose ps db
+
+# マイグレーション実行
+cd backend
+flask --app manage.py db upgrade
+```
+
+### 2. Socket.IO接続エラー
+
+- CORSオリジン設定を確認（`backend/app.py:18-20, 60`）
+- ポート5000が開いているか確認
+
+```bash
+# ポート確認
+lsof -i :5000
+
+# バックエンドログで確認
+docker compose logs -f backend
+```
+
+### 3. データが表示されない
+
+```bash
+# 1. データが保存されているか確認
+curl http://localhost:5000/api/logs/DEMO_001/latest
+
+# 2. Socket.IOイベント受信確認（ブラウザコンソール）
+
+# 3. Flaskログでデータ受信・配信を確認
+docker compose logs -f backend | grep "📡 WebSocket"
+```
+
+### 4. 詳細なトラブルシューティング
+
+以下のドキュメントを参照してください：
+
+- `_docs/testing/debugging-guide.md` - テスト・デバッグガイド
+- `_docs/plc-knowledge/troubleshooting.md` - PLCトラブルシューティング
 
 ---
 
-**最終更新:** 2025-10-24
+## ドキュメント更新ルール
+
+このセクションでは、作業完了時にCLAUDE.mdと_docs/を更新するためのガイドラインを提供します。
+
+詳細は `_docs/DOCUMENT_MAINTENANCE.md` を参照してください。
+
+### 更新が必要なケース
+
+以下の変更を行った場合、**必ず該当ドキュメントを更新**してください：
+
+| 変更内容 | 更新対象ドキュメント |
+|---------|-------------------|
+| 新しいAPIエンドポイント追加 | `_docs/architecture/backend.md` |
+| データベースモデル変更 | `_docs/architecture/database.md` |
+| マイグレーション追加 | `_docs/architecture/database.md` |
+| 新しいPLCメーカー対応 | `_docs/plc-knowledge/plc-manufacturers.md` |
+| プロトコル実装追加 | `_docs/plc-knowledge/protocols.md` |
+| 新機能追加 | `_docs/features/[機能名].md`（新規作成） |
+| 設計判断 | `_docs/decisions/[判断内容].md`（新規作成） |
+| 作業フロー変更 | `CLAUDE.md` |
+| 環境変数追加 | `_docs/deployment/environment-variables.md` |
+
+### 更新が不要なケース
+
+以下の変更では**ドキュメント更新は不要**です：
+
+- バグ修正（ロジック変更なし）
+- コメント追加・修正
+- リファクタリング（機能・API変更なし）
+- テストコード追加
+- ログ出力の変更
+- 変数名変更（外部APIに影響なし）
+
+---
+
+**最終更新:** 2025-10-30
