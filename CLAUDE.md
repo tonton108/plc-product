@@ -40,6 +40,7 @@ Claudeは以下のルールを厳守すること：
 
 ```bash
 # 1. 開発サーバー起動
+cd plc-dashboard
 npm run dev
 
 # 2. ブラウザで動作確認（http://localhost:3000）
@@ -52,7 +53,7 @@ python scripts/test_monitoring_chart.py
 
 ```bash
 # 1. バックエンド起動
-cd backend
+cd plc-dashboard/backend
 flask --app manage.py run
 
 # 2. APIエンドポイントを確認
@@ -67,7 +68,7 @@ flask --app manage.py db upgrade
 
 ```bash
 # 1. マイグレーション作成
-cd backend
+cd plc-dashboard/backend
 flask --app manage.py db migrate -m "変更内容"
 
 # 2. マイグレーション適用
@@ -81,14 +82,14 @@ python check_tables.py
 
 ```bash
 # 1. ダミーPLCモードで起動
-cd raspi_agent
+cd plc-dashboard/raspi_agent
 export USE_DUMMY_PLC=true
 python agent_app.py
 
 # 2. WebUI確認（http://localhost:5001）
 
 # 3. データ送信テスト
-python backend/demo_data_sender.py --mode single
+python ../backend/demo_data_sender.py --mode single
 ```
 
 **重要:** 作業完了前に必ずPlaywrightで動作確認を行うこと。
