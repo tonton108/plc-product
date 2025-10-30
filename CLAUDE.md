@@ -19,7 +19,153 @@ Claudeは以下のルールを厳守すること：
 3. フォーマットは「タイプ: 概要」形式（例：`refactor: 古いディレクトリを整理し重複を解消`）。
 4. Claude Codeは**自動署名（🤖やCo-Authored行）を付与しないこと。**
 5. 英語が混ざった場合は即座に修正し、再コミット前に確認を求めること。
-6. **作業の最後には必ずPlaywrightで動作確認を行うこと。**
+6. **作業完了後はローカルで動作確認を行い、その後PRを作成してGitHub ActionsとCodexレビューを確認すること。**
+
+---
+
+## 作業フロー
+
+すべての開発作業は以下のフローに従って進めてください：
+
+### 1. コード変更
+
+機能追加、バグ修正、リファクタリング等を実施
+
+### 2. ローカルで動作確認
+
+変更内容に応じて以下を実施：
+
+#### a) Nuxt UI (フロントエンド) を修正した場合
+
+```bash
+# 1. データベース・バックエンド起動
+cd plc-dashboard
+docker compose up -d db backend
+
+# 2. フロントエンド起動
+npm run dev
+
+# 3. デモデータ送信
+cd backend
+python demo_data_sender.py --mode continuous --interval 2.0
+```
+
+**確認項目:**
+- ✅ ブラウザで `http://localhost:3000/monitoring/DEMO_001` にアクセス
+- ✅ UIが正常に表示されるか
+- ✅ リアルタイムデータ更新が動作するか
+- ✅ ブラウザコンソールにJavaScriptエラーがないか
+- ✅ レイアウト崩れがないか
+
+#### b) Flask Backend (API) を修正した場合
+
+```bash
+# 1. データベース起動
+cd plc-dashboard
+docker compose up -d db
+
+# 2. バックエンド起動（ローカル）
+cd backend
+flask --app manage.py run
+
+# または Docker で起動
+# docker compose up -d backend
+```
+
+**確認項目:**
+- ✅ サーバーが正常に起動するか（エラーログがないか）
+- ✅ APIエンドポイントが正常に動作するか
+  - curl/Postman でテスト、または
+  - `python demo_data_sender.py --mode single` でデータ送信テスト
+- ✅ Socket.IO通信が正常に動作するか
+- ✅ 必要に応じてフロントエンドも起動して統合テスト
+
+#### c) Database (マイグレーション/モデル) を修正した場合
+
+```bash
+# 1. データベース起動
+cd plc-dashboard
+docker compose up -d db
+
+# 2. マイグレーション実行
+cd backend
+flask --app manage.py db upgrade
+
+# 3. テーブル構造確認（必要に応じて）
+psql -U plc_user -h localhost -d plc_monitor -c "\d+ logs"
+
+# 4. バックエンド起動
+flask --app manage.py run
+```
+
+**確認項目:**
+- ✅ マイグレーションが正常に完了するか
+- ✅ エラーメッセージがないか
+- ✅ テーブル構造が期待通りか（カラム追加、インデックス作成等）
+- ✅ バックエンドが正常に起動するか
+- ✅ 既存データとの互換性があるか
+
+#### d) Raspberry Pi Agent を修正した場合
+
+```bash
+# 1. ダミーPLCモードで起動テスト
+cd plc-dashboard/raspi_agent
+export USE_DUMMY_PLC=true
+python agent_app.py  # ポート8080で起動
+
+# 2. ブラウザで初回設定画面を確認
+# http://localhost:8080/
+
+# 3. 中央サーバーを起動してデータ送信テスト
+cd ../backend
+docker compose up -d db
+flask --app manage.py run
+
+# 4. エージェントからデータ送信を確認
+# ラズパイエージェントのログを確認
+```
+
+**確認項目:**
+- ✅ エージェントが正常に起動するか
+- ✅ PLC通信が正常に動作するか（ダミーモード or 実機）
+- ✅ 中央サーバーへのデータ送信が成功するか
+- ✅ エラーログがないか
+- ✅ タイムアウト・リトライ処理が正しく動作するか
+- ✅ エンディアン変換が正しく行われているか（float32, dword等）
+
+### 3. PR作成
+
+- 新しいブランチを作成: `git checkout -b feature/your-feature-name`
+- 変更をコミット（日本語コミットメッセージ）
+- リモートにプッシュ: `git push -u origin feature/your-feature-name`
+- GitHub上でPRを作成
+
+### 4. GitHub ActionsでPlaywrightテスト自動実行
+
+PR作成後、自動的に以下が実行されます：
+- PostgreSQL起動
+- マイグレーション実行
+- バックエンド・フロントエンド起動
+- PlaywrightによるE2Eテスト
+- スクリーンショット・テスト結果のアップロード
+
+### 5. Codex自動レビュー
+
+PR作成後、自動的にCodex AIがコードレビューを実施します：
+- `@codex`メンションが自動投稿される
+- `ai-review`ラベルが付与される
+- PLC特有の問題（エンディアン、タイムアウト設定等）をチェック
+- セキュリティ脆弱性、パフォーマンス問題を検出
+- 具体的な修正案をdiff形式で提示
+
+詳細は `_docs/features/codex-auto-review.md` を参照してください。
+
+### 6. 問題なければマージ
+
+- GitHub Actionsのテストが全てパス ✅
+- Codexレビューで重大な問題が指摘されていない ✅
+- 必要に応じて修正を反映
+- `main`ブランチにマージ
 
 ---
 
@@ -250,32 +396,34 @@ plc.connect(ip, port)
 
 ## Playwrightによる動作確認
 
-**重要:** フロントエンド、バックエンド、または統合的な機能を変更した場合は、**作業完了前に必ずPlaywrightで動作確認を実施すること。**
+**重要:** すべてのPRに対してGitHub ActionsでPlaywrightテストが自動実行されます。PR作成前にローカルで動作確認を行い、基本的な問題を事前に解決してください。
 
-### テストの実行
+### 自動テスト（GitHub Actions）
 
-```bash
-# モニタリング画面のグラフ更新テスト（推奨）
-python scripts/test_monitoring_chart.py
+PR作成時に以下のE2Eテストが自動実行されます：
 
-# クイック動作確認
-python scripts/quick_verify.py
+- PostgreSQLデータベースの起動とマイグレーション実行
+- バックエンド・フロントエンドサーバーの起動
+- デモデータの送信
+- Playwrightによるブラウザテスト
+  - ログイン画面の表示確認
+  - モニタリング画面でグラフが表示されるか
+  - リアルタイムデータ更新が正常に動作するか
+  - JavaScriptエラーが発生していないか
+- スクリーンショット・テスト結果のアーティファクト保存
 
-# E2Eデプロイメントテスト
-python scripts/test_e2e_deployment.py
-```
+設定ファイル: `.github/workflows/playwright-tests.yml`
 
-### 確認ポイント
+### ローカルでの動作確認（推奨）
 
-- ログイン画面が正常に表示されるか
-- モニタリング画面でグラフが表示されるか
-- リアルタイムデータ更新が正常に動作するか
-- カード全体ではなく、グラフ（canvas）のみが更新されるか
-- JavaScriptエラーが発生していないか
+PR作成前に、変更したコンポーネントに応じて基本的な動作確認を実施してください。
 
-### テストスクリプトの作成
+詳細な手順は「## 作業フロー > ### 2. ローカルで動作確認」を参照してください：
 
-新機能を追加した場合は、`scripts/`ディレクトリに対応するPlaywrightテストスクリプトを作成することを推奨します。
+- **Nuxt UI (フロントエンド)** を修正した場合 → a) の手順
+- **Flask Backend (API)** を修正した場合 → b) の手順
+- **Database (マイグレーション/モデル)** を修正した場合 → c) の手順
+- **Raspberry Pi Agent** を修正した場合 → d) の手順
 
 ---
 
