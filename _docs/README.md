@@ -25,6 +25,24 @@
 - `equipment-identification-strategy.md` - 設備識別の優先順位設計
 - `data-archiving-strategy.md` - 階層化アーカイブシステムの設計思想
 
+### `architecture/` - アーキテクチャドキュメント
+
+システム全体のアーキテクチャ、コンポーネント間の連携、データフローを記録します。
+
+**記録内容:**
+- エンドツーエンドのデータフロー
+- 各コンポーネント（Backend、Frontend、Raspberry Piエージェント）の詳細
+- データベース設計
+- リアルタイム通信の実装
+
+**ファイル例:**
+- `data-flow.md` - **データフロー全体図**（PLCからNuxt UIまでの完全な流れ）
+- `backend.md` - バックエンド（Flask）詳細
+- `frontend.md` - フロントエンド（Nuxt.js）詳細
+- `raspi-agent.md` - Raspberry Piエージェント詳細
+- `database.md` - データベース設計詳細
+- `realtime-communication.md` - リアルタイム通信実装詳細
+
 ### `features/` - 機能実装の記録
 
 新機能の追加・改修の目的と背景を記録します。
@@ -40,6 +58,7 @@
 - `codex-auto-review.md` - Codex自動レビュー機能
 - `local-buffering.md` - ローカルバッファリング機能
 - `realtime-monitoring.md` - リアルタイムモニタリング機能
+- `phase2-7-error-alarm-system.md` - エラー・アラームシステム（Phase 2-7実装）
 
 ### `plc-knowledge/` - PLCプロジェクト特有の知見
 
@@ -57,6 +76,24 @@ PLCシステム開発で得た知見、トラブルシューティング方法�
 - `endianness.md` - エンディアン問題と対処法
 - `timeout-settings.md` - タイムアウト設定の考え方
 - `troubleshooting.md` - よくある問題と解決策
+
+### `deployment/` - デプロイメント・運用
+
+本番環境へのデプロイ手順、環境変数設定、運用ガイドを記録します。
+
+**記録内容:**
+- Raspberry Piへのデプロイ手順
+- 中央サーバーのセットアップ（開発環境・本番環境）
+- 環境変数の設定ガイド
+- ログローテーション設定
+
+**ファイル例:**
+- `raspi-deployment.md` - Raspberry Piデプロイメント
+- `environment-variables.md` - 環境変数設定ガイド
+
+**重要:**
+- 開発環境では**Docker Compose**を使用
+- 本番環境では**デスクトップアプリケーション**としてパッケージ化予定（Electron/Tauri想定）
 
 ### `history/` - 過去の実装・改善記録
 
@@ -109,4 +146,4 @@ CLAUDE.mdの「プロジェクト概要」セクションに以下を追記：
 
 ---
 
-**最終更新:** 2025-10-24
+**最終更新:** 2025-10-31

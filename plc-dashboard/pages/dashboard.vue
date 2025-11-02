@@ -20,6 +20,15 @@
                 color="white"
                 size="large"
                 class="ml-3 mr-3"
+                @click="$router.push('/errors-alarms')"
+              >
+                <v-icon>mdi-alert-circle</v-icon>
+                <span class="ml-2">エラー・アラーム</span>
+              </v-btn>
+              <v-btn
+                color="white"
+                size="large"
+                class="mr-3"
                 :loading="loading"
                 @click="refreshAll"
               >
@@ -153,24 +162,42 @@
           <v-divider></v-divider>
 
           <v-card-actions>
-            <v-btn
-              color="primary"
-              variant="elevated"
-              size="small"
-              @click="$router.push(`/monitoring/${equipment.equipment_id}`)"
+            <v-tooltip
+              location="bottom"
+              content-class="tooltip-custom"
             >
-              <v-icon size="small" class="mr-1">mdi-monitor-dashboard</v-icon>
-              詳細監視
-            </v-btn>
-            <v-btn
-              color="secondary"
-              variant="elevated"
-              size="small"
-              @click="$router.push(`/equipment/${equipment.equipment_id}`)"
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  color="primary"
+                  variant="elevated"
+                  size="small"
+                  @click="$router.push(`/monitoring/${equipment.equipment_id}`)"
+                >
+                  <v-icon size="small" class="mr-1">mdi-monitor-dashboard</v-icon>
+                  詳細監視
+                </v-btn>
+              </template>
+              <span>リアルタイムモニタリング画面を開く</span>
+            </v-tooltip>
+            <v-tooltip
+              location="bottom"
+              content-class="tooltip-custom"
             >
-              <v-icon size="small" class="mr-1">mdi-chart-line</v-icon>
-              ログ表示
-            </v-btn>
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  color="secondary"
+                  variant="elevated"
+                  size="small"
+                  @click="$router.push(`/equipment/${equipment.equipment_id}`)"
+                >
+                  <v-icon size="small" class="mr-1">mdi-chart-line</v-icon>
+                  ログ表示
+                </v-btn>
+              </template>
+              <span>過去のログデータを表示</span>
+            </v-tooltip>
           </v-card-actions>
         </v-card>
       </v-col>
@@ -341,5 +368,18 @@ onBeforeUnmount(() => {
 
 .v-card:hover {
   transform: translateY(-4px);
+}
+</style>
+
+<style>
+/* ツールチップのカスタムスタイル（グローバル） */
+.tooltip-custom {
+  background-color: #424242 !important;
+  color: #ffffff !important;
+  opacity: 0.95 !important;
+}
+
+.tooltip-custom span {
+  color: #ffffff !important;
 }
 </style>

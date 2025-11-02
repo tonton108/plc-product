@@ -19,6 +19,9 @@ from plc_drivers import (
     read_siemens_plc
 )
 
+# Phase 4: エラー報告モジュール
+from error_reporter import initialize_error_reporter, report_error, report_alarm
+
 load_dotenv()
 
 # ログ設定
@@ -103,6 +106,16 @@ def read_from_plc(config):
         if result is None:
             logger.error("[ERROR] PLC接続失敗 - ダミーモードにフォールバック")
             update_error_stats(False, "connection", response_time_ms)
+
+            # Phase 4: エラーを中央サーバーに報告
+            report_error(
+                error_type="CONNECTION_FAILED",
+                error_message=f"PLC接続失敗: {ip}:{port} ({manufacturer})",
+                retry_count=0,
+                plc_ip=ip,
+                protocol=manufacturer
+            )
+
             return generate_dummy_data(data_points)
         else:
             logger.info("[SUCCESS] PLC接続成功")
@@ -113,6 +126,16 @@ def read_from_plc(config):
         logger.error(f"[ERROR] PLC接続例外: {e}")
         logger.info("🔄 自動的にダミーモードに切り替えます。")
         update_error_stats(False, "connection", response_time_ms)
+
+        # Phase 4: 例外をエラーとして報告
+        report_error(
+            error_type="CONNECTION_EXCEPTION",
+            error_message=f"PLC接続例外: {str(e)}",
+            retry_count=0,
+            plc_ip=ip,
+            protocol=manufacturer
+        )
+
         return generate_dummy_data(data_points)
 
 
@@ -135,6 +158,12 @@ def read_from_real_plc(config, ip, port, manufacturer, data_points):
             plc = connect_mitsubishi_plc(ip, port)
             if not plc:
                 logger.error("三菱PLC接続に失敗しました")
+                report_error(
+                    error_type="PROTOCOL_ERROR",
+                    error_message=f"三菱PLC接続失敗: {ip}:{port}",
+                    plc_ip=ip,
+                    protocol="MC_PROTOCOL_3E"
+                )
                 return None
             data = read_mitsubishi_plc(plc, data_points)
             plc.close()
@@ -144,6 +173,12 @@ def read_from_real_plc(config, ip, port, manufacturer, data_points):
             fins_client = connect_omron_plc(ip)
             if not fins_client:
                 logger.error("オムロンPLC接続に失敗しました")
+                report_error(
+                    error_type="PROTOCOL_ERROR",
+                    error_message=f"オムロンPLC接続失敗: {ip}",
+                    plc_ip=ip,
+                    protocol="FINS"
+                )
                 return None
             return read_omron_plc(fins_client, data_points)
 
@@ -152,6 +187,12 @@ def read_from_real_plc(config, ip, port, manufacturer, data_points):
             client = connect_keyence_plc(ip, port=modbus_port)
             if not client:
                 logger.error("キーエンスPLC接続に失敗しました")
+                report_error(
+                    error_type="PROTOCOL_ERROR",
+                    error_message=f"キーエンスPLC接続失敗: {ip}:{modbus_port}",
+                    plc_ip=ip,
+                    protocol="MODBUS"
+                )
                 return None
             return read_keyence_plc(client, data_points, modbus_port)
 
@@ -159,14 +200,34 @@ def read_from_real_plc(config, ip, port, manufacturer, data_points):
             plc = connect_siemens_plc(ip)
             if not plc:
                 logger.error("シーメンスPLC接続に失敗しました")
+                report_error(
+                    error_type="PROTOCOL_ERROR",
+                    error_message=f"シーメンスPLC接続失敗: {ip}",
+                    plc_ip=ip,
+                    protocol="S7"
+                )
                 return None
             return read_siemens_plc(plc, data_points)
 
         else:
-            raise ValueError(f"[ERROR] 不明なメーカー: {manufacturer}")
+            error_msg = f"不明なメーカー: {manufacturer}"
+            logger.error(f"[ERROR] {error_msg}")
+            report_error(
+                error_type="CONFIGURATION_ERROR",
+                error_message=error_msg,
+                plc_ip=ip,
+                protocol=manufacturer
+            )
+            raise ValueError(f"[ERROR] {error_msg}")
 
     except Exception as e:
         logger.error(f"[ERROR] PLC読取エラー: {e}")
+        report_error(
+            error_type="READ_ERROR",
+            error_message=f"PLC読取エラー: {str(e)}",
+            plc_ip=ip,
+            protocol=manufacturer
+        )
         return None
 
 
@@ -199,6 +260,11 @@ def auto_identify_equipment():
             # 設定に保存（設備IDを永続化）
             config_manager.save_equipment_id(equipment_id)
             print(f"📝 設備ID '{equipment_id}' を設定に保存しました")
+
+            # Phase 4: エラーレポーター初期化
+            central_server_url = os.getenv("CENTRAL_SERVER_URL", "http://localhost:5000")
+            initialize_error_reporter(equipment_id, central_server_url)
+            print(f"📡 エラーレポーター初期化完了: {central_server_url}")
 
             return equipment_id
         else:
@@ -252,6 +318,22 @@ def main_loop():
         values = read_from_plc(config)
 
         if values:
+            # Phase 4: アラーム検出とAPI送信
+            error_code = values.get("error_code")
+            if error_code and error_code > 0:
+                # エラーコードが0以外の場合、アラームとして報告
+                alarm_level = "WARNING" if error_code == 1 else "ERROR"
+                report_alarm(
+                    alarm_code=f"E{error_code:03d}",
+                    alarm_level=alarm_level,
+                    alarm_message=f"PLCアラーム検出: エラーコード {error_code}",
+                    alarm_data={
+                        "error_code": error_code,
+                        "plc_values": values
+                    }
+                )
+                logger.warning(f"⚠️ アラーム検出: E{error_code:03d} ({alarm_level})")
+
             # DB APIを使用してログデータを送信（バッファリング対応）
             success = db_api.send_log_data(equipment_id, values)
 

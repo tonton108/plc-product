@@ -2,9 +2,17 @@ from flask import request, jsonify, current_app
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from sqlalchemy import or_, text, func
 from db import db
-from db.models import Equipment, PLCDataConfig, Log, DailyLogSummary, MonthlyLogSummary
+from db.models import (
+    Equipment, PLCDataConfig, Log, DailyLogSummary, MonthlyLogSummary,
+    SetupStatus, OperationalStatus, PLCProtocols, CommunicationModes,
+    CommunicationErrorLog, AlarmHistory, PLCStatus, ErrorTypes, AlarmLevels
+)
 from datetime import datetime, timedelta, timezone
 import threading
+import logging
+
+# ロガー設定
+logger = logging.getLogger(__name__)
 
 # スケジューラー機能をインポート
 from api.scheduler import (
@@ -45,10 +53,18 @@ def register_routes(app, socketio=None):
         
         equipment = Equipment.query.filter(or_(*search_conditions)).first()
 
+        # PLC通信設定のデフォルト値を計算（Phase 1）
+        manufacturer = data.get("manufacturer", "")
+        protocol = data.get("protocol") or PLCProtocols.get_manufacturer_default(manufacturer)
+        communication_mode = data.get("communication_mode") or CommunicationModes.get_protocol_default(protocol)
+        timeout = data.get("timeout", 5000)
+        retry_count = data.get("retry_count", 3)
+        retry_interval = data.get("retry_interval", 1000)
+
         if equipment:
             # 既存設備の更新
             equipment.equipment_id = equipment_id
-            equipment.manufacturer = data.get("manufacturer")
+            equipment.manufacturer = manufacturer
             equipment.series = data.get("series")
             equipment.ip = data.get("ip")
             equipment.plc_ip = data.get("plc_ip")
@@ -58,12 +74,20 @@ def register_routes(app, socketio=None):
             equipment.port = data.get("port")
             equipment.modbus_port = data.get("modbus_port", 502)
             equipment.interval = data.get("interval")
-            equipment.status = "登録済み"
+            # PLC通信設定（Phase 1）
+            equipment.protocol = protocol
+            equipment.communication_mode = communication_mode
+            equipment.timeout = timeout
+            equipment.retry_count = retry_count
+            equipment.retry_interval = retry_interval
+            # ステータス更新: 基本情報登録済み
+            equipment.setup_status = SetupStatus.BASIC_INFO_REGISTERED
+            # 運用ステータスは変更しない（既存の状態を維持）
         else:
             # 新規作成
             equipment = Equipment(
                 equipment_id=equipment_id,
-                manufacturer=data.get("manufacturer"),
+                manufacturer=manufacturer,
                 series=data.get("series"),
                 ip=data.get("ip"),
                 plc_ip=data.get("plc_ip"),
@@ -73,7 +97,14 @@ def register_routes(app, socketio=None):
                 port=data.get("port"),
                 modbus_port=data.get("modbus_port", 502),
                 interval=data.get("interval"),
-                status="登録済み"
+                # PLC通信設定（Phase 1）
+                protocol=protocol,
+                communication_mode=communication_mode,
+                timeout=timeout,
+                retry_count=retry_count,
+                retry_interval=retry_interval,
+                setup_status=SetupStatus.BASIC_INFO_REGISTERED,
+                operational_status=OperationalStatus.NOT_STARTED
             )
             db.session.add(equipment)
 
@@ -105,10 +136,20 @@ def register_routes(app, socketio=None):
                     "port": equipment.port,
                     "modbus_port": getattr(equipment, "modbus_port", 502),
                     "interval": equipment.interval,
-                    "status": equipment.status,
+                    # ステータスを2つのフィールドで返す
+                    "setup_status": equipment.setup_status,
+                    "operational_status": equipment.operational_status,
+                    # 後方互換性のため、statusも返す（operational_statusと同じ値）
+                    "status": equipment.operational_status,
                     "hostname": equipment.hostname,
                     "mac_address": equipment.mac_address,
                     "cpu_serial_number": getattr(equipment, "cpu_serial_number", ""),  # CPUシリアル番号を追加
+                    # PLC通信設定（Phase 1）
+                    "protocol": getattr(equipment, "protocol", "MC_PROTOCOL_3E"),
+                    "communication_mode": getattr(equipment, "communication_mode", "TCP"),
+                    "timeout": getattr(equipment, "timeout", 5000),
+                    "retry_count": getattr(equipment, "retry_count", 3),
+                    "retry_interval": getattr(equipment, "retry_interval", 1000),
                     "updated_at": equipment.updated_at.isoformat() if equipment.updated_at else None
                 })
             return jsonify(equipment_list), 200
@@ -135,7 +176,16 @@ def register_routes(app, socketio=None):
                 "ip": equipment.ip,
                 "port": equipment.port,
                 "interval": equipment.interval,
-                "status": equipment.status,
+                "setup_status": equipment.setup_status,
+                "operational_status": equipment.operational_status,
+                # PLC通信設定（Phase 1）
+                "protocol": getattr(equipment, "protocol", "MC_PROTOCOL_3E"),
+                "communication_mode": getattr(equipment, "communication_mode", "TCP"),
+                "timeout": getattr(equipment, "timeout", 5000),
+                "retry_count": getattr(equipment, "retry_count", 3),
+                "retry_interval": getattr(equipment, "retry_interval", 1000),
+                # 後方互換性のため
+                "status": equipment.operational_status,
                 "hostname": equipment.hostname,
                 "mac_address": equipment.mac_address,
                 "cpu_serial_number": getattr(equipment, "cpu_serial_number", "")  # CPUシリアル番号を追加
@@ -161,10 +211,19 @@ def register_routes(app, socketio=None):
                 "port": equipment.port,
                 "modbus_port": getattr(equipment, "modbus_port", 502),
                 "interval": equipment.interval,
-                "status": equipment.status,
+                "setup_status": equipment.setup_status,
+                "operational_status": equipment.operational_status,
+                # 後方互換性のため
+                "status": equipment.operational_status,
                 "hostname": equipment.hostname,
                 "mac_address": equipment.mac_address,
-                "cpu_serial_number": getattr(equipment, "cpu_serial_number", "")  # CPUシリアル番号を追加
+                "cpu_serial_number": getattr(equipment, "cpu_serial_number", ""),  # CPUシリアル番号を追加
+                # PLC通信設定（Phase 1）
+                "protocol": getattr(equipment, "protocol", "MC_PROTOCOL_3E"),
+                "communication_mode": getattr(equipment, "communication_mode", "TCP"),
+                "timeout": getattr(equipment, "timeout", 5000),
+                "retry_count": getattr(equipment, "retry_count", 3),
+                "retry_interval": getattr(equipment, "retry_interval", 1000)
             }), 200
         except Exception as e:
             return jsonify({"error": str(e)}), 500
@@ -236,7 +295,8 @@ def register_routes(app, socketio=None):
                     mac_address=data.get("mac_address"),
                     cpu_serial_number=cpu_serial_number,
                     hostname=data.get("hostname"),
-                    status="設定済み"
+                    setup_status=SetupStatus.BASIC_INFO_REGISTERED,
+                    operational_status=OperationalStatus.NOT_STARTED
                 )
                 db.session.add(equipment)
                 print(f"[DEBUG] 新規設備をセッションに追加しました")
@@ -253,7 +313,7 @@ def register_routes(app, socketio=None):
             equipment.mac_address = data.get("mac_address", equipment.mac_address)
             equipment.cpu_serial_number = data.get("cpu_serial_number", equipment.cpu_serial_number)
             equipment.hostname = data.get("hostname", equipment.hostname)
-            equipment.status = "設定済み"
+            # セットアップステータスは変更しない（PLCデータ設定で更新する）
             equipment.updated_at = datetime.now(timezone.utc)
             print(f"[DEBUG] 設備情報更新完了")
 
@@ -306,7 +366,10 @@ def register_routes(app, socketio=None):
                 "port": equipment.port,
                 "modbus_port": getattr(equipment, "modbus_port", 502),
                 "interval": equipment.interval,
-                "status": equipment.status,
+                "setup_status": equipment.setup_status,
+                "operational_status": equipment.operational_status,
+                # 後方互換性のため
+                "status": equipment.operational_status,
                 "hostname": equipment.hostname,
                 "mac_address": equipment.mac_address,
                 "cpu_serial_number": getattr(equipment, "cpu_serial_number", "")  # CPUシリアル番号を追加
@@ -322,13 +385,16 @@ def register_routes(app, socketio=None):
             if not equipment:
                 return jsonify({"error": "Equipment not found"}), 404
 
-            # 設備ステータスが "設定済み" の場合はセットアップ完了とみなす
-            setup_completed = equipment.status == "設定済み"
-            
+            # 設備ステータスが "PLC設定済み" 以上の場合はセットアップ完了とみなす
+            setup_completed = equipment.setup_status in [SetupStatus.PLC_CONFIGURED, SetupStatus.SETUP_COMPLETE]
+
             return jsonify({
                 "equipment_id": equipment_id,
                 "setup_completed": setup_completed,
-                "status": equipment.status
+                "setup_status": equipment.setup_status,
+                "operational_status": equipment.operational_status,
+                # 後方互換性のため
+                "status": equipment.operational_status
             }), 200
         except Exception as e:
             return jsonify({"error": str(e)}), 500
@@ -341,15 +407,16 @@ def register_routes(app, socketio=None):
             if not equipment:
                 return jsonify({"error": "Equipment not found"}), 404
 
-            # ステータスを "設定済み" に更新
-            equipment.status = "設定済み"
+            # ステータスを "セットアップ完了" に更新
+            equipment.setup_status = SetupStatus.SETUP_COMPLETE
             equipment.updated_at = datetime.now(timezone.utc)
             db.session.commit()
 
             return jsonify({
                 "message": "Setup completed marked",
                 "equipment_id": equipment_id,
-                "status": equipment.status
+                "setup_status": equipment.setup_status,
+                "operational_status": equipment.operational_status
             }), 200
         except Exception as e:
             db.session.rollback()
@@ -446,11 +513,11 @@ def register_routes(app, socketio=None):
                 print(f"[DEBUG] PLCデータ設定追加: {config_data.get('data_type')} -> {config_data.get('address')}")
                 db.session.execute(text(sql), filtered_data)
 
-            # PLCデータ設定保存後、設備ステータスを「設定済み」に更新
+            # PLCデータ設定保存後、設備ステータスを「PLC設定済み」に更新
             if equipment:
-                equipment.status = "設定済み"
+                equipment.setup_status = SetupStatus.PLC_CONFIGURED
                 equipment.updated_at = datetime.now(timezone.utc)
-                print(f"[DEBUG] 設備ステータスを「設定済み」に更新: {equipment_id}")
+                print(f"[DEBUG] 設備ステータスを「PLC設定済み」に更新: {equipment_id}")
 
             db.session.commit()
             print(f"[ERROR] PLCデータ設定保存成功: {equipment_id}")
@@ -506,8 +573,21 @@ def register_routes(app, socketio=None):
                 
                 # 通常のSQLAlchemyセッション管理
                 db.session.add(log_entry)
+
+                # 初回データ受信時にセットアップ完了、運用ステータスを「稼働中」に更新
+                if equipment.setup_status == SetupStatus.PLC_CONFIGURED:
+                    equipment.setup_status = SetupStatus.SETUP_COMPLETE
+                    print(f"[STATUS] セットアップ完了: {equipment_id}")
+
+                # 運用ステータスを「稼働中」に更新
+                if equipment.operational_status != OperationalStatus.RUNNING:
+                    equipment.operational_status = OperationalStatus.RUNNING
+                    print(f"[STATUS] 運用ステータスを稼働中に更新: {equipment_id}")
+
+                equipment.updated_at = datetime.now(timezone.utc)
+
                 db.session.commit()
-                
+
                 print(f"[DB] DB保存完了: ログID={log_entry.id}")
                 
             except Exception as db_error:
@@ -714,14 +794,21 @@ def register_routes(app, socketio=None):
             oldest_log = Log.query.order_by(Log.timestamp.asc()).first()
             newest_log = Log.query.order_by(Log.timestamp.desc()).first()
             
-            # 設備別ログ数
-            equipment_stats = []
-            for equipment in Equipment.query.all():
-                eq_logs = Log.query.filter_by(equipment_id=equipment.id).count()
-                equipment_stats.append({
-                    "equipment_id": equipment.equipment_id,
-                    "log_count": eq_logs
-                })
+            # 設備別ログ数（N+1問題を回避するため、1クエリで取得）
+            equipment_log_counts = db.session.query(
+                Equipment.equipment_id,
+                func.count(Log.id).label('log_count')
+            ).outerjoin(Log, Equipment.id == Log.equipment_id)\
+             .group_by(Equipment.id, Equipment.equipment_id)\
+             .all()
+
+            equipment_stats = [
+                {
+                    "equipment_id": eq_id,
+                    "log_count": log_count
+                }
+                for eq_id, log_count in equipment_log_counts
+            ]
             
             return jsonify({
                 "total_logs": total_logs,
@@ -845,6 +932,268 @@ def register_routes(app, socketio=None):
     def health_check():
         """ヘルスチェックエンドポイント"""
         return jsonify({"status": "healthy", "message": "OK"}), 200
+
+    # ========================================
+    # Phase 2: エラーログ・アラームAPI（簡易版）
+    # ========================================
+
+    @app.route("/api/equipment/<equipment_id>/error_logs", methods=["POST"])
+    def save_error_log(equipment_id):
+        """PLC通信エラーを記録（Raspberry Piエージェントから呼び出し）"""
+        try:
+            data = request.get_json()
+
+            if not data:
+                return jsonify({"error": "No JSON data provided"}), 400
+
+            equipment = Equipment.query.filter_by(equipment_id=equipment_id).first()
+            if not equipment:
+                return jsonify({"error": "Equipment not found"}), 404
+
+            error_log = CommunicationErrorLog(
+                equipment_id=equipment.id,
+                error_type=data.get("error_type", ErrorTypes.UNKNOWN),
+                error_message=data.get("error_message", ""),
+                retry_count=data.get("retry_count", 0),
+                plc_ip=data.get("plc_ip", equipment.plc_ip),
+                protocol=data.get("protocol", equipment.protocol)
+            )
+
+            db.session.add(error_log)
+
+            # PLC状態を更新
+            plc_status = PLCStatus.query.filter_by(equipment_id=equipment.id).first()
+            if plc_status:
+                plc_status.consecutive_errors += 1
+                plc_status.last_error_type = error_log.error_type
+                plc_status.last_error_message = error_log.error_message
+                plc_status.is_online = False
+                plc_status.last_status_change_at = datetime.utcnow()
+
+            db.session.commit()
+
+            print(f"[ERROR_LOG] エラー記録: {equipment_id} - {error_log.error_type}")
+
+            return jsonify({"message": "エラーログを記録しました"}), 200
+
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/equipment/<equipment_id>/error_logs", methods=["GET"])
+    def get_error_logs(equipment_id):
+        """エラーログ一覧を取得"""
+        try:
+            equipment = Equipment.query.filter_by(equipment_id=equipment_id).first()
+            if not equipment:
+                return jsonify({"error": "Equipment not found"}), 404
+
+            # 直近100件を取得
+            error_logs = CommunicationErrorLog.query.filter_by(
+                equipment_id=equipment.id
+            ).order_by(CommunicationErrorLog.occurred_at.desc()).limit(100).all()
+
+            return jsonify([{
+                "id": log.id,
+                "error_type": log.error_type,
+                "error_message": log.error_message,
+                "retry_count": log.retry_count,
+                "plc_ip": log.plc_ip,
+                "protocol": log.protocol,
+                "occurred_at": log.occurred_at.isoformat(),
+                "resolved_at": log.resolved_at.isoformat() if log.resolved_at else None
+            } for log in error_logs]), 200
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/equipment/<equipment_id>/alarms", methods=["POST"])
+    def save_alarm(equipment_id):
+        """アラームを記録（Raspberry Piエージェントから呼び出し）"""
+        try:
+            data = request.get_json()
+
+            if not data:
+                return jsonify({"error": "No JSON data provided"}), 400
+
+            equipment = Equipment.query.filter_by(equipment_id=equipment_id).first()
+            if not equipment:
+                return jsonify({"error": "Equipment not found"}), 404
+
+            alarm = AlarmHistory(
+                equipment_id=equipment.id,
+                alarm_code=data.get("alarm_code", "UNKNOWN"),
+                alarm_level=data.get("alarm_level", AlarmLevels.WARNING),
+                alarm_message=data.get("alarm_message", ""),
+                alarm_data=data.get("alarm_data")
+            )
+
+            db.session.add(alarm)
+            db.session.commit()
+
+            print(f"[ALARM] アラーム記録: {equipment_id} - {alarm.alarm_code} ({alarm.alarm_level})")
+
+            return jsonify({"message": "アラームを記録しました", "alarm_id": alarm.id}), 200
+
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/equipment/<equipment_id>/alarms", methods=["GET"])
+    def get_alarms(equipment_id):
+        """アラーム履歴一覧を取得"""
+        try:
+            equipment = Equipment.query.filter_by(equipment_id=equipment_id).first()
+            if not equipment:
+                return jsonify({"error": "Equipment not found"}), 404
+
+            # 直近100件を取得
+            alarms = AlarmHistory.query.filter_by(
+                equipment_id=equipment.id
+            ).order_by(AlarmHistory.occurred_at.desc()).limit(100).all()
+
+            return jsonify([{
+                "id": alarm.id,
+                "alarm_code": alarm.alarm_code,
+                "alarm_level": alarm.alarm_level,
+                "alarm_message": alarm.alarm_message,
+                "alarm_data": alarm.alarm_data,
+                "occurred_at": alarm.occurred_at.isoformat(),
+                "cleared_at": alarm.cleared_at.isoformat() if alarm.cleared_at else None,
+                "acknowledged": alarm.acknowledged
+            } for alarm in alarms]), 200
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    # Phase 7: 運用機能API
+    @app.route("/api/equipment/<equipment_id>/alarms/<int:alarm_id>/acknowledge", methods=["PATCH"])
+    def acknowledge_alarm(equipment_id, alarm_id):
+        """アラームを確認（acknowledge）する"""
+        try:
+            equipment = Equipment.query.filter_by(equipment_id=equipment_id).first()
+            if not equipment:
+                return jsonify({"error": "Equipment not found"}), 404
+
+            alarm = AlarmHistory.query.filter_by(
+                id=alarm_id,
+                equipment_id=equipment.id
+            ).first()
+            if not alarm:
+                return jsonify({"error": "Alarm not found"}), 404
+
+            # 確認者情報を取得（今はリクエストから、将来的には認証情報から）
+            data = request.get_json() or {}
+            acknowledged_by = data.get("acknowledged_by", "System")
+
+            # 確認情報を更新
+            alarm.acknowledged = True
+            alarm.acknowledged_by = acknowledged_by
+            alarm.acknowledged_at = datetime.now(timezone.utc)
+
+            db.session.commit()
+
+            logger.info(f"アラーム確認完了: {equipment_id} / alarm_id={alarm_id} / by={acknowledged_by}")
+
+            return jsonify({
+                "message": "アラームを確認しました",
+                "alarm_id": alarm_id,
+                "acknowledged_by": acknowledged_by
+            }), 200
+
+        except Exception as e:
+            logger.error(f"アラーム確認エラー: {e}")
+            db.session.rollback()
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/equipment/<equipment_id>/alarms/<int:alarm_id>/clear", methods=["PATCH"])
+    def clear_alarm(equipment_id, alarm_id):
+        """アラームを解除（clear）する"""
+        try:
+            equipment = Equipment.query.filter_by(equipment_id=equipment_id).first()
+            if not equipment:
+                return jsonify({"error": "Equipment not found"}), 404
+
+            alarm = AlarmHistory.query.filter_by(
+                id=alarm_id,
+                equipment_id=equipment.id
+            ).first()
+            if not alarm:
+                return jsonify({"error": "Alarm not found"}), 404
+
+            # 解除日時を記録
+            alarm.cleared_at = datetime.now(timezone.utc)
+
+            db.session.commit()
+
+            logger.info(f"アラーム解除完了: {equipment_id} / alarm_id={alarm_id}")
+
+            return jsonify({
+                "message": "アラームを解除しました",
+                "alarm_id": alarm_id
+            }), 200
+
+        except Exception as e:
+            logger.error(f"アラーム解除エラー: {e}")
+            db.session.rollback()
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/equipment/<equipment_id>/error_logs/<int:error_log_id>/resolve", methods=["PATCH"])
+    def resolve_error_log(equipment_id, error_log_id):
+        """エラーログを解決（resolve）する"""
+        try:
+            equipment = Equipment.query.filter_by(equipment_id=equipment_id).first()
+            if not equipment:
+                return jsonify({"error": "Equipment not found"}), 404
+
+            error_log = CommunicationErrorLog.query.filter_by(
+                id=error_log_id,
+                equipment_id=equipment.id
+            ).first()
+            if not error_log:
+                return jsonify({"error": "Error log not found"}), 404
+
+            # 解決日時を記録
+            error_log.resolved_at = datetime.now(timezone.utc)
+
+            db.session.commit()
+
+            logger.info(f"エラーログ解決完了: {equipment_id} / error_log_id={error_log_id}")
+
+            return jsonify({
+                "message": "エラーログを解決しました",
+                "error_log_id": error_log_id
+            }), 200
+
+        except Exception as e:
+            logger.error(f"エラーログ解決エラー: {e}")
+            db.session.rollback()
+            return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/equipment/<equipment_id>/plc_status", methods=["GET"])
+    def get_plc_status(equipment_id):
+        """PLC通信状態を取得"""
+        try:
+            equipment = Equipment.query.filter_by(equipment_id=equipment_id).first()
+            if not equipment:
+                return jsonify({"error": "Equipment not found"}), 404
+
+            plc_status = PLCStatus.query.filter_by(equipment_id=equipment.id).first()
+            if not plc_status:
+                return jsonify({"error": "PLC status not found"}), 404
+
+            return jsonify({
+                "equipment_id": equipment_id,
+                "is_online": plc_status.is_online,
+                "consecutive_errors": plc_status.consecutive_errors,
+                "last_error_type": plc_status.last_error_type,
+                "last_error_message": plc_status.last_error_message,
+                "last_communication_at": plc_status.last_communication_at.isoformat() if plc_status.last_communication_at else None,
+                "uptime_seconds": plc_status.uptime_seconds
+            }), 200
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
 
     # スケジューラー開始
     start_cleanup_scheduler(app)

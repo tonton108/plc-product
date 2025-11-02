@@ -38,15 +38,38 @@ Claudeは以下のルールを厳守すること：
 
 #### a. Nuxt UI変更時
 
+**⚠️ 重要: まずElectronが起動していないか確認してください！**
+
+Electronアプリが起動していると、ポート3000を占有してDockerの変更が反映されません。
+
 ```bash
-# 1. 開発サーバー起動
+# 0. Electronが起動していないか確認（Windows）
+netstat -ano | findstr :3000
+
+# もしElectronが起動している場合は停止
+# - プロセスIDを確認して、taskkill //F //PID [PID]
+# - または手動でElectronアプリを閉じる
+
+# 1. Docker環境で開発（推奨）
 cd plc-dashboard
-npm run dev
+docker compose up -d frontend
 
 # 2. ブラウザで動作確認（http://localhost:3000）
+# Ctrl+Shift+R で強制リロード（キャッシュクリア）
 
 # 3. Playwrightテスト実行（推奨）
 python scripts/test_monitoring_chart.py
+```
+
+**開発フロー:**
+- ✅ **Nuxt UI開発**: Dockerを使用（ホットリロードが確実に動作）
+- ✅ **Electronテスト**: Dockerを停止してから起動
+
+```bash
+# Electronでテストする場合
+docker compose stop frontend
+cd desktop-app
+npm run electron:dev
 ```
 
 #### b. Flask Backend変更時
@@ -129,16 +152,19 @@ python ../backend/demo_data_sender.py --mode single
 [工場内LAN: 例 192.168.1.0/24]
 
 ┌─────────────────────────────────────────────┐
-│ 中央サーバー兼管理PC (例: 192.168.1.10)      │
-│ ├─ PostgreSQL (ポート5432)                  │
-│ ├─ Flask Backend (ポート5000)               │
-│ ├─ Nuxt UI (ポート3000) ※不特定多数に公開   │
-│ └─ デスクトップアプリ ※管理者用             │
+│ 🖥️ 中央サーバー兼管理PC (例: 192.168.1.10)  │
+│ ┌─────────────────────────────────────────┐ │
+│ │ デスクトップアプリ（将来的にパッケージ化）│ │
+│ │ ├─ PostgreSQL (ポート5432)              │ │
+│ │ ├─ Flask Backend (ポート5000)           │ │
+│ │ └─ Nuxt UI (ポート3000)                 │ │
+│ │    └─ 不特定多数がブラウザでアクセス    │ │
+│ └─────────────────────────────────────────┘ │
 └─────────────────────────────────────────────┘
             ↑ HTTP POST (PLCデータ送信)
             │
-┌───────────┼─────────────────────────────┐
-│  Raspberry Pi #1    Raspberry Pi #2      │
+┌───────────┴─────────────────────────────┐
+│  🍓 Raspberry Pi #1    Raspberry Pi #2   │
 │  (例: 192.168.1.101) (192.168.1.102)     │
 │  ├─ raspi_agent     ├─ raspi_agent       │
 │  └─ PLC #1に接続    └─ PLC #2に接続      │
@@ -147,21 +173,37 @@ python ../backend/demo_data_sender.py --mode single
      │                   │
    [PLC#1]             [PLC#2]
 
-            ↑ ブラウザで http://192.168.1.10:3000 にアクセス
-            │
-┌───────────┴─────────────────────────────┐
-│  クライアント端末（不特定多数）            │
-│  ├─ 現場PC・管理PC (Windows/Mac/Linux)   │
-│  ├─ タブレット (iPad/Android)            │
-│  └─ スマートフォン (iOS/Android)         │
-└──────────────────────────────────────────┘
+            ↓ ブラウザで http://192.168.1.10:3000 にアクセス
+            ↓
+┌──────────────────────────────────────────────┐
+│  👥 クライアント端末（不特定多数）            │
+│  ├─ 現場PC・管理PC (Windows/Mac/Linux)       │
+│  ├─ タブレット (iPad/Android)                │
+│  └─ スマートフォン (iOS/Android)             │
+│                                              │
+│  ブラウザで中央サーバーのNuxt UIにアクセス   │
+└──────────────────────────────────────────────┘
 ```
 
 **データフロー:**
 1. Raspberry Pi各台がPLCからデータ収集（Modbus/FINS/MC Protocol通信）
 2. 収集データを中央サーバーにHTTP POST
 3. Flask Backendがデータベースに保存し、WebSocket経由でリアルタイム配信
-4. 不特定多数のクライアント端末がNuxt UIにブラウザでアクセスし、リアルタイムモニタリング
+4. 不特定多数のクライアント端末が中央サーバーのNuxt UIにブラウザでアクセスし、リアルタイムモニタリング
+
+### 🚀 デプロイメント方針
+
+#### 開発環境（現在）
+- **Docker Compose**を使用（`docker-compose.yml`）
+- PostgreSQL、Flask BackendをDockerコンテナで起動
+- Nuxt.jsは`npm run dev`で開発サーバー起動
+
+#### 本番環境（将来計画）
+- **デスクトップアプリケーション**としてパッケージ化（Electron/Tauri想定）
+- PostgreSQL、Flask Backend、Nuxt.jsを内蔵
+- インストーラー配布（`.exe`, `.dmg`, `.AppImage`など）
+- ユーザーはアプリを起動するだけで全サービスが自動起動
+- ネットワーク内の他の端末からブラウザで`http://<中央サーバーIP>:3000`にアクセス可能
 
 ### 📚 プロジェクト知識ベース
 
@@ -182,7 +224,9 @@ python ../backend/demo_data_sender.py --mode single
 
 ## クイックスタート
 
-### 中央サーバー起動
+### 開発環境セットアップ
+
+#### 中央サーバー起動（開発環境）
 
 ```bash
 cd plc-dashboard
@@ -190,12 +234,15 @@ cd plc-dashboard
 # 環境設定
 cp .env.example .env
 
+# Docker Composeで開発環境起動
 # PostgreSQL + Flask Backend
 docker compose up -d db backend
 
-# Nuxt.js Frontend (ポート3000)
+# Nuxt.js Frontend開発サーバー (ポート3000)
 npm run dev
 ```
+
+**注意:** Docker Composeは**開発環境専用**です。本番環境ではデスクトップアプリとしてパッケージ化する予定です。
 
 ### Raspberry Piエージェント起動（ローカル開発）
 
@@ -236,6 +283,7 @@ python demo_data_sender.py --mode continuous --interval 2.0
 
 コード構造と主要ファイルの詳細：
 
+- `_docs/architecture/data-flow.md` - **データフロー全体図**（PLCからNuxt UIまでの完全な流れ）
 - `_docs/architecture/backend.md` - バックエンド（Flask）詳細
 - `_docs/architecture/frontend.md` - フロントエンド（Nuxt.js）詳細
 - `_docs/architecture/raspi-agent.md` - Raspberry Piエージェント詳細
@@ -257,6 +305,7 @@ PLCプロジェクト特有の実装ノウハウ：
 新機能の実装記録：
 
 - `_docs/features/codex-auto-review.md` - Codex AI自動レビュー機能
+- `_docs/features/phase2-7-error-alarm-system.md` - エラー・アラームシステム（Phase 2-7実装）
 
 ### デプロイメント（deployment）
 
@@ -376,6 +425,88 @@ for plc_config in plc_configs:  # 別の変数名を使用
 ```
 
 **実装箇所:** `raspi_agent/agent_app.py:236-271`
+
+### 6. Vuetifyツールチップの実装
+
+**問題:** Vuetifyのデフォルトツールチップは、ダークモードで黒背景に黒文字となり見えなくなることがあります。
+
+**必ずcontent-classを使用してツールチップを実装してください：**
+
+```vue
+<!-- ✅ 正しい実装 -->
+<v-tooltip location="bottom" content-class="tooltip-custom">
+  <template #activator="{ props }">
+    <v-btn v-bind="props" color="primary">
+      ボタン
+    </v-btn>
+  </template>
+  <span>ツールチップのテキスト</span>
+</v-tooltip>
+
+<!-- ❌ 避けるべき実装 -->
+<v-tooltip text="ツールチップのテキスト" location="bottom">
+  <template #activator="{ props }">
+    <v-btn v-bind="props" color="primary">
+      ボタン
+    </v-btn>
+  </template>
+</v-tooltip>
+```
+
+**既存の設定:**
+
+1. **plugins/vuetify.ts:50-54** - VTooltipデフォルト設定
+   ```typescript
+   defaults: {
+     VTooltip: {
+       color: 'grey-darken-3',
+     },
+   }
+   ```
+
+2. **app.vue:8-35** - グローバルCSS（!important付き）
+   ```css
+   .tooltip-custom {
+     background-color: #424242 !important;
+     color: #ffffff !important;
+     opacity: 1 !important;
+   }
+   ```
+
+**新しいツールチップを追加する際のチェックリスト:**
+- [ ] `content-class="tooltip-custom"`を追加
+- [ ] `<span>`タグでテキストを囲む
+- [ ] Playwrightテストでダークモードでの表示を確認
+
+**実装箇所:**
+- `pages/index.vue:150,168,222,240`
+- `pages/dashboard.vue:156,174`
+- `components/ThemeToggle.vue:2`
+
+### 7. エラー・アラームシステム（Phase 2-7）
+
+**エラー・アラームページ:** `/errors-alarms`
+
+PLCとの通信エラーおよびアラームを管理するための専用ページです。
+
+**主な機能:**
+- PLC通信状態の監視（オンライン/オフライン、連続エラー回数）
+- アラーム履歴の表示と管理
+- エラーログの表示と管理
+- アクションボタン：確認・解除・解決
+
+**Phase 7 APIエンドポイント:**
+- `PATCH /api/equipment/<id>/alarms/<alarm_id>/acknowledge` - アラーム確認
+- `PATCH /api/equipment/<id>/alarms/<alarm_id>/clear` - アラーム解除
+- `PATCH /api/equipment/<id>/error_logs/<log_id>/resolve` - エラーログ解決
+
+**実装箇所:**
+- `pages/errors-alarms.vue` - メインUI（462行）
+- `backend/api/routes.py:1066-1167` - Phase 7 API実装
+- `raspi_agent/error_reporter.py` - エラー報告モジュール
+- `raspi_agent/plc_agent.py` - エラー検出・送信統合
+
+詳細は `_docs/features/phase2-7-error-alarm-system.md` を参照。
 
 ---
 

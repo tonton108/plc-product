@@ -26,6 +26,15 @@
                 color="white"
                 size="large"
                 class="mr-3 modern-btn"
+                @click="$router.push('/errors-alarms')"
+              >
+                <v-icon>mdi-alert-circle</v-icon>
+                <span class="ml-2">エラー・アラーム</span>
+              </v-btn>
+              <v-btn
+                color="white"
+                size="large"
+                class="mr-3 modern-btn"
                 :loading="loading"
                 @click="fetchEquipment"
               >
@@ -147,7 +156,7 @@
           <v-card-actions class="pa-4">
             <v-row dense>
               <v-col cols="6">
-                <v-tooltip text="リアルタイムモニタリング" location="bottom">
+                <v-tooltip location="bottom" content-class="tooltip-custom">
                   <template #activator="{ props }">
                     <v-btn
                       v-bind="props"
@@ -161,10 +170,11 @@
                       <v-icon class="mr-1">mdi-monitor-dashboard</v-icon>監視
                     </v-btn>
                   </template>
+                  <span>リアルタイムモニタリング</span>
                 </v-tooltip>
               </v-col>
               <v-col cols="6">
-                <v-tooltip text="履歴データ・グラフ表示" location="bottom">
+                <v-tooltip location="bottom" content-class="tooltip-custom">
                   <template #activator="{ props }">
                     <v-btn
                       v-bind="props"
@@ -178,6 +188,7 @@
                       <v-icon class="mr-1">mdi-chart-line</v-icon>ログ
                     </v-btn>
                   </template>
+                  <span>履歴データ・グラフ表示</span>
                 </v-tooltip>
               </v-col>
             </v-row>
@@ -217,30 +228,40 @@
             {{ item.interval }}秒
           </template>
           <template #[`item.actions`]="{ item }">
-            <v-btn
-              color="primary"
-              size="small"
-              variant="elevated"
-              class="mr-2 modern-btn"
-              @click="goToMonitoring(item.equipment_id)"
-            >
-              <template #prepend>
-                <v-icon size="small">mdi-monitor-dashboard</v-icon>
-              </template>
-              監視
-            </v-btn>
-            <v-btn
-              color="secondary"
-              size="small"
-              variant="elevated"
-              class="modern-btn"
-              @click="goToLogs(item.equipment_id)"
-            >
-              <template #prepend>
-                <v-icon size="small">mdi-chart-line</v-icon>
-              </template>
-              ログ
-            </v-btn>
+            <div class="d-flex justify-center align-center">
+              <v-tooltip location="bottom" content-class="tooltip-custom">
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    color="primary"
+                    size="default"
+                    variant="elevated"
+                    class="mr-2 modern-btn list-action-btn"
+                    prepend-icon="mdi-monitor-dashboard"
+                    @click="goToMonitoring(item.equipment_id)"
+                  >
+                    監視
+                  </v-btn>
+                </template>
+                <span>リアルタイムモニタリング</span>
+              </v-tooltip>
+              <v-tooltip location="bottom" content-class="tooltip-custom">
+                <template #activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    color="secondary"
+                    size="default"
+                    variant="elevated"
+                    class="modern-btn list-action-btn"
+                    prepend-icon="mdi-chart-line"
+                    @click="goToLogs(item.equipment_id)"
+                  >
+                    ログ
+                  </v-btn>
+                </template>
+                <span>履歴データ・グラフ表示</span>
+              </v-tooltip>
+            </div>
           </template>
         </v-data-table>
       </v-col>
@@ -356,4 +377,69 @@ watch(viewMode, (newMode) => {
   }
 })
 </script>
-  
+
+<style>
+/* ツールチップのカスタムスタイル（グローバル） */
+.tooltip-custom {
+  background-color: #424242 !important;
+  color: #ffffff !important;
+  opacity: 0.95 !important;
+}
+
+.tooltip-custom span {
+  color: #ffffff !important;
+}
+
+/* データテーブルの行フォーカス時の紫色のバーを非表示 */
+.v-data-table tbody tr:focus {
+  border-bottom: none !important;
+  outline: none !important;
+}
+
+.v-data-table tbody tr:focus::after {
+  display: none !important;
+}
+
+/* ボタン内のコンテンツ（アイコンとテキスト）を垂直方向で中央揃え */
+.v-btn .v-btn__content {
+  align-items: center !important;
+  display: flex !important;
+}
+
+.v-btn .v-icon {
+  align-self: center !important;
+}
+
+/* リスト表示のアクションボタン（size="small"）用の追加調整 */
+.list-action-btn.v-btn--size-small {
+  min-height: 32px !important;
+  height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+
+.list-action-btn.v-btn--size-small .v-btn__prepend {
+  align-self: center !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.list-action-btn.v-btn--size-small .v-btn__content {
+  align-self: center !important;
+  line-height: 1 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.list-action-btn.v-btn--size-small .v-icon {
+  line-height: 1 !important;
+  vertical-align: middle !important;
+  align-self: center !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+</style>
