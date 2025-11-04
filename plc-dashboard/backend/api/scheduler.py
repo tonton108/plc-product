@@ -3,7 +3,10 @@
 """
 from flask import current_app
 from db import db
-from db.models import Equipment, Log, DailyLogSummary, MonthlyLogSummary
+from db.models import (
+    Equipment, Log, DailyLogSummary, MonthlyLogSummary,
+    CommunicationErrorLog, AlarmHistory, PLCStatus
+)
 from datetime import datetime, timedelta, timezone
 from calendar import monthrange
 import threading
@@ -12,9 +15,11 @@ import time
 
 # データ保存期間設定
 DATA_RETENTION_CONFIG = {
-    'raw_data_days': 90,        # 詳細データ保持期間（日）
-    'daily_data_days': 365,     # 日次集計データ保持期間（日）
-    'cleanup_interval_hours': 24  # クリーンアップ実行間隔（時間）
+    'raw_data_days': 90,              # 詳細データ保持期間（日）
+    'daily_data_days': 365,           # 日次集計データ保持期間（日）
+    'error_log_days': 30,             # エラーログ保持期間（日）- Phase 2
+    'alarm_history_days': 30,         # アラーム履歴保持期間（日、解除済みのみ）- Phase 2
+    'cleanup_interval_hours': 24      # クリーンアップ実行間隔（時間）
 }
 
 
@@ -204,6 +209,111 @@ def create_monthly_summary(year, month):
         db.session.rollback()
 
 
+def cleanup_old_error_logs():
+    """古いエラーログのクリーンアップ（Phase 2）"""
+    try:
+        print(f"🧹 エラーログクリーンアップ開始: {DATA_RETENTION_CONFIG['error_log_days']}日以上古いデータを削除")
+
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=DATA_RETENTION_CONFIG['error_log_days'])
+
+        # 削除対象件数を確認
+        old_errors_count = CommunicationErrorLog.query.filter(
+            CommunicationErrorLog.occurred_at < cutoff_date
+        ).count()
+
+        if old_errors_count > 0:
+            print(f"📊 削除対象: {old_errors_count}件のエラーログ")
+
+            # バッチ削除
+            batch_size = 1000
+            total_deleted = 0
+
+            while True:
+                old_errors = CommunicationErrorLog.query.filter(
+                    CommunicationErrorLog.occurred_at < cutoff_date
+                ).limit(batch_size)
+                errors_to_delete = old_errors.all()
+
+                if not errors_to_delete:
+                    break
+
+                for error in errors_to_delete:
+                    db.session.delete(error)
+
+                db.session.commit()
+                total_deleted += len(errors_to_delete)
+                print(f"📝 削除進行中: {total_deleted}/{old_errors_count}件")
+
+                time.sleep(0.1)
+
+            print(f"✅ エラーログクリーンアップ完了: {total_deleted}件を削除しました")
+        else:
+            print("ℹ️ 削除対象のエラーログはありません")
+
+    except Exception as e:
+        print(f"❌ エラーログクリーンアップエラー: {e}")
+        db.session.rollback()
+
+
+def cleanup_old_alarm_history():
+    """古いアラーム履歴のクリーンアップ（Phase 2）
+
+    注意: 解除済み（cleared_at IS NOT NULL）のアラームのみ削除
+    未解除のアラームは保持（長期間継続する問題を見逃さないため）
+    """
+    try:
+        print(f"🧹 アラーム履歴クリーンアップ開始: {DATA_RETENTION_CONFIG['alarm_history_days']}日以上古い解除済みアラームを削除")
+
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=DATA_RETENTION_CONFIG['alarm_history_days'])
+
+        # 削除対象件数を確認（解除済みのみ）
+        old_alarms_count = AlarmHistory.query.filter(
+            AlarmHistory.occurred_at < cutoff_date,
+            AlarmHistory.cleared_at.isnot(None)  # 解除済みのみ
+        ).count()
+
+        if old_alarms_count > 0:
+            print(f"📊 削除対象: {old_alarms_count}件のアラーム履歴（解除済み）")
+
+            # バッチ削除
+            batch_size = 1000
+            total_deleted = 0
+
+            while True:
+                old_alarms = AlarmHistory.query.filter(
+                    AlarmHistory.occurred_at < cutoff_date,
+                    AlarmHistory.cleared_at.isnot(None)
+                ).limit(batch_size)
+                alarms_to_delete = old_alarms.all()
+
+                if not alarms_to_delete:
+                    break
+
+                for alarm in alarms_to_delete:
+                    db.session.delete(alarm)
+
+                db.session.commit()
+                total_deleted += len(alarms_to_delete)
+                print(f"📝 削除進行中: {total_deleted}/{old_alarms_count}件")
+
+                time.sleep(0.1)
+
+            print(f"✅ アラーム履歴クリーンアップ完了: {total_deleted}件を削除しました")
+        else:
+            print("ℹ️ 削除対象のアラーム履歴はありません")
+
+        # 未解除アラームの件数を確認（情報提供）
+        uncleared_count = AlarmHistory.query.filter(
+            AlarmHistory.cleared_at.is_(None)
+        ).count()
+        if uncleared_count > 0:
+            print(f"⚠️ 未解除アラーム: {uncleared_count}件（削除せずに保持）")
+
+    except Exception as e:
+        print(f"❌ アラーム履歴クリーンアップエラー: {e}")
+        db.session.rollback()
+
+
 def start_cleanup_scheduler(app):
     """クリーンアップスケジューラーを開始
 
@@ -230,11 +340,15 @@ def start_cleanup_scheduler(app):
                         last_month = datetime.now(timezone.utc) - timedelta(days=1)
                         create_monthly_summary(last_month.year, last_month.month)
 
-                    # 古いデータのクリーンアップ
+                    # 古いデータのクリーンアップ（既存）
                     cleanup_old_logs()
 
+                    # Phase 2: エラーログとアラーム履歴のクリーンアップ
+                    cleanup_old_error_logs()
+                    cleanup_old_alarm_history()
+
             except Exception as e:
-                print(f" スケジューラーエラー: {e}")
+                print(f"❌ スケジューラーエラー: {e}")
 
     # バックグラウンドスレッドで実行
     cleanup_thread = threading.Thread(target=cleanup_job, daemon=True)
