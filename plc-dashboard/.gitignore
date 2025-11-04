@@ -44,3 +44,5 @@ fix_*.py
 
 # Test screenshots
 scripts/*.png
+# Claude Code settings
+.claude/
