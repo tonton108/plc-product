@@ -17,15 +17,6 @@
                 color="white"
                 size="large"
                 class="ml-3 mr-3 modern-btn"
-                @click="$router.push('/dashboard')"
-              >
-                <v-icon>mdi-view-dashboard</v-icon>
-                <span class="ml-2">ダッシュボード</span>
-              </v-btn>
-              <v-btn
-                color="white"
-                size="large"
-                class="mr-3 modern-btn"
                 @click="$router.push('/errors-alarms')"
               >
                 <v-icon>mdi-alert-circle</v-icon>
@@ -185,7 +176,7 @@
                       class="modern-btn"
                       @click="goToLogs(equipment.equipment_id)"
                     >
-                      <v-icon class="mr-1">mdi-chart-line</v-icon>ログ
+                      <v-icon class="mr-1">mdi-chart-line</v-icon>履歴
                     </v-btn>
                   </template>
                   <span>履歴データ・グラフ表示</span>
@@ -256,7 +247,7 @@
                     prepend-icon="mdi-chart-line"
                     @click="goToLogs(item.equipment_id)"
                   >
-                    ログ
+                    履歴
                   </v-btn>
                 </template>
                 <span>履歴データ・グラフ表示</span>
