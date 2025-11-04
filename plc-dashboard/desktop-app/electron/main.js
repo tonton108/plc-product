@@ -1,20 +1,16 @@
-import { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage } from 'electron'
-import { spawn } from 'child_process'
-import path from 'path'
-import { fileURLToPath } from 'url'
-import axios from 'axios'
-import express from 'express'
-import fs from 'fs'
-import net from 'net'
-import { promisify } from 'util'
+const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage } = require('electron')
+const { spawn } = require('child_process')
+const path = require('path')
+const axios = require('axios')
+const express = require('express')
+const fs = require('fs')
+const net = require('net')
+const { promisify } = require('util')
 
 const execFile = promisify(spawn)
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
-// 開発環境とプロダクション環境の判定（app.isPackagedが最も確実）
-const isDev = !app.isPackaged
+// 開発環境とプロダクション環境の判定（app.whenReady()内で初期化）
+let isDev = true  // デフォルト値
 const NUXT_UI_PORT = 3000
 const NUXT_UI_URL = `http://localhost:${NUXT_UI_PORT}`  // Nuxt UIのURL
 
@@ -502,6 +498,9 @@ function createTray() {
  */
 app.whenReady().then(async () => {
   console.log('[App] アプリケーション起動中...')
+
+  // 開発環境とプロダクション環境の判定
+  isDev = !app.isPackaged
 
   try {
     // 1. ポート自動選択（PostgreSQL）
