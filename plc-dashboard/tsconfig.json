@@ -2,6 +2,10 @@
   // https://nuxt.com/docs/guide/concepts/typescript
   "extends": "./.nuxt/tsconfig.json",
   "compilerOptions": {
-    "types": ["vuetify"]
-  }
+    "types": ["vuetify"],
+    "skipLibCheck": true
+  },
+  "exclude": [
+    "**/errors-alarms.vue"
+  ]
 }

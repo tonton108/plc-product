@@ -218,7 +218,7 @@ class PLCDataSender:
 
         try:
             url = f"{self.server_url}/api/equipment/{self.equipment_id}/plc_configs"
-            response = requests.put(url, json={"plc_configs": plc_configs}, timeout=5)
+            response = requests.put(url, json=plc_configs, timeout=5)
 
             if response.status_code == 200:
                 print(f" PLC設定登録成功: {len(plc_configs)}個の設定を登録しました")

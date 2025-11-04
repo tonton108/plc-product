@@ -3,7 +3,7 @@ import { createVuetify } from 'vuetify'
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-05-15',
-  devtools: { enabled: true },
+  devtools: { enabled: false }, // 開発ツールを無効化してパフォーマンス向上
   css: [
     'vuetify/styles',
     '~/assets/styles/modern.css'
@@ -27,6 +27,22 @@ export default defineNuxtConfig({
   devServer: {
     host: '0.0.0.0', // 全ネットワークインターフェースでリッスン
     port: 3000
+  },
+
+  // Viteの最適化設定（開発環境のパフォーマンス向上）
+  vite: {
+    optimizeDeps: {
+      include: ['vuetify', 'socket.io-client']
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vuetify': ['vuetify']
+          }
+        }
+      }
+    }
   },
 
   // 環境変数設定
