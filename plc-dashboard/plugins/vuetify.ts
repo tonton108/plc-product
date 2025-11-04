@@ -47,6 +47,11 @@ export default defineNuxtPlugin((nuxtApp) => {
     icons: {
       defaultSet: 'mdi',
     },
+    defaults: {
+      VTooltip: {
+        color: 'grey-darken-3',
+      },
+    },
   })
 
   nuxtApp.vueApp.use(vuetify)

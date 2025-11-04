@@ -150,6 +150,12 @@ export const useChartManagement = (options = {}) => {
       chartInstances.forEach((chartInstance, chartId) => {
         const value = newData[chartId]
         if (value !== null && value !== undefined) {
+          // Chart.jsインスタンスとDOM要素の存在確認
+          if (!chartInstance || !chartInstance.canvas || !chartInstance.canvas.ownerDocument) {
+            console.warn(`⚠️ チャートがDOMから削除されています: ${chartId}`)
+            return
+          }
+
           // Chart.jsの内部データを直接操作（toRaw不要、ネイティブ配列を使用）
           const labels = chartInstance.data.labels
           const dataArray = chartInstance.data.datasets[0].data

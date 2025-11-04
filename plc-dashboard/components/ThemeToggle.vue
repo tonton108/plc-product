@@ -1,14 +1,16 @@
 <template>
-  <v-tooltip :text="isDark ? 'ライトモードに切り替え' : 'ダークモードに切り替え'" location="bottom">
+  <v-tooltip location="bottom" content-class="tooltip-custom">
     <template #activator="{ props }">
       <v-btn
         v-bind="props"
         :icon="isDark ? 'mdi-white-balance-sunny' : 'mdi-weather-night'"
         @click="toggleTheme"
+        :disabled="isTransitioning"
         variant="text"
         size="large"
       ></v-btn>
     </template>
+    <span>{{ isDark ? 'ライトモードに切り替え' : 'ダークモードに切り替え' }}</span>
   </v-tooltip>
 </template>
 
@@ -18,6 +20,7 @@ import { useTheme } from 'vuetify'
 
 const theme = useTheme()
 const isDark = ref(false)
+const isTransitioning = ref(false)
 
 // ローカルストレージからテーマ設定を読み込み
 onMounted(() => {
@@ -31,11 +34,20 @@ onMounted(() => {
 })
 
 const toggleTheme = () => {
+  // トランジション中は処理をスキップ
+  if (isTransitioning.value) return
+
+  isTransitioning.value = true
   isDark.value = !isDark.value
   const newTheme = isDark.value ? 'dark' : 'light'
   theme.global.name.value = newTheme
 
   // ローカルストレージに保存
   localStorage.setItem('theme', newTheme)
+
+  // トランジション時間（400ms）後に再度クリック可能にする
+  setTimeout(() => {
+    isTransitioning.value = false
+  }, 400)
 }
 </script>

@@ -55,9 +55,41 @@ body {
   text-transform: none !important;
   font-weight: 600 !important;
   letter-spacing: 0.5px !important;
-  padding: 12px 24px !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* 小サイズボタンの位置調整 */
+.modern-btn.v-btn--size-small,
+.modern-btn.v-btn--size-x-small {
+  line-height: 1 !important;
+}
+
+/* デフォルトサイズのパディング */
+.modern-btn:not(.v-btn--size-small):not(.v-btn--size-x-small):not(.v-btn--size-large):not(.v-btn--size-x-large) {
+  padding: 12px 24px !important;
+}
+
+/* ボタン内部の配置を確実に中央揃え */
+.modern-btn .v-btn__prepend {
+  display: flex !important;
+  align-items: center !important;
+}
+
+.modern-btn .v-btn__content {
+  display: inline-flex !important;
+  align-items: center !important;
+  line-height: 1 !important;
+}
+
+.modern-btn .v-btn__content span {
+  line-height: 1 !important;
+  vertical-align: middle !important;
+}
+
+.modern-btn .v-btn__append {
+  display: flex !important;
+  align-items: center !important;
 }
 
 .modern-btn:hover {
