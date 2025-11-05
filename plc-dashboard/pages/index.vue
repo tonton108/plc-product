@@ -26,15 +26,6 @@
                 color="white"
                 size="large"
                 class="mr-3 modern-btn"
-                @click="$router.push('/errors-alarms')"
-              >
-                <v-icon>mdi-alert-circle</v-icon>
-                <span class="ml-2">エラー・アラーム</span>
-              </v-btn>
-              <v-btn
-                color="white"
-                size="large"
-                class="mr-3 modern-btn"
                 :loading="loading"
                 @click="fetchEquipment"
               >

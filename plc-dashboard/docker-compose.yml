@@ -40,21 +40,20 @@ services:
 
   # Nuxt.jsフロントエンド
   frontend:
-    image: node:20-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
     container_name: plc-frontend
-    working_dir: /app
     environment:
       NODE_ENV: development
+      # ブラウザからアクセスするのでlocalhostを使用
+      NUXT_PUBLIC_API_BASE: http://localhost:5000
     ports:
       - "3000:3000"
-    volumes:
-      - .:/app
-      - /app/node_modules
     depends_on:
       - backend
     networks:
       - plc-network
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     restart: unless-stopped
 
   # Raspberry Piエージェント（開発環境用）

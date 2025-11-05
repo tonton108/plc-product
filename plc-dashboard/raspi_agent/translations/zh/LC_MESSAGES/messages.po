@@ -1,0 +1,117 @@
+# Chinese (Simplified) translations for Raspberry Pi PLC Agent
+# Copyright (C) 2025
+# This file is distributed under the same license as the project.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-11-05 15:00+0900\n"
+"PO-Revision-Date: 2025-11-05 15:00+0900\n"
+"Last-Translator: \n"
+"Language: zh_CN\n"
+"Language-Team: zh_CN <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Manual\n"
+
+# Login page
+msgid "PLC Monitoring System"
+msgstr "PLC监控系统"
+
+msgid "Authentication Required"
+msgstr "需要身份验证"
+
+msgid "Error:"
+msgstr "错误:"
+
+msgid "Username:"
+msgstr "用户名:"
+
+msgid "Password:"
+msgstr "密码:"
+
+msgid "Enter password"
+msgstr "输入密码"
+
+msgid "Login"
+msgstr "登录"
+
+msgid "Raspberry Pi PLC UI"
+msgstr "Raspberry Pi PLC UI"
+
+msgid "Manufacturing Line Monitoring System"
+msgstr "生产线监控系统"
+
+msgid "Authentication failed"
+msgstr "身份验证失败"
+
+# Monitoring page
+msgid "Monitoring"
+msgstr "监控"
+
+msgid "Equipment ID:"
+msgstr "设备ID:"
+
+msgid "PLC Manufacturer:"
+msgstr "PLC制造商:"
+
+msgid "PLC Connection:"
+msgstr "PLC连接:"
+
+msgid "Central Server:"
+msgstr "中央服务器:"
+
+msgid "Cycle Time:"
+msgstr "周期时间:"
+
+msgid "Status:"
+msgstr "状态:"
+
+msgid "Not Connected"
+msgstr "未连接"
+
+msgid "Connection Test"
+msgstr "连接测试"
+
+msgid "Settings"
+msgstr "设置"
+
+msgid "Basic Settings"
+msgstr "基本设置"
+
+msgid "Series:"
+msgstr "系列:"
+
+msgid "PLC IP Address:"
+msgstr "PLC IP地址:"
+
+msgid "PLC Port:"
+msgstr "PLC端口:"
+
+msgid "Central Server IP:"
+msgstr "中央服务器IP:"
+
+msgid "Central Server Port:"
+msgstr "中央服务器端口:"
+
+msgid "Interval (ms):"
+msgstr "获取间隔 (ms):"
+
+msgid "Modbus Port:"
+msgstr "Modbus端口:"
+
+msgid "PLC Data Item Settings"
+msgstr "PLC数据项设置"
+
+msgid "Add Item"
+msgstr "添加项目"
+
+# Initial setup page
+msgid "Initial Setup"
+msgstr "初始设置"
+
+msgid "Success:"
+msgstr "成功:"

@@ -1,0 +1,129 @@
+{
+  "common": {
+    "back": "Back",
+    "refresh": "Refresh",
+    "logout": "Logout",
+    "download": "Download",
+    "loading": "Loading...",
+    "noData": "No data available",
+    "status": "Status",
+    "actions": "Actions"
+  },
+  "nav": {
+    "errorsAlarms": "Errors & Alarms"
+  },
+  "viewMode": {
+    "card": "Card",
+    "list": "List"
+  },
+  "home": {
+    "title": "PLC Real-time Monitoring",
+    "subtitle": "Select the equipment you want to monitor from the list",
+    "loadingEquipment": "Loading equipment data...",
+    "noEquipment": "No equipment registered.",
+    "equipmentUpdated": "Equipment data updated ({count} items)",
+    "equipmentFetchError": "Failed to fetch equipment data",
+    "loggedOut": "Logged out successfully"
+  },
+  "equipment": {
+    "id": "Equipment ID",
+    "status": "Status",
+    "manufacturer": "Manufacturer / Series",
+    "raspberryPiIp": "Raspberry Pi IP",
+    "plcIp": "PLC IP",
+    "port": "Port",
+    "interval": "Update Interval",
+    "intervalValue": "{value}s",
+    "monitoring": "Monitor",
+    "history": "History",
+    "monitoringTooltip": "Real-time Monitoring",
+    "historyTooltip": "Historical Data & Graph"
+  },
+  "equipmentDetail": {
+    "logGraph": "Log Graph for {name} ({manufacturer})",
+    "tabs": {
+      "graph": "Graph",
+      "table": "Table",
+      "errorsAlarms": "Errors & Alarms"
+    },
+    "timestamp": "Timestamp",
+    "csvDownload": "Download CSV",
+    "csvDownloaded": "CSV file downloaded ({count} records)",
+    "csvDownloadError": "Failed to download CSV",
+    "noExportData": "No data to export"
+  },
+  "plcStatus": {
+    "title": "PLC Communication Status",
+    "online": "Online",
+    "offline": "Offline",
+    "consecutiveErrors": "Consecutive Errors",
+    "consecutiveErrorsValue": "{count} times",
+    "lastCommunication": "Last Communication",
+    "notConnected": "Not Connected",
+    "lastError": "Last Error: {error}"
+  },
+  "alarms": {
+    "title": "Alarm History",
+    "count": "{count} items",
+    "code": "Alarm Code",
+    "level": "Level",
+    "message": "Message",
+    "occurredAt": "Occurred At",
+    "state": "State",
+    "acknowledged": "Acknowledged",
+    "cleared": "Cleared",
+    "notCleared": "Not Cleared",
+    "acknowledge": "Acknowledge",
+    "clear": "Clear",
+    "acknowledgeSuccess": "Alarm acknowledged successfully",
+    "acknowledgeFailed": "Failed to acknowledge alarm",
+    "clearSuccess": "Alarm cleared successfully",
+    "clearFailed": "Failed to clear alarm"
+  },
+  "errorLogs": {
+    "title": "Error Logs",
+    "count": "{count} items",
+    "type": "Error Type",
+    "message": "Error Message",
+    "plcIp": "PLC IP",
+    "protocol": "Protocol",
+    "retryCount": "Retry Count",
+    "occurredAt": "Occurred At",
+    "state": "State",
+    "resolved": "Resolved",
+    "notResolved": "Not Resolved",
+    "resolve": "Resolve",
+    "resolveSuccess": "Error log resolved successfully",
+    "resolveFailed": "Failed to resolve error log"
+  },
+  "chart": {
+    "title": "PLC Data Log",
+    "noData": "No data available"
+  },
+  "login": {
+    "title": "PLC Monitoring System",
+    "subtitle": "Real-time Monitoring Platform",
+    "username": "Username",
+    "password": "Password",
+    "loginButton": "Login",
+    "defaultUsers": "Default Users",
+    "admin": "Administrator",
+    "operator": "Operator",
+    "intranetInfo": "Intranet-only system - Accessible only from factory LAN",
+    "error": "Login failed",
+    "required": "This field is required"
+  },
+  "errorsAlarmsPage": {
+    "title": "Error Logs & Alarm History",
+    "subtitle": "Check PLC communication errors and alarm history",
+    "selectEquipment": "Select Equipment",
+    "noEquipmentSelected": "Please select equipment"
+  },
+  "monitoring": {
+    "title": "Real-time Monitoring",
+    "dataHistory": "Latest Data Log",
+    "exportCsv": "Export CSV",
+    "debugMode": "Debug Mode"
+  }
+}
+

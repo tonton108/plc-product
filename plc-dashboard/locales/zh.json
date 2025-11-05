@@ -1,0 +1,129 @@
+{
+  "common": {
+    "back": "返回",
+    "refresh": "刷新",
+    "logout": "登出",
+    "download": "下载",
+    "loading": "加载中...",
+    "noData": "无数据",
+    "status": "状态",
+    "actions": "操作"
+  },
+  "nav": {
+    "errorsAlarms": "错误与报警"
+  },
+  "viewMode": {
+    "card": "卡片",
+    "list": "列表"
+  },
+  "home": {
+    "title": "PLC 实时监控",
+    "subtitle": "从设备列表中选择要监控的设备",
+    "loadingEquipment": "加载设备数据中...",
+    "noEquipment": "没有已注册的设备。",
+    "equipmentUpdated": "设备数据已更新（{count}项）",
+    "equipmentFetchError": "获取设备数据失败",
+    "loggedOut": "已成功登出"
+  },
+  "equipment": {
+    "id": "设备ID",
+    "status": "状态",
+    "manufacturer": "制造商 / 系列",
+    "raspberryPiIp": "树莓派IP",
+    "plcIp": "PLC IP",
+    "port": "端口",
+    "interval": "更新间隔",
+    "intervalValue": "{value}秒",
+    "monitoring": "监视",
+    "history": "历史",
+    "monitoringTooltip": "实时监控",
+    "historyTooltip": "历史数据与图表"
+  },
+  "equipmentDetail": {
+    "logGraph": "{name}（{manufacturer}）的日志图表",
+    "tabs": {
+      "graph": "图表",
+      "table": "表格",
+      "errorsAlarms": "错误与报警"
+    },
+    "timestamp": "时间戳",
+    "csvDownload": "下载CSV",
+    "csvDownloaded": "已下载CSV文件（{count}条记录）",
+    "csvDownloadError": "CSV下载失败",
+    "noExportData": "没有可导出的数据"
+  },
+  "plcStatus": {
+    "title": "PLC通信状态",
+    "online": "在线",
+    "offline": "离线",
+    "consecutiveErrors": "连续错误次数",
+    "consecutiveErrorsValue": "{count} 次",
+    "lastCommunication": "最后通信",
+    "notConnected": "未连接",
+    "lastError": "最后错误：{error}"
+  },
+  "alarms": {
+    "title": "报警历史",
+    "count": "{count} 项",
+    "code": "报警代码",
+    "level": "级别",
+    "message": "消息",
+    "occurredAt": "发生时间",
+    "state": "状态",
+    "acknowledged": "已确认",
+    "cleared": "已清除",
+    "notCleared": "未清除",
+    "acknowledge": "确认",
+    "clear": "清除",
+    "acknowledgeSuccess": "已成功确认报警",
+    "acknowledgeFailed": "确认报警失败",
+    "clearSuccess": "已成功清除报警",
+    "clearFailed": "清除报警失败"
+  },
+  "errorLogs": {
+    "title": "错误日志",
+    "count": "{count} 项",
+    "type": "错误类型",
+    "message": "错误消息",
+    "plcIp": "PLC IP",
+    "protocol": "协议",
+    "retryCount": "重试次数",
+    "occurredAt": "发生时间",
+    "state": "状态",
+    "resolved": "已解决",
+    "notResolved": "未解决",
+    "resolve": "解决",
+    "resolveSuccess": "已成功解决错误日志",
+    "resolveFailed": "解决错误日志失败"
+  },
+  "chart": {
+    "title": "PLC数据日志",
+    "noData": "无数据"
+  },
+  "login": {
+    "title": "PLC监控系统",
+    "subtitle": "实时监控平台",
+    "username": "用户名",
+    "password": "密码",
+    "loginButton": "登录",
+    "defaultUsers": "默认用户",
+    "admin": "管理员",
+    "operator": "操作员",
+    "intranetInfo": "内网专用系统 - 仅限从工厂局域网访问",
+    "error": "登录失败",
+    "required": "此项为必填项"
+  },
+  "errorsAlarmsPage": {
+    "title": "错误日志与报警历史",
+    "subtitle": "查看PLC通信错误和报警历史",
+    "selectEquipment": "选择设备",
+    "noEquipmentSelected": "请选择设备"
+  },
+  "monitoring": {
+    "title": "实时监控",
+    "dataHistory": "最新数据日志",
+    "exportCsv": "导出CSV",
+    "debugMode": "调试模式"
+  }
+}
+

@@ -1,0 +1,117 @@
+# Japanese translations for Raspberry Pi PLC Agent
+# Copyright (C) 2025
+# This file is distributed under the same license as the project.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-11-05 15:00+0900\n"
+"PO-Revision-Date: 2025-11-05 15:00+0900\n"
+"Last-Translator: \n"
+"Language: ja\n"
+"Language-Team: ja <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Manual\n"
+
+# Login page
+msgid "PLC Monitoring System"
+msgstr "PLC監視システム"
+
+msgid "Authentication Required"
+msgstr "認証が必要です"
+
+msgid "Error:"
+msgstr "エラー:"
+
+msgid "Username:"
+msgstr "ユーザー名:"
+
+msgid "Password:"
+msgstr "パスワード:"
+
+msgid "Enter password"
+msgstr "パスワードを入力"
+
+msgid "Login"
+msgstr "ログイン"
+
+msgid "Raspberry Pi PLC UI"
+msgstr "Raspberry Pi PLC UI"
+
+msgid "Manufacturing Line Monitoring System"
+msgstr "製造ライン監視システム"
+
+msgid "Authentication failed"
+msgstr "認証に失敗しました"
+
+# Monitoring page
+msgid "Monitoring"
+msgstr "モニタリング"
+
+msgid "Equipment ID:"
+msgstr "設備ID:"
+
+msgid "PLC Manufacturer:"
+msgstr "PLCメーカー:"
+
+msgid "PLC Connection:"
+msgstr "PLC接続先:"
+
+msgid "Central Server:"
+msgstr "中央サーバー:"
+
+msgid "Cycle Time:"
+msgstr "サイクルタイム:"
+
+msgid "Status:"
+msgstr "状態:"
+
+msgid "Not Connected"
+msgstr "未接続"
+
+msgid "Connection Test"
+msgstr "接続テスト"
+
+msgid "Settings"
+msgstr "設定変更"
+
+msgid "Basic Settings"
+msgstr "基本設定"
+
+msgid "Series:"
+msgstr "シリーズ:"
+
+msgid "PLC IP Address:"
+msgstr "PLC IPアドレス:"
+
+msgid "PLC Port:"
+msgstr "PLCポート:"
+
+msgid "Central Server IP:"
+msgstr "中央サーバーIP:"
+
+msgid "Central Server Port:"
+msgstr "中央サーバーポート:"
+
+msgid "Interval (ms):"
+msgstr "取得間隔 (ms):"
+
+msgid "Modbus Port:"
+msgstr "Modbusポート:"
+
+msgid "PLC Data Item Settings"
+msgstr "PLCデータ項目設定"
+
+msgid "Add Item"
+msgstr "項目を追加"
+
+# Initial setup page
+msgid "Initial Setup"
+msgstr "初期設定"
+
+msgid "Success:"
+msgstr "成功:"

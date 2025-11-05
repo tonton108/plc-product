@@ -1,5 +1,6 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, session
+from flask import Flask, render_template, request, redirect, url_for, jsonify, session, make_response
 from flask_socketio import SocketIO
+from flask_babel import Babel, gettext as _
 import os
 import json
 import socket
@@ -72,6 +73,27 @@ app.config['SESSION_COOKIE_SECURE'] = os.getenv("HTTPS_ENABLED", "false").lower(
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
+# Babel（多言語対応）設定
+app.config['BABEL_DEFAULT_LOCALE'] = 'ja'
+app.config['BABEL_TRANSLATION_DIRECTORIES'] = 'translations'
+app.config['LANGUAGES'] = {
+    'ja': '日本語',
+    'en': 'English',
+    'zh': '中文'
+}
+babel = Babel(app)
+
+def get_locale():
+    """現在の言語を取得（クッキー > ブラウザ設定）"""
+    # クッキーから言語を取得
+    lang = request.cookies.get('lang')
+    if lang in app.config['LANGUAGES']:
+        return lang
+    # ブラウザの言語設定から最適な言語を選択
+    return request.accept_languages.best_match(app.config['LANGUAGES'].keys()) or 'ja'
+
+babel.init_app(app, locale_selector=get_locale)
+
 # SocketIO初期化
 socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True)
 
@@ -127,6 +149,15 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for('login'))
+
+@app.route("/change_language/<lang>")
+def change_language(lang):
+    """言語を切り替え"""
+    if lang in app.config['LANGUAGES']:
+        response = make_response(redirect(request.referrer or url_for('index')))
+        response.set_cookie('lang', lang, max_age=60*60*24*365)  # 1年間有効
+        return response
+    return redirect(request.referrer or url_for('index'))
 
 class Config:
     def __init__(self):

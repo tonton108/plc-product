@@ -8,13 +8,14 @@
             <v-col>
               <v-card-title class="text-h3 mb-2">
                 <v-icon size="x-large" class="mr-4">mdi-alert-circle</v-icon>
-                エラーログ・アラーム履歴
+                {{ $t('errorsAlarmsPage.title') }}
               </v-card-title>
               <v-card-subtitle class="text-subtitle-1">
-                PLC通信エラーとアラームの履歴を確認
+                {{ $t('errorsAlarmsPage.subtitle') }}
               </v-card-subtitle>
             </v-col>
             <v-col cols="auto">
+              <LanguageSwitch />
               <ThemeToggle />
               <v-btn
                 color="white"
@@ -24,7 +25,7 @@
                 @click="loadData"
               >
                 <v-icon>mdi-refresh</v-icon>
-                <span class="ml-2">更新</span>
+                <span class="ml-2">{{ $t('common.refresh') }}</span>
               </v-btn>
               <v-btn
                 color="white"
@@ -32,7 +33,7 @@
                 @click="$router.push('/')"
               >
                 <v-icon>mdi-arrow-left</v-icon>
-                <span class="ml-2">戻る</span>
+                <span class="ml-2">{{ $t('common.back') }}</span>
               </v-btn>
             </v-col>
           </v-row>
@@ -48,7 +49,7 @@
           :items="equipmentList"
           item-title="equipment_id"
           item-value="equipment_id"
-          label="設備を選択"
+          :label="$t('errorsAlarmsPage.selectEquipment')"
           variant="outlined"
           prepend-icon="mdi-factory"
           @update:model-value="loadData"
@@ -62,12 +63,12 @@
         <v-col cols="12" md="4">
           <v-card :color="plcStatus.is_online ? 'success' : 'error'" dark elevation="4">
             <v-card-text>
-              <div class="text-h6">PLC通信状態</div>
+              <div class="text-h6">{{ $t('plcStatus.title') }}</div>
               <div class="text-h3 mt-2">
                 <v-icon size="x-large" class="mr-2">
                   {{ plcStatus.is_online ? 'mdi-check-circle' : 'mdi-alert-circle' }}
                 </v-icon>
-                {{ plcStatus.is_online ? 'オンライン' : 'オフライン' }}
+                {{ plcStatus.is_online ? $t('plcStatus.online') : $t('plcStatus.offline') }}
               </div>
             </v-card-text>
           </v-card>
@@ -75,20 +76,20 @@
         <v-col cols="12" md="4">
           <v-card color="warning" dark elevation="4">
             <v-card-text>
-              <div class="text-h6">連続エラー回数</div>
-              <div class="text-h3 mt-2">{{ plcStatus.consecutive_errors || 0 }} 回</div>
+              <div class="text-h6">{{ $t('plcStatus.consecutiveErrors') }}</div>
+              <div class="text-h3 mt-2">{{ $t('plcStatus.consecutiveErrorsValue', { count: plcStatus.consecutive_errors || 0 }) }}</div>
             </v-card-text>
           </v-card>
         </v-col>
         <v-col cols="12" md="4">
           <v-card color="info" dark elevation="4">
             <v-card-text>
-              <div class="text-h6">最終通信</div>
+              <div class="text-h6">{{ $t('plcStatus.lastCommunication') }}</div>
               <div class="text-body-1 mt-2">
-                {{ formatDateTime(plcStatus.last_communication_at) || '未接続' }}
+                {{ formatDateTime(plcStatus.last_communication_at) || $t('plcStatus.notConnected') }}
               </div>
               <div v-if="plcStatus.last_error_type" class="text-body-2 mt-1">
-                最終エラー: {{ plcStatus.last_error_type }}
+                {{ $t('plcStatus.lastError', { error: plcStatus.last_error_type }) }}
               </div>
             </v-card-text>
           </v-card>
@@ -101,10 +102,10 @@
           <v-card elevation="6">
             <v-card-title class="bg-error text-white">
               <v-icon class="mr-2">mdi-alarm-light</v-icon>
-              アラーム履歴
+              {{ $t('alarms.title') }}
               <v-spacer></v-spacer>
               <v-chip color="white" variant="outlined" size="small">
-                {{ alarms.length }} 件
+                {{ $t('alarms.count', { count: alarms.length }) }}
               </v-chip>
             </v-card-title>
             <v-card-text>
@@ -134,7 +135,7 @@
                     size="small"
                     variant="outlined"
                   >
-                    解除済み
+                    {{ $t('alarms.cleared') }}
                   </v-chip>
                   <v-chip
                     v-else
@@ -142,7 +143,7 @@
                     size="small"
                     variant="flat"
                   >
-                    未解除
+                    {{ $t('alarms.notCleared') }}
                   </v-chip>
                 </template>
                 <template v-slot:item.acknowledged="{ item }">
@@ -161,7 +162,7 @@
                     @click="acknowledgeAlarm(item.id)"
                     class="mr-2"
                   >
-                    確認
+                    {{ $t('alarms.acknowledge') }}
                   </v-btn>
                   <v-btn
                     v-if="!item.cleared_at"
@@ -169,7 +170,7 @@
                     size="small"
                     @click="clearAlarm(item.id)"
                   >
-                    解除
+                    {{ $t('alarms.clear') }}
                   </v-btn>
                 </template>
               </v-data-table>
@@ -184,10 +185,10 @@
           <v-card elevation="6">
             <v-card-title class="bg-warning text-white">
               <v-icon class="mr-2">mdi-alert</v-icon>
-              エラーログ
+              {{ $t('errorLogs.title') }}
               <v-spacer></v-spacer>
               <v-chip color="white" variant="outlined" size="small">
-                {{ errorLogs.length }} 件
+                {{ $t('errorLogs.count', { count: errorLogs.length }) }}
               </v-chip>
             </v-card-title>
             <v-card-text>
@@ -217,7 +218,7 @@
                     size="small"
                     variant="outlined"
                   >
-                    解決済み
+                    {{ $t('errorLogs.resolved') }}
                   </v-chip>
                   <v-chip
                     v-else
@@ -225,7 +226,7 @@
                     size="small"
                     variant="flat"
                   >
-                    未解決
+                    {{ $t('errorLogs.notResolved') }}
                   </v-chip>
                 </template>
                 <template v-slot:item.retry_count="{ item }">
@@ -238,7 +239,7 @@
                     size="small"
                     @click="resolveErrorLog(item.id)"
                   >
-                    解決
+                    {{ $t('errorLogs.resolve') }}
                   </v-btn>
                 </template>
               </v-data-table>
@@ -253,7 +254,7 @@
       <v-col cols="12">
         <v-card elevation="4" class="pa-12 text-center">
           <v-icon size="x-large" color="grey">mdi-information-outline</v-icon>
-          <div class="text-h5 mt-4">設備を選択してください</div>
+          <div class="text-h5 mt-4">{{ $t('errorsAlarmsPage.noEquipmentSelected') }}</div>
         </v-card>
       </v-col>
     </v-row>
@@ -261,10 +262,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const { t } = useI18n()
+const { formatDateTime } = useDateTime()
 const loading = ref(false)
 const equipmentList = ref([])
 const selectedEquipmentId = ref(null)
@@ -273,27 +276,27 @@ const alarms = ref([])
 const errorLogs = ref([])
 
 // アラーム履歴のヘッダー
-const alarmHeaders = [
-  { title: 'アラームコード', key: 'alarm_code', sortable: true },
-  { title: 'レベル', key: 'alarm_level', sortable: true },
-  { title: 'メッセージ', key: 'alarm_message', sortable: false },
-  { title: '発生日時', key: 'occurred_at', sortable: true },
-  { title: '状態', key: 'cleared_at', sortable: true },
-  { title: '確認', key: 'acknowledged', sortable: true },
-  { title: 'アクション', key: 'actions', sortable: false },
-]
+const alarmHeaders = computed(() => [
+  { title: t('alarms.code'), key: 'alarm_code', sortable: true },
+  { title: t('alarms.level'), key: 'alarm_level', sortable: true },
+  { title: t('alarms.message'), key: 'alarm_message', sortable: false },
+  { title: t('alarms.occurredAt'), key: 'occurred_at', sortable: true },
+  { title: t('alarms.state'), key: 'cleared_at', sortable: true },
+  { title: t('alarms.acknowledged'), key: 'acknowledged', sortable: true },
+  { title: t('common.actions'), key: 'actions', sortable: false },
+])
 
 // エラーログのヘッダー
-const errorLogHeaders = [
-  { title: 'エラー種別', key: 'error_type', sortable: true },
-  { title: 'エラーメッセージ', key: 'error_message', sortable: false },
-  { title: 'PLC IP', key: 'plc_ip', sortable: false },
-  { title: 'プロトコル', key: 'protocol', sortable: false },
-  { title: 'リトライ回数', key: 'retry_count', sortable: true },
-  { title: '発生日時', key: 'occurred_at', sortable: true },
-  { title: '状態', key: 'resolved_at', sortable: true },
-  { title: 'アクション', key: 'actions', sortable: false },
-]
+const errorLogHeaders = computed(() => [
+  { title: t('errorLogs.type'), key: 'error_type', sortable: true },
+  { title: t('errorLogs.message'), key: 'error_message', sortable: false },
+  { title: t('errorLogs.plcIp'), key: 'plc_ip', sortable: false },
+  { title: t('errorLogs.protocol'), key: 'protocol', sortable: false },
+  { title: t('errorLogs.retryCount'), key: 'retry_count', sortable: true },
+  { title: t('errorLogs.occurredAt'), key: 'occurred_at', sortable: true },
+  { title: t('errorLogs.state'), key: 'resolved_at', sortable: true },
+  { title: t('common.actions'), key: 'actions', sortable: false },
+])
 
 // 設備リストを取得
 const loadEquipmentList = async () => {
@@ -333,20 +336,6 @@ const loadData = async () => {
   } finally {
     loading.value = false
   }
-}
-
-// 日時フォーマット
-const formatDateTime = (dateString) => {
-  if (!dateString) return '-'
-  const date = new Date(dateString)
-  return date.toLocaleString('ja-JP', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  })
 }
 
 // アラームレベルの色

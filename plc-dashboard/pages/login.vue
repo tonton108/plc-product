@@ -4,10 +4,13 @@
       <v-container fill-height class="fade-in">
         <v-row align="center" justify="center">
           <v-col cols="12" sm="8" md="5" lg="4">
+            <div class="text-center mb-2">
+              <LanguageSwitch />
+            </div>
             <div class="text-center mb-8">
               <v-icon size="80" color="white" class="mb-4">mdi-factory</v-icon>
-              <h1 class="text-h3 gradient-text font-weight-bold mb-2">PLC監視システム</h1>
-              <p class="text-subtitle-1 text-white">リアルタイムモニタリングプラットフォーム</p>
+              <h1 class="text-h3 gradient-text font-weight-bold mb-2">{{ $t('login.title') }}</h1>
+              <p class="text-subtitle-1 text-white">{{ $t('login.subtitle') }}</p>
             </div>
 
             <v-card class="glass-card pa-8">
@@ -15,7 +18,7 @@
                 <v-form @submit.prevent="login">
                   <v-text-field
                     v-model="username"
-                    label="ユーザー名"
+                    :label="$t('login.username')"
                     prepend-inner-icon="mdi-account"
                     variant="outlined"
                     :rules="[rules.required]"
@@ -26,7 +29,7 @@
 
                   <v-text-field
                     v-model="password"
-                    label="パスワード"
+                    :label="$t('login.password')"
                     prepend-inner-icon="mdi-lock"
                     type="password"
                     variant="outlined"
@@ -56,7 +59,7 @@
                     class="modern-btn text-h6 py-6"
                   >
                     <v-icon class="mr-2">mdi-login</v-icon>
-                    ログイン
+                    {{ $t('login.loginButton') }}
                   </v-btn>
                 </v-form>
 
@@ -65,10 +68,10 @@
                 <div class="text-center text-caption">
                   <v-chip size="small" variant="text" class="mb-2">
                     <v-icon size="small" class="mr-1">mdi-account-circle</v-icon>
-                    デフォルトユーザー
+                    {{ $t('login.defaultUsers') }}
                   </v-chip>
-                  <div class="text-body-2 mb-1"><strong>管理者:</strong> admin / plc-monitor-2025</div>
-                  <div class="text-body-2"><strong>オペレーター:</strong> operator / operator-2025</div>
+                  <div class="text-body-2 mb-1"><strong>{{ $t('login.admin') }}:</strong> admin / plc-monitor-2025</div>
+                  <div class="text-body-2"><strong>{{ $t('login.operator') }}:</strong> operator / operator-2025</div>
                 </div>
               </v-card-text>
             </v-card>
@@ -80,7 +83,7 @@
               rounded="lg"
             >
               <v-icon class="mr-2">mdi-information-outline</v-icon>
-              イントラネット専用システム - 工場内LANからのみアクセス可能
+              {{ $t('login.intranetInfo') }}
             </v-alert>
           </v-col>
         </v-row>
@@ -94,6 +97,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const { t } = useI18n()
 
 const username = ref('')
 const password = ref('')
@@ -101,7 +105,7 @@ const errorMessage = ref('')
 const loading = ref(false)
 
 const rules = {
-  required: (value: string) => !!value || '必須項目です'
+  required: (value: string) => !!value || t('login.required')
 }
 
 // デフォルトユーザー（開発・テスト用）
@@ -114,7 +118,7 @@ const DEFAULT_USERS = [
 const login = async () => {
   // バリデーション
   if (!username.value || !password.value) {
-    errorMessage.value = 'ユーザー名とパスワードを入力してください'
+    errorMessage.value = t('login.error')
     return
   }
 
@@ -139,7 +143,7 @@ const login = async () => {
     // ダッシュボードにリダイレクト
     router.push('/')
   } else {
-    errorMessage.value = 'ユーザー名またはパスワードが正しくありません'
+    errorMessage.value = t('login.error')
   }
 
   loading.value = false

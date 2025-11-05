@@ -8,14 +8,11 @@ COPY package*.json ./
 # 依存関係をインストール
 RUN npm install
 
-# アプリケーションコードをコピー
+# アプリケーションのソースをコピー
 COPY . .
 
-# Nuxt.jsの準備
-RUN npm run postinstall || true
-
-# ポート公開
+# ポート3000を公開
 EXPOSE 3000
 
-# 開発サーバー起動（デフォルト）
-CMD ["npm", "run", "dev"]
+# 開発サーバーを起動
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

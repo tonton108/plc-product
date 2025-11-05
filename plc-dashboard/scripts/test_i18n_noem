@@ -1,0 +1,214 @@
+sed: can't read oji.py: No such file or directory
+#!/usr/bin/env python3
+"""
+多言語対応（i18n）のPlaywrightテスト
+
+テスト内容：
+1. ログイン画面で言語切り替えボタンが表示されるか
+2. 日本語・英語・中国語の切り替えが正常に動作するか
+3. 翻訳が各ページで正しく適用されているか
+"""
+
+import sys
+import time
+from playwright.sync_api import sync_playwright, expect
+
+def test_i18n(base_url="http://localhost:3000"):
+    """多言語対応のテスト"""
+
+    with sync_playwright() as p:
+        print("🚀 Playwrightブラウザを起動中...")
+        browser = p.chromium.launch(headless=False, slow_mo=500)
+        context = browser.new_context(viewport={"width": 1920, "height": 1080})
+        page = context.new_page()
+
+        try:
+            # 1. ログイン画面にアクセス
+            print("\n📄 ログイン画面にアクセス中...")
+            page.goto(f"{base_url}/login", wait_until="networkidle", timeout=30000)
+            page.wait_for_timeout(2000)
+
+            # 2. デフォルト言語（日本語）を確認
+            print("\n🇯🇵 デフォルト言語（日本語）を確認中...")
+            expect(page.locator("text=PLC監控系統")).to_be_visible(timeout=5000) or \
+            expect(page.locator("text=PLCモニタリングシステム")).to_be_visible(timeout=5000) or \
+            expect(page.locator("text=PLC監視システム")).to_be_visible(timeout=5000)
+            print("[OK] 日本語タイトルが表示されています")
+
+            # 言語切り替えボタンを探す
+            print("\n🔍 言語切り替えボタンを探しています...")
+
+            # パターン1: 日本語が表示されているボタン
+            lang_button = page.locator('button:has-text("日本語")').first
+            if not lang_button.is_visible():
+                # パターン2: translate アイコンを持つボタン
+                lang_button = page.locator('button:has(i.mdi-translate)').first
+
+            if not lang_button.is_visible():
+                print("[WARN]  言語切り替えボタンが見つかりません")
+                print("📸 スクリーンショットを保存します...")
+                page.screenshot(path="test_i18n_no_button.png")
+                return False
+
+            print("[OK] 言語切り替えボタンが見つかりました")
+
+            # 3. 英語に切り替え
+            print("\n🇬🇧 英語に切り替え中...")
+            lang_button.click()
+            page.wait_for_timeout(500)
+
+            # 英語オプションをクリック
+            english_option = page.locator('text=English').first
+            if english_option.is_visible():
+                english_option.click()
+                page.wait_for_timeout(2000)
+
+                # 英語タイトルを確認
+                expect(page.locator("text=PLC Monitoring System")).to_be_visible(timeout=5000)
+                print("[OK] 英語タイトルが表示されています")
+
+                # ログインボタンのテキストを確認
+                expect(page.locator('button:has-text("Login")').or_(
+                    page.locator('button:has-text("Sign In")')
+                )).to_be_visible(timeout=5000)
+                print("[OK] ログインボタンが英語で表示されています")
+            else:
+                print("[WARN]  英語オプションが見つかりません")
+
+            # 4. 中国語に切り替え
+            print("\n🇨🇳 中国語（簡体字）に切り替え中...")
+            lang_button = page.locator('button:has-text("English")').or_(
+                page.locator('button:has(i.mdi-translate)')
+            ).first
+            lang_button.click()
+            page.wait_for_timeout(500)
+
+            # 中国語オプションをクリック
+            chinese_option = page.locator('text=中文').first
+            if chinese_option.is_visible():
+                chinese_option.click()
+                page.wait_for_timeout(2000)
+
+                # 中国語タイトルを確認
+                expect(page.locator("text=PLC监控系统").or_(
+                    page.locator("text=PLC監控系統")
+                )).to_be_visible(timeout=5000)
+                print("[OK] 中国語タイトルが表示されています")
+
+                # ログインボタンのテキストを確認
+                expect(page.locator('button:has-text("登录")').or_(
+                    page.locator('button:has-text("登錄")')
+                )).to_be_visible(timeout=5000)
+                print("[OK] ログインボタンが中国語で表示されています")
+            else:
+                print("[WARN]  中国語オプションが見つかりません")
+
+            # 5. 日本語に戻す
+            print("\n🇯🇵 日本語に戻します...")
+            lang_button = page.locator('button:has-text("中文")').or_(
+                page.locator('button:has(i.mdi-translate)')
+            ).first
+            lang_button.click()
+            page.wait_for_timeout(500)
+
+            japanese_option = page.locator('text=日本語').first
+            if japanese_option.is_visible():
+                japanese_option.click()
+                page.wait_for_timeout(2000)
+                print("[OK] 日本語に戻りました")
+
+            # 6. ログインして他のページもテスト
+            print("\n🔐 ログインテスト...")
+            username_input = page.locator('input[type="text"]').or_(
+                page.locator('input[placeholder*="ユーザー"]')
+            ).first
+            password_input = page.locator('input[type="password"]').first
+
+            username_input.fill("admin")
+            password_input.fill("admin123")
+
+            login_button = page.locator('button:has-text("ログイン")').or_(
+                page.locator('button[type="submit"]')
+            ).first
+            login_button.click()
+            page.wait_for_timeout(3000)
+
+            # ホーム画面に遷移したか確認
+            if "/login" not in page.url:
+                print("[OK] ログインに成功しました")
+
+                # 7. ホーム画面で言語切り替えをテスト
+                print("\n📱 ホーム画面で言語切り替えをテスト...")
+
+                # 英語に切り替え
+                lang_button = page.locator('button:has(i.mdi-translate)').first
+                if lang_button.is_visible():
+                    lang_button.click()
+                    page.wait_for_timeout(500)
+
+                    english_option = page.locator('text=English').first
+                    if english_option.is_visible():
+                        english_option.click()
+                        page.wait_for_timeout(2000)
+
+                        # 英語のナビゲーション項目を確認
+                        expect(page.locator('text=Errors & Alarms').or_(
+                            page.locator('text=Error Log')
+                        )).to_be_visible(timeout=5000)
+                        print("[OK] ホーム画面が英語で表示されています")
+
+                # 8. エラー・アラームページをテスト
+                print("\n[WARN]  エラー・アラームページに移動...")
+                errors_link = page.locator('text=Errors & Alarms').or_(
+                    page.locator('a[href*="errors"]')
+                ).first
+
+                if errors_link.is_visible():
+                    errors_link.click()
+                    page.wait_for_timeout(3000)
+
+                    # エラー・アラームページのタイトルを確認
+                    expect(page.locator('text=Error Log').or_(
+                        page.locator('text=Alarm History')
+                    )).to_be_visible(timeout=5000)
+                    print("[OK] エラー・アラームページが英語で表示されています")
+
+                # 日本語に戻す
+                print("\n🇯🇵 日本語に戻します...")
+                lang_button = page.locator('button:has(i.mdi-translate)').first
+                if lang_button.is_visible():
+                    lang_button.click()
+                    page.wait_for_timeout(500)
+                    japanese_option = page.locator('text=日本語').first
+                    if japanese_option.is_visible():
+                        japanese_option.click()
+                        page.wait_for_timeout(2000)
+                        print("[OK] 日本語に戻りました")
+
+            # 9. 最終スクリーンショット
+            print("\n📸 最終スクリーンショットを保存...")
+            page.screenshot(path="test_i18n_final.png", full_page=True)
+
+            print("\n" + "="*60)
+            print("[OK] 多言語対応テスト完了！")
+            print("="*60)
+
+            page.wait_for_timeout(3000)
+            return True
+
+        except Exception as e:
+            print(f"\n[ERR] エラーが発生しました: {e}")
+            print("📸 エラー時のスクリーンショットを保存...")
+            page.screenshot(path="test_i18n_error.png", full_page=True)
+            return False
+
+        finally:
+            browser.close()
+
+if __name__ == "__main__":
+    print("="*60)
+    print("🌐 多言語対応（i18n）テスト開始")
+    print("="*60)
+
+    success = test_i18n()
+    sys.exit(0 if success else 1)

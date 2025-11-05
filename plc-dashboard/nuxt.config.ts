@@ -4,6 +4,29 @@ import { createVuetify } from 'vuetify'
 export default defineNuxtConfig({
   compatibilityDate: '2025-05-15',
   devtools: { enabled: false }, // 開発ツールを無効化してパフォーマンス向上
+  
+  modules: [
+    '@nuxtjs/i18n'
+  ],
+
+  i18n: {
+    locales: [
+      { code: 'ja', iso: 'ja-JP', name: '日本語' },
+      { code: 'en', iso: 'en-US', name: 'English' },
+      { code: 'zh', iso: 'zh-CN', name: '中文' }
+    ],
+    defaultLocale: 'ja',
+    strategy: 'no_prefix',
+    detectBrowserLanguage: {
+      useCookie: true,
+      cookieKey: 'i18n_redirected',
+      redirectOn: 'root'
+    },
+    compilation: {
+      strictMessage: false
+    }
+  },
+
   css: [
     'vuetify/styles',
     '~/assets/styles/modern.css'
