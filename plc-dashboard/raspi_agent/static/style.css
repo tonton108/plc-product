@@ -35,11 +35,16 @@ html, body {
   color: var(--text);
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 18px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   min-height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
   width: 100vw;
+  /* GPUアクセラレーション有効化 */
+  will-change: background-color, color;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .container {
@@ -83,6 +88,10 @@ html, body {
   box-sizing: border-box;
   letter-spacing: 0.5px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  /* GPUアクセラレーション有効化 */
+  will-change: transform, box-shadow;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .btn.primary {
@@ -141,11 +150,15 @@ body.dark .btn.secondary:hover {
   flex-direction: column;
   border: 1px solid rgba(255, 255, 255, 0.2);
   margin-bottom: 16px;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  /* GPUアクセラレーション有効化 */
+  will-change: background-color, box-shadow;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .monitor-card:hover {
-  transform: translateY(-4px);
   box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.3);
 }
@@ -316,6 +329,10 @@ body.dark .form-group:hover {
   align-items: center;
   transition: all 0.2s ease; /* アニメーション追加 */
   border: 1px solid rgba(0,0,0,0.05); /* 境界線追加 */
+  /* GPUアクセラレーション有効化 */
+  will-change: background-color, box-shadow;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .data-item {
@@ -328,7 +345,6 @@ body.dark .form-group:hover {
   .data-item:hover {
     background: rgba(33, 150, 243, 0.05);
     border-color: rgba(33, 150, 243, 0.2);
-    transform: translateY(-1px);
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   }
 }
@@ -426,10 +442,15 @@ h2 {
   z-index: 1000;
   box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
   transition: all 0.3s ease;
+  /* GPU アクセラレーション有効化 */
+  will-change: transform, box-shadow;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  transform-origin: center center; /* 拡大の中心を明示 */
 }
 
 .theme-toggle:hover {
-  transform: scale(1.1) rotate(180deg);
+  transform: scale(1.1) rotate(180deg) translateZ(0); /* translateZ(0)を維持 */
   box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
 }
 
@@ -521,21 +542,7 @@ h2 {
   flex-shrink: 0; /* タイトルサイズ固定 */
 }
 
-/* 🌗 テーマ切替ボタン */
-.theme-toggle {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  background: var(--primary);
-  color: white;
-  border: none;
-  border-radius: 50%;
-  width: 48px; /* サイズ縮小 */
-  height: 48px;
-  font-size: 20px;
-  cursor: pointer;
-  z-index: 1000;
-}
+/* 🌗 テーマ切替ボタン - 上部で定義済みのため削除 */
 
 /* 📢 トースト */
 #toast {
@@ -568,8 +575,12 @@ h2 {
   height: 100vh;
   background-color: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(5px);
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
+  /* GPUアクセラレーション有効化 */
+  will-change: opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 @keyframes fadeIn {
@@ -593,10 +604,14 @@ h2 {
   max-height: calc(100vh - 20px);
   overflow: hidden;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  animation: slideIn 0.3s ease-out;
+  animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
   border: 1px solid rgba(255,255,255,0.2);
+  /* GPUアクセラレーション有効化 */
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 @keyframes slideIn {
@@ -784,7 +799,7 @@ body.dark .modal-header {
   .modal-body .basic-config-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .modal-body .plc-config-grid {
     grid-template-columns: 1fr;
   }
@@ -800,11 +815,11 @@ body.dark .modal-header {
 }
 
 .info-grid {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
 }
 
 .status-grid {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
 
 .data-grid {
@@ -1237,5 +1252,176 @@ body.dark .plc-config-inputs input:disabled {
   flex-direction: column;
   flex: 1;
   min-height: 0;
+}
+
+/* アイコン選択プルダウンのスタイル */
+.icon-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 18px;  /* フォントサイズを大きく */
+  transition: all 0.2s ease;
+  min-height: 42px;
+  cursor: pointer;
+}
+
+.icon-select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.icon-select option {
+  padding: 10px 8px;  /* パディング増加 */
+  font-size: 18px;  /* フォントサイズを大きく */
+  background: #ffffff;  /* 明示的に白背景 */
+  color: #000000;  /* 明示的に黒文字 */
+  line-height: 1.6;  /* 行間を広く */
+}
+
+/* ダークモード時のoptionスタイル */
+body.dark .icon-select option {
+  background: #2a2a2a;  /* ダークグレー背景 */
+  color: #ffffff;  /* 白文字 */
+}
+
+/* 📱 包括的レスポンシブ対応 */
+
+/* タブレット（横向き・大画面） */
+@media (max-width: 1200px) {
+  h2 {
+    font-size: 24px;
+  }
+
+  .monitor-card {
+    padding: 14px;
+  }
+}
+
+/* タブレット（縦向き） */
+@media (max-width: 768px) {
+  html, body {
+    font-size: 16px;
+  }
+
+  h2 {
+    font-size: 22px;
+    margin-bottom: 12px;
+  }
+
+  .monitor-card {
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .info-grid,
+  .status-grid {
+    gap: 10px;
+    margin: 12px 0;
+  }
+
+  .info-item,
+  .status-item {
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+
+  .data-item {
+    min-width: 240px;
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+
+  .btn {
+    padding: 10px 20px;
+    font-size: 15px;
+    min-width: 120px;
+    min-height: 40px;
+  }
+}
+
+/* スマートフォン */
+@media (max-width: 480px) {
+  html, body {
+    font-size: 14px;
+  }
+
+  h2 {
+    font-size: 20px;
+    margin-bottom: 10px;
+  }
+
+  .container {
+    padding: 4px;
+  }
+
+  .monitor-card {
+    padding: 10px;
+    border-radius: 12px;
+    width: calc(100vw - 8px);
+    min-height: calc(100vh - 8px);
+  }
+
+  .info-grid,
+  .status-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin: 10px 0;
+  }
+
+  .info-item,
+  .status-item {
+    font-size: 13px;
+    padding: 8px 10px;
+  }
+
+  .data-item {
+    min-width: 100%;
+    max-width: 100%;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .btn {
+    padding: 8px 16px;
+    font-size: 14px;
+    min-width: 100px;
+    min-height: 38px;
+    border-radius: 10px;
+  }
+
+  .icon-select {
+    font-size: 16px;
+  }
+
+  .icon-select option {
+    font-size: 16px;
+  }
+}
+
+/* 極小画面（古いスマートフォン） */
+@media (max-width: 360px) {
+  h2 {
+    font-size: 18px;
+  }
+
+  .monitor-card {
+    padding: 8px;
+  }
+
+  .info-item,
+  .status-item,
+  .data-item {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+
+  .btn {
+    font-size: 13px;
+    padding: 6px 12px;
+    min-height: 36px;
+  }
 }
 

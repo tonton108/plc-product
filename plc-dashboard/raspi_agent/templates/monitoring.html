@@ -1,44 +1,44 @@
 {% extends "base.html" %}
-{% block title %}モニタリング{% endblock %}
+{% block title %}{{ _('Monitoring') }}{% endblock %}
 
 {% block content %}
 <div class="monitor-card">
-  <h2>📊 モニタリング</h2>
-  
+  <h2>📊 {{ _('Monitoring') }}</h2>
+
   <div class="info-grid">
     <div class="info-item">
-      <strong>設備ID:</strong> <span id="equipment-id">{{ equipment.equipment_id or 'N/A' }}</span>
+      <strong>{{ _('Equipment ID:') }}</strong> <span id="equipment-id">{{ equipment.equipment_id or 'N/A' }}</span>
       <span id="data-source-badge" class="source-badge" style="display: none;"></span>
     </div>
     <div class="info-item">
-      <strong>PLCメーカー:</strong> <span id="plc-manufacturer">{{ equipment.manufacturer or 'N/A' }}</span>
+      <strong>{{ _('PLC Manufacturer:') }}</strong> <span id="plc-manufacturer">{{ equipment.manufacturer or 'N/A' }}</span>
     </div>
     <div class="info-item">
-      <strong>PLC接続先:</strong> <span id="plc-connection">{{ equipment.plc_ip or 'N/A' }}:{{ equipment.plc_port or 'N/A' }}</span>
+      <strong>{{ _('PLC Connection:') }}</strong> <span id="plc-connection">{{ equipment.plc_ip or 'N/A' }}:{{ equipment.plc_port or 'N/A' }}</span>
     </div>
     <div class="info-item">
-      <strong>中央サーバー:</strong> <span id="central-server">{{ equipment.central_server_ip or 'N/A' }}:{{ equipment.central_server_port or 'N/A' }}</span>
+      <strong>{{ _('Central Server:') }}</strong> <span id="central-server">{{ equipment.central_server_ip or 'N/A' }}:{{ equipment.central_server_port or 'N/A' }}</span>
     </div>
   </div>
 
   <div class="status-grid">
     <div class="status-item">
-      <strong>サイクルタイム:</strong> 
+      <strong>{{ _('Cycle Time:') }}</strong>
       <span id="cycle-time">N/A</span>
     </div>
     <div class="status-item">
-      <strong>状態:</strong> 
-      <span id="equipment-status" class="status-badge gray">未接続</span>
+      <strong>{{ _('Status:') }}</strong>
+      <span id="equipment-status" class="status-badge gray">{{ _('Not Connected') }}</span>
     </div>
   </div>
 
   <div class="data-grid" id="plc-data">
-    <!-- PLCデータがここに表示される -->
+    <!-- PLC data will be displayed here -->
   </div>
 
   <div class="button-group">
-    <button onclick="testConnection()" class="btn primary">🔌 接続テスト</button>
-    <button onclick="openConfigModal()" class="btn secondary">⚙️ 設定変更</button>
+    <button onclick="testConnection()" class="btn primary">🔌 {{ _('Connection Test') }}</button>
+    <button onclick="openConfigModal()" class="btn secondary">⚙️ {{ _('Settings') }}</button>
   </div>
 </div>
 
@@ -46,24 +46,24 @@
 <div id="config-modal" class="modal">
   <div class="modal-content">
     <div class="modal-header">
-      <h2>🔧 設定変更</h2>
+      <h2>🔧 {{ _('Settings') }}</h2>
       <button class="modal-close" onclick="closeConfigModal()">&times;</button>
     </div>
-    
+
     <div class="modal-body">
       <form id="config-form" class="form-grid">
         <!-- 基本設定セクション -->
         <div class="form-section">
-          <h3 style="color: var(--primary); margin-bottom: 16px;">🏭 基本設定</h3>
-          
+          <h3 style="color: var(--primary); margin-bottom: 16px;">🏭 {{ _('Basic Settings') }}</h3>
+
           <div class="basic-config-grid">
             <div class="form-group">
-              <label><strong>設備ID:</strong></label>
+              <label><strong>{{ _('Equipment ID:') }}</strong></label>
               <input type="text" name="equipment_id" id="equipment_id" value="{{ equipment.equipment_id or '' }}" required>
             </div>
 
             <div class="form-group">
-              <label><strong>PLCメーカー:</strong></label>
+              <label><strong>{{ _('PLC Manufacturer:') }}</strong></label>
               <select name="manufacturer" id="manufacturer" required>
                 {% for m in manufacturers %}
                   <option value="{{ m }}" {% if equipment.manufacturer == m %}selected{% endif %}>{{ m }}</option>
@@ -72,7 +72,7 @@
             </div>
 
             <div class="form-group">
-              <label><strong>シリーズ:</strong></label>
+              <label><strong>{{ _('Series:') }}</strong></label>
               <select name="series" id="series" required>
                 {% for s in series_list.get(equipment.manufacturer or '', []) %}
                   <option value="{{ s }}" {% if equipment.series == s %}selected{% endif %}>{{ s }}</option>
@@ -81,58 +81,58 @@
             </div>
 
             <div class="form-group">
-              <label><strong>🎯 PLC IPアドレス:</strong></label>
-              <input type="text" name="plc_ip" id="plc_ip" value="{{ equipment.plc_ip or '192.168.1.100' }}" 
-                     placeholder="例: 192.168.1.100" required>
+              <label><strong>🎯 {{ _('PLC IP Address:') }}</strong></label>
+              <input type="text" name="plc_ip" id="plc_ip" value="{{ equipment.plc_ip or '192.168.1.100' }}"
+                     placeholder="{{ _('Example: D100') }}" required>
             </div>
 
             <div class="form-group">
-              <label><strong>PLCポート:</strong></label>
+              <label><strong>{{ _('PLC Port:') }}</strong></label>
               <input type="number" name="plc_port" id="plc_port" value="{{ equipment.plc_port or 5000 }}" required>
             </div>
 
             <div class="form-group">
-              <label><strong>🌐 中央サーバーIP:</strong></label>
-              <input type="text" name="central_server_ip" id="central_server_ip" value="{{ equipment.central_server_ip or '192.168.1.10' }}" 
-                     placeholder="例: 192.168.1.10" required>
+              <label><strong>🌐 {{ _('Central Server IP:') }}</strong></label>
+              <input type="text" name="central_server_ip" id="central_server_ip" value="{{ equipment.central_server_ip or '192.168.1.10' }}"
+                     placeholder="{{ _('Example: D100') }}" required>
             </div>
 
             <div class="form-group">
-              <label><strong>中央サーバーポート:</strong></label>
+              <label><strong>{{ _('Central Server Port:') }}</strong></label>
               <input type="number" name="central_server_port" id="central_server_port" value="{{ equipment.central_server_port or 5000 }}" required>
             </div>
 
             <div class="form-group">
-              <label><strong>取得間隔 (ms):</strong></label>
+              <label><strong>{{ _('Interval (ms):') }}</strong></label>
               <input type="number" name="interval" id="interval" value="{{ equipment.interval or 1000 }}" required>
             </div>
 
             <div class="form-group">
-              <label><strong>🔌 Modbusポート:</strong> <small style="color: #666;">※キーエンスPLC使用時のみ必要</small></label>
-              <input type="number" name="modbus_port" id="modbus_port" value="{{ equipment.modbus_port or 502 }}" 
-                     placeholder="キーエンス用 (デフォルト: 502)">
+              <label><strong>🔌 {{ _('Modbus Port:') }}</strong> <small style="color: #666;">※{{ _('For Keyence PLC only') }}</small></label>
+              <input type="number" name="modbus_port" id="modbus_port" value="{{ equipment.modbus_port or 502 }}"
+                     placeholder="{{ _('For Keyence (Default: 502)') }}">
             </div>
           </div>
         </div>
 
         <!-- PLCアドレス設定セクション -->
         <div class="form-section">
-          <h3 style="color: var(--primary); margin: 20px 0 16px 0;">📍 PLCデータ項目設定</h3>
+          <h3 style="color: var(--primary); margin: 20px 0 16px 0;">📍 {{ _('PLC Data Item Settings') }}</h3>
 
           <div class="data-config-section">
             <div id="plc-items-container" class="plc-items-container">
-              <!-- 項目が動的に追加される -->
+              <!-- Items will be dynamically added -->
             </div>
 
             <button type="button" onclick="addPLCItem()" class="btn secondary" style="margin-top: 12px;">
-              ➕ 項目を追加
+              ➕ {{ _('Add Item') }}
             </button>
           </div>
         </div>
 
         <div class="button-group">
-          <button type="submit" class="btn primary">💾 保存</button>
-          <button type="button" onclick="closeConfigModal()" class="btn secondary">キャンセル</button>
+          <button type="submit" class="btn primary">💾 {{ _('Save') }}</button>
+          <button type="button" onclick="closeConfigModal()" class="btn secondary">{{ _('Cancel') }}</button>
         </div>
       </form>
     </div>
@@ -145,21 +145,21 @@
   <div class="password-modal-content">
     <div class="password-modal-header">
       <div class="security-icon">🔒</div>
-      <h3>設定変更の確認</h3>
-      <p>設定を変更するにはパスワードを入力してください</p>
+      <h3>{{ _('Confirm Settings Change') }}</h3>
+      <p>{{ _('Please enter password to change settings') }}</p>
     </div>
-    
+
     <form id="passwordForm">
       <div class="form-group">
-        <label for="confirmPassword">パスワード:</label>
+        <label for="confirmPassword">{{ _('Password:') }}</label>
         <input type="password" id="confirmPassword" name="password" required autofocus>
       </div>
-      
+
       <div id="passwordError" class="error-message" style="display: none;"></div>
-      
+
       <div class="modal-buttons">
-        <button type="submit" class="btn primary">確認</button>
-        <button type="button" id="cancelPassword" class="btn secondary">キャンセル</button>
+        <button type="submit" class="btn primary">{{ _('Confirm') }}</button>
+        <button type="button" id="cancelPassword" class="btn secondary">{{ _('Cancel') }}</button>
       </div>
     </form>
   </div>
@@ -752,8 +752,28 @@ body.dark .error-message {
 
           <div class="form-group">
             <label><strong>アイコン:</strong></label>
-            <input type="text" data-item-id="${item.id}" data-field="icon" value="${item.icon || ''}"
-                   placeholder="🌡️" maxlength="10">
+            <select data-item-id="${item.id}" data-field="icon" class="icon-select">
+              <option value="">（なし）</option>
+              <option value="🌡️" ${item.icon === '🌡️' ? 'selected' : ''}>🌡️ 温度</option>
+              <option value="💧" ${item.icon === '💧' ? 'selected' : ''}>💧 圧力</option>
+              <option value="⚡" ${item.icon === '⚡' ? 'selected' : ''}>⚡ 電流</option>
+              <option value="🔋" ${item.icon === '🔋' ? 'selected' : ''}>🔋 電圧</option>
+              <option value="📊" ${item.icon === '📊' ? 'selected' : ''}>📊 生産数</option>
+              <option value="⏱️" ${item.icon === '⏱️' ? 'selected' : ''}>⏱️ サイクルタイム</option>
+              <option value="⚠️" ${item.icon === '⚠️' ? 'selected' : ''}>⚠️ エラーコード</option>
+              <option value="🔧" ${item.icon === '🔧' ? 'selected' : ''}>🔧 回転数</option>
+              <option value="💨" ${item.icon === '💨' ? 'selected' : ''}>💨 流量</option>
+              <option value="📏" ${item.icon === '📏' ? 'selected' : ''}>📏 変位</option>
+              <option value="⚙️" ${item.icon === '⚙️' ? 'selected' : ''}>⚙️ トルク</option>
+              <option value="🎯" ${item.icon === '🎯' ? 'selected' : ''}>🎯 位置</option>
+              <option value="📈" ${item.icon === '📈' ? 'selected' : ''}>📈 速度</option>
+              <option value="💪" ${item.icon === '💪' ? 'selected' : ''}>💪 力</option>
+              <option value="💡" ${item.icon === '💡' ? 'selected' : ''}>💡 照度</option>
+              <option value="💦" ${item.icon === '💦' ? 'selected' : ''}>💦 湿度</option>
+              <option value="🔊" ${item.icon === '🔊' ? 'selected' : ''}>🔊 音量</option>
+              <option value="📐" ${item.icon === '📐' ? 'selected' : ''}>📐 角度</option>
+              <option value="🎚️" ${item.icon === '🎚️' ? 'selected' : ''}>🎚️ レベル</option>
+            </select>
           </div>
 
           <div class="form-group">

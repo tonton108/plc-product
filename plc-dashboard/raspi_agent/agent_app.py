@@ -680,6 +680,9 @@ def api_update_plc_configs(equipment_id):
         for plc_config in plc_configs:
             data_type = plc_config.get("data_type")
             data_points[data_type] = {
+                "name": plc_config.get("name", data_type),  # 項目名
+                "icon": plc_config.get("icon", ""),  # アイコン
+                "unit": plc_config.get("unit", ""),  # 単位
                 "address": plc_config.get("address"),
                 "data_type": plc_config.get("plc_data_type", "word"),
                 "scale": plc_config.get("scale_factor", 1),

@@ -1,233 +1,339 @@
-/* モダンUIスタイル */
+/* ====================================================================
+   PLC監視システム - ガイドライン準拠スタイル
+   - 落ち着いたブルーグレー + グリーン系
+   - グラスモーフィズム・複雑なグラデーション禁止
+   - アニメーション時間: 120-200ms、イージング: ease-out
+   ==================================================================== */
 
-/* グラデーション背景 */
+/* ===============================================
+   ベース背景（単色・落ち着いた色調）
+   =============================================== */
+
 body {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  background-attachment: fixed;
+  background: #f8fafc; /* ライトモード: ごく薄いグレー */
   min-height: 100vh;
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-/* ダークモード対応 */
+/* ダークモード: 深いブルーグレー */
 .v-theme--dark body {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  background: #0f172a;
 }
 
-/* グラスモーフィズムカード */
+/* ===============================================
+   カード（シンプルなサーフェス、グラスモーフィズム禁止）
+   =============================================== */
+
 .glass-card {
-  background: rgba(255, 255, 255, 0.1) !important;
-  backdrop-filter: blur(20px) !important;
-  -webkit-backdrop-filter: blur(20px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37) !important;
-  border-radius: 16px !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  background: #ffffff !important; /* ライトモード: 白 */
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important; /* 中程度の角丸（8-12px） */
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1) !important;
+  transition: all 0.2s ease-out !important;
 }
 
 .glass-card:hover {
-  transform: translateY(-4px) !important;
-  box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.5) !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.15) !important;
+  transform: translateY(-2px) !important;
+}
+
+.v-theme--dark .glass-card {
+  background: #1e293b !important; /* ダークモード: サーフェス */
+  border: 1px solid #334155 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3) !important;
+}
+
+.v-theme--dark .glass-card:hover {
+  box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.5) !important;
 }
 
 /* プライマリカード（ヘッダー用） */
 .glass-card-primary {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.8) 0%, rgba(118, 75, 162, 0.8) 100%) !important;
-  backdrop-filter: blur(20px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
-  box-shadow: 0 8px 32px 0 rgba(102, 126, 234, 0.4) !important;
-  border-radius: 20px !important;
+  background: #22c55e !important; /* グリーン系アクセント */
+  border: 1px solid #16a34a !important;
+  border-radius: 12px !important;
+  box-shadow: 0 2px 4px 0 rgba(34, 197, 94, 0.2) !important;
+  transition: all 0.2s ease-out !important;
+  color: #ffffff !important;
 }
 
-/* ダークモード時のグラスカード */
-.v-theme--dark .glass-card {
-  background: rgba(22, 33, 62, 0.6) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+.glass-card-primary:hover {
+  box-shadow: 0 4px 12px 0 rgba(34, 197, 94, 0.3) !important;
 }
 
 .v-theme--dark .glass-card-primary {
-  background: linear-gradient(135deg, rgba(26, 26, 46, 0.9) 0%, rgba(22, 33, 62, 0.9) 100%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  background: #22c55e !important;
+  border: 1px solid #10b981 !important;
 }
 
-/* モダンボタン */
+/* ===============================================
+   ボタン（シンプル、シャインエフェクト禁止）
+   =============================================== */
+
 .modern-btn {
-  border-radius: 12px !important;
+  border-radius: 10px !important;
   text-transform: none !important;
   font-weight: 600 !important;
   letter-spacing: 0.5px !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
-}
-
-/* 小サイズボタンの位置調整 */
-.modern-btn.v-btn--size-small,
-.modern-btn.v-btn--size-x-small {
-  line-height: 1 !important;
-}
-
-/* デフォルトサイズのパディング */
-.modern-btn:not(.v-btn--size-small):not(.v-btn--size-x-small):not(.v-btn--size-large):not(.v-btn--size-x-large) {
-  padding: 12px 24px !important;
-}
-
-/* ボタン内部の配置を確実に中央揃え */
-.modern-btn .v-btn__prepend {
-  display: flex !important;
-  align-items: center !important;
-}
-
-.modern-btn .v-btn__content {
-  display: inline-flex !important;
-  align-items: center !important;
-  line-height: 1 !important;
-}
-
-.modern-btn .v-btn__content span {
-  line-height: 1 !important;
-  vertical-align: middle !important;
-}
-
-.modern-btn .v-btn__append {
-  display: flex !important;
-  align-items: center !important;
+  transition: all 0.15s ease-out !important; /* 150ms */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
 }
 
 .modern-btn:hover {
-  transform: translateY(-2px) !important;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  transform: translateY(-1px) !important;
 }
 
 .modern-btn:active {
   transform: translateY(0) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
 }
 
-/* ステータスカード */
+/* ===============================================
+   ステータスカード（コンポーネントパターン準拠）
+   =============================================== */
+
 .status-card {
-  border-radius: 20px !important;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  position: relative;
-  overflow: hidden;
-}
-
-.status-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 100%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.status-card:hover::before {
-  opacity: 1;
+  border-radius: 12px !important;
+  transition: all 0.2s ease-out !important;
+  min-height: 120px; /* タッチ操作考慮 */
 }
 
 .status-card:hover {
-  transform: translateY(-8px) scale(1.02) !important;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3) !important;
+  transform: translateY(-4px) !important;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1) !important;
 }
 
-/* データテーブル */
+.v-theme--dark .status-card:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* ===============================================
+   データテーブル
+   =============================================== */
+
 .v-data-table {
-  background: rgba(255, 255, 255, 0.05) !important;
-  backdrop-filter: blur(10px) !important;
-  border-radius: 16px !important;
+  background: #ffffff !important;
+  border-radius: 12px !important;
   overflow: hidden;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.v-theme--dark .v-data-table {
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
 }
 
 .v-data-table thead {
-  background: rgba(102, 126, 234, 0.2) !important;
+  background: #f1f5f9 !important;
+}
+
+.v-theme--dark .v-data-table thead {
+  background: #334155 !important;
 }
 
 .v-data-table tbody tr {
-  transition: all 0.2s ease !important;
+  transition: background 0.15s ease-out !important;
+}
+
+.v-data-table tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.v-theme--dark .v-data-table tbody tr:nth-child(even) {
+  background: #1a2332;
 }
 
 .v-data-table tbody tr:hover {
-  background: rgba(102, 126, 234, 0.1) !important;
-  transform: scale(1.01) !important;
+  background: #e0f2fe !important;
 }
 
-/* チップ */
+.v-theme--dark .v-data-table tbody tr:hover {
+  background: #334155 !important;
+}
+
+/* ===============================================
+   チップ
+   =============================================== */
+
 .v-chip {
-  border-radius: 12px !important;
+  border-radius: 10px !important;
   font-weight: 600 !important;
   letter-spacing: 0.5px !important;
-  transition: all 0.2s ease !important;
+  transition: all 0.15s ease-out !important;
 }
 
 .v-chip:hover {
-  transform: scale(1.05) !important;
+  transform: scale(1.03) !important;
 }
 
-/* アラート */
+/* ===============================================
+   アラート
+   =============================================== */
+
 .v-alert {
-  border-radius: 16px !important;
+  border-radius: 12px !important;
   border-left: 4px solid !important;
-  backdrop-filter: blur(10px) !important;
-  animation: slideInRight 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(100px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+/* ===============================================
+   スクロールバー（控えめなカスタマイズ）
+   =============================================== */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
 }
 
-/* プログレスバー */
-.v-progress-circular {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 8px;
 }
 
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
+.v-theme--dark ::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* ===============================================
+   フォーカスリング（アクセシビリティ）
+   =============================================== */
+
+.v-input:focus-within,
+.v-btn:focus-visible {
+  outline: 2px solid #22c55e;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2);
+}
+
+/* ===============================================
+   リアルタイムデータの視覚フィードバック
+   （控えめなアニメーション、グロー効果禁止）
+   =============================================== */
+
+/* 数値変化時のパルスアニメーション（控えめ） */
+.value-pulse {
+  animation: value-pulse-animation 0.2s ease-out; /* 200ms */
+}
+
+@keyframes value-pulse-animation {
+  0% {
+    transform: scale(1);
   }
   50% {
-    opacity: 0.5;
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
   }
 }
 
-/* フェードインアニメーション */
+/* 数値増加時の色変化（グロー効果なし） */
+.value-increase {
+  animation: value-increase-animation 0.2s ease-out; /* 200ms */
+}
+
+@keyframes value-increase-animation {
+  0% {
+    color: inherit;
+  }
+  50% {
+    color: #22c55e; /* 落ち着いたグリーン */
+  }
+  100% {
+    color: inherit;
+  }
+}
+
+/* 数値減少時の色変化（グロー効果なし） */
+.value-decrease {
+  animation: value-decrease-animation 0.2s ease-out; /* 200ms */
+}
+
+@keyframes value-decrease-animation {
+  0% {
+    color: inherit;
+  }
+  50% {
+    color: #ef4444; /* ディープレッド */
+  }
+  100% {
+    color: inherit;
+  }
+}
+
+/* ===============================================
+   数値表示専用フォント（JetBrains Mono）
+   =============================================== */
+
+.text-h3,
+.value-display,
+.numeric-value {
+  font-family: 'JetBrains Mono', 'Courier New', monospace !important;
+  font-variant-numeric: tabular-nums; /* 等幅数字 */
+}
+
+/* ===============================================
+   アクセシビリティ対応
+   =============================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .value-pulse,
+  .value-increase,
+  .value-decrease {
+    animation: none !important;
+  }
+}
+
+/* ===============================================
+   シンプルなフェードインアニメーション
+   =============================================== */
+
 .fade-in {
-  animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeIn 0.2s ease-out; /* 200ms */
 }
 
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(20px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
-/* カードグリッドアニメーション */
+/* カードグリッドアニメーション（シンプル） */
 .card-grid-item {
-  animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+  animation: fadeInUp 0.2s ease-out backwards; /* 200ms */
 }
 
-.card-grid-item:nth-child(1) { animation-delay: 0.1s; }
-.card-grid-item:nth-child(2) { animation-delay: 0.2s; }
-.card-grid-item:nth-child(3) { animation-delay: 0.3s; }
-.card-grid-item:nth-child(4) { animation-delay: 0.4s; }
-.card-grid-item:nth-child(5) { animation-delay: 0.5s; }
-.card-grid-item:nth-child(6) { animation-delay: 0.6s; }
+.card-grid-item:nth-child(1) { animation-delay: 0.02s; } /* 20ms */
+.card-grid-item:nth-child(2) { animation-delay: 0.04s; } /* 40ms */
+.card-grid-item:nth-child(3) { animation-delay: 0.06s; } /* 60ms */
+.card-grid-item:nth-child(4) { animation-delay: 0.08s; } /* 80ms */
+.card-grid-item:nth-child(5) { animation-delay: 0.10s; } /* 100ms */
+.card-grid-item:nth-child(6) { animation-delay: 0.12s; } /* 120ms */
 
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(30px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -235,84 +341,45 @@ body {
   }
 }
 
-/* スクロールバーのカスタマイズ */
-::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
-}
+/* ===============================================
+   ツールチップ（カスタムクラス）
+   =============================================== */
 
-::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 10px;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-}
-
-/* テキストグラデーション */
-.gradient-text {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-weight: 700;
-}
-
-/* FABボタン */
-.v-fab {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25) !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-}
-
-.v-fab:hover {
-  transform: scale(1.1) rotate(5deg) !important;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35) !important;
-}
-
-/* リップル効果強化 */
-.v-ripple__container {
-  opacity: 0.3 !important;
-}
-
-/* カードコンテナ */
-.card-container {
-  perspective: 1000px;
-}
-
-/* ツールチップ */
-.v-tooltip > .v-overlay__content {
-  background: rgba(0, 0, 0, 0.9) !important;
-  backdrop-filter: blur(10px) !important;
-  border-radius: 8px !important;
-  padding: 8px 16px !important;
+.tooltip-custom {
+  background-color: #424242 !important;
+  color: #ffffff !important;
+  opacity: 1 !important;
+  border-radius: 6px !important;
+  padding: 6px 12px !important;
+  font-size: 13px !important;
   font-weight: 500 !important;
 }
 
-/* フォーカスリング */
-.v-input:focus-within,
-.v-btn:focus-visible {
-  outline: 2px solid rgba(102, 126, 234, 0.5);
-  outline-offset: 2px;
+.v-theme--light .tooltip-custom {
+  background-color: #f5f5f5 !important;
+  color: #212121 !important;
 }
 
-/* モーダル・ダイアログ */
+/* ===============================================
+   モーダル・ダイアログ
+   =============================================== */
+
 .v-dialog > .v-overlay__content {
-  border-radius: 24px !important;
-  backdrop-filter: blur(20px) !important;
+  border-radius: 16px !important;
 }
 
-/* グラフコンテナ */
+/* ===============================================
+   グラフコンテナ
+   =============================================== */
+
 .chart-container {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 16px;
+  background: #ffffff;
+  border-radius: 12px;
   padding: 20px;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid #e2e8f0;
+}
+
+.v-theme--dark .chart-container {
+  background: #1e293b;
+  border: 1px solid #334155;
 }

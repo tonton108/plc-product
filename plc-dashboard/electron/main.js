@@ -61,6 +61,9 @@ function saveConfig(config) {
 function createWindow() {
   const config = loadConfig();
 
+  // 開発モード判定（webPreferencesで使用するため先に定義）
+  const isDev = !app.isPackaged || process.env.NODE_ENV === 'development';
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -70,25 +73,23 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
+      webSecurity: isDev ? false : true // 開発モードではwebSecurityを無効化
     },
     show: !config.startMinimized
   });
 
-  // Nuxt.jsの生成物を読み込み
-  const rendererPath = path.join(__dirname, 'renderer', 'index.html');
-
-  if (fs.existsSync(rendererPath)) {
-    mainWindow.loadFile(rendererPath);
-  } else {
+  if (isDev) {
     // 開発モード: Nuxt.js開発サーバーに接続
     mainWindow.loadURL('http://localhost:3000');
+  } else {
+    // 本番モード: Nuxt.jsの生成物を読み込み
+    const rendererPath = path.join(__dirname, 'renderer', 'index.html');
+    mainWindow.loadFile(rendererPath);
   }
 
-  // 開発ツールを開く（開発時のみ）
-  if (process.env.NODE_ENV === 'development') {
-    mainWindow.webContents.openDevTools();
-  }
+  // 開発ツールを開く（常に開く）
+  mainWindow.webContents.openDevTools();
 
   // ウィンドウを閉じる動作をカスタマイズ
   mainWindow.on('close', (event) => {

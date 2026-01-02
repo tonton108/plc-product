@@ -15,6 +15,9 @@ RUN pip install --no-cache-dir -r requirements_agent.txt
 # アプリケーションコードをコピー
 COPY . /app
 
+# 翻訳ファイルをコンパイル
+RUN pybabel compile -d translations
+
 # バックエンドコードへのアクセスを設定
 ENV PYTHONPATH=/app
 

@@ -9,7 +9,7 @@
             </div>
             <div class="text-center mb-8">
               <v-icon size="80" color="white" class="mb-4">mdi-factory</v-icon>
-              <h1 class="text-h3 gradient-text font-weight-bold mb-2">{{ $t('login.title') }}</h1>
+              <h1 class="text-h3 font-weight-bold mb-2 text-white">{{ $t('login.title') }}</h1>
               <p class="text-subtitle-1 text-white">{{ $t('login.subtitle') }}</p>
             </div>
 

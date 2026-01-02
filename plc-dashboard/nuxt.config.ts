@@ -4,18 +4,41 @@ import { createVuetify } from 'vuetify'
 export default defineNuxtConfig({
   compatibilityDate: '2025-05-15',
   devtools: { enabled: false }, // 開発ツールを無効化してパフォーマンス向上
-  
+
+  // Google Fonts（ガイドライン準拠フォント）
+  app: {
+    head: {
+      link: [
+        {
+          rel: 'preconnect',
+          href: 'https://fonts.googleapis.com'
+        },
+        {
+          rel: 'preconnect',
+          href: 'https://fonts.gstatic.com',
+          crossorigin: 'anonymous'
+        },
+        {
+          rel: 'stylesheet',
+          href: 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap'
+        }
+      ]
+    }
+  },
+
   modules: [
     '@nuxtjs/i18n'
   ],
 
   i18n: {
     locales: [
-      { code: 'ja', iso: 'ja-JP', name: '日本語' },
-      { code: 'en', iso: 'en-US', name: 'English' },
-      { code: 'zh', iso: 'zh-CN', name: '中文' }
+      { code: 'ja', iso: 'ja-JP', name: '日本語', file: 'ja.json' },
+      { code: 'en', iso: 'en-US', name: 'English', file: 'en.json' },
+      { code: 'zh', iso: 'zh-CN', name: '中文', file: 'zh.json' }
     ],
     defaultLocale: 'ja',
+    lazy: true,
+    langDir: 'locales/',
     strategy: 'no_prefix',
     detectBrowserLanguage: {
       useCookie: true,

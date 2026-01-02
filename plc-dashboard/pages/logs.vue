@@ -1,21 +1,33 @@
 <template>
     <v-container class="py-8">
-      <v-card class="pa-4" elevation="4">
+      <!-- 設備選択 -->
+      <v-select
+        v-model="selectedEquipmentId"
+        :items="equipmentList"
+        item-title="equipment_id"
+        item-value="equipment_id"
+        label="設備を選択"
+        class="mb-4 glass-card pa-4"
+        elevation="0"
+        density="comfortable"
+      />
+
+      <v-card class="pa-4 glass-card" elevation="0">
         <v-card-title class="d-flex justify-space-between align-center">
-          <span class="text-h6">PLC ロググラフ</span>
+          <span class="text-h5 font-weight-bold">PLC ロググラフ</span>
           <div class="d-flex align-center gap-4">
             <v-select
               v-model="themeColor"
               :items="['blue', 'green', 'red']"
               label="テーマ"
-              dense
+              density="compact"
               style="max-width: 100px"
             />
             <v-select
               v-model="selectedPeriod"
               :items="periodOptions"
               label="期間"
-              dense
+              density="compact"
               style="max-width: 100px"
             />
           </div>
@@ -26,7 +38,7 @@
             <v-tab>テーブル</v-tab>
           </v-tabs>
         </ClientOnly>
-  
+
         <v-card-text>
           <v-window v-model="tab">
             <v-window-item :value="0">
@@ -40,21 +52,21 @@
                 />
               </div>
             </v-window-item>
-  
+
             <v-window-item :value="1">
               <v-data-table
                 :headers="headers"
                 :items="filteredLogs"
-                dense
+                density="compact"
                 class="mt-4"
               />
             </v-window-item>
           </v-window>
-  
-          <v-alert v-if="hasAbnormalValue" type="error" class="mt-4" dense text>
+
+          <v-alert v-if="hasAbnormalValue" type="error" class="mt-4" density="compact" variant="tonal">
             異常値が検出されました（110以下 または 130以上）！
           </v-alert>
-  
+
           <v-btn class="mt-4" color="primary" @click="downloadCSV">
             CSVダウンロード
           </v-btn>
@@ -62,7 +74,7 @@
       </v-card>
     </v-container>
   </template>
-  
+
   <script setup>
   import {
     Chart as ChartJS,
@@ -76,7 +88,7 @@
   } from 'chart.js'
   import { Chart } from 'vue-chartjs'
   import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
-  
+
   ChartJS.register(
     Title,
     Tooltip,
@@ -86,7 +98,7 @@
     LinearScale,
     PointElement,
   )
-  
+
   const chartData = ref(null)
   const chartOptions = ref({})
   const logsRaw = ref([])
@@ -94,7 +106,9 @@
   const periodOptions = ['1h', '6h', '24h']
   const themeColor = ref('blue')
   const tab = ref(0)
-  
+  const selectedEquipmentId = ref('DEMO_001')
+  const equipmentList = ref([])
+
   const filteredLogs = computed(() => {
     const now = new Date()
     const rangeMs = {
@@ -104,7 +118,7 @@
     }[selectedPeriod.value]
     return logsRaw.value.filter(log => now - new Date(log.timestamp) <= rangeMs)
   })
-  
+
   const updateChart = () => {
     chartData.value = {
       labels: filteredLogs.value.map((log) =>
@@ -126,46 +140,67 @@
       ],
     }
   }
-  
+
   const hasAbnormalValue = computed(() => {
     return logsRaw.value.some((log) => log.value >= 130 || log.value <= 110)
   })
-  
+
   const headers = [
     { title: '日時', value: 'timestamp' },
     { title: '値', value: 'value' },
   ]
-  
+
   const downloadCSV = () => {
     const header = 'timestamp,value\n'
     const rows = logsRaw.value.map((log) => `${log.timestamp},${log.value}`)
     const csvContent = header + rows.join('\n')
     const blob = new Blob([csvContent], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
-  
+
     const a = document.createElement('a')
     a.href = url
     a.download = 'plc_logs.csv'
     a.click()
     URL.revokeObjectURL(url)
   }
-  
+
+  // 設備一覧を取得
+  const fetchEquipment = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/equipment')
+      const data = await res.json()
+      equipmentList.value = data
+      if (data.length > 0 && !selectedEquipmentId.value) {
+        selectedEquipmentId.value = data[0].equipment_id
+      }
+    } catch (err) {
+      console.error('設備一覧取得失敗:', err)
+    }
+  }
+
   let intervalId = null
   const fetchLogs = async () => {
+    if (!selectedEquipmentId.value) return
+
     try {
-      const res = await fetch('http://localhost:5000/api/logs')
-      const logs = await res.json()
+      // 正しいエンドポイント: /api/logs/<equipment_id>/history_optimized
+      const period = selectedPeriod.value || '1h'
+      const res = await fetch(`http://localhost:5000/api/logs/${selectedEquipmentId.value}/history_optimized?period=${period}`)
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
+      }
+      const response = await res.json(); const logs = response.data || response
       logsRaw.value = logs
       updateChart()
     } catch (err) {
       console.error('ログ取得失敗:', err)
     }
   }
-  
+
   onMounted(async () => {
     const { default: zoomPlugin } = await import('chartjs-plugin-zoom')
     ChartJS.register(zoomPlugin)
-  
+
     chartOptions.value = {
       responsive: true,
       maintainAspectRatio: false,
@@ -192,18 +227,20 @@
         },
       },
     }
-  
+
+    await fetchEquipment()
     await fetchLogs()
     intervalId = setInterval(fetchLogs, 5000)
   })
-  
+
   onBeforeUnmount(() => {
     clearInterval(intervalId)
   })
-  
+
   watch([selectedPeriod, themeColor, logsRaw], updateChart)
+  watch(selectedEquipmentId, fetchLogs)
   </script>
-  
+
   <style scoped>
   canvas {
     max-width: 100%;
@@ -211,4 +248,3 @@
     display: block;
   }
   </style>
-  

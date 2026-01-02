@@ -121,9 +121,15 @@
   },
   "monitoring": {
     "title": "Real-time Monitoring",
+    "realtimeMonitoring": "Real-time Monitoring",
+    "historyData": "Historical Data",
     "dataHistory": "Latest Data Log",
     "exportCsv": "Export CSV",
-    "debugMode": "Debug Mode"
+    "debugMode": "Debug Mode",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "open": "Open",
+    "openEquipment": "Start Equipment Monitoring"
   }
 }
 

@@ -115,3 +115,73 @@ msgstr "初期設定"
 
 msgid "Success:"
 msgstr "成功:"
+
+# Monitoring page - additional strings
+msgid "Save"
+msgstr "保存"
+
+msgid "Cancel"
+msgstr "キャンセル"
+
+msgid "Remove"
+msgstr "削除"
+
+msgid "Item Name:"
+msgstr "項目名:"
+
+msgid "Icon:"
+msgstr "アイコン:"
+
+msgid "Unit:"
+msgstr "単位:"
+
+msgid "PLC Address:"
+msgstr "PLCアドレス:"
+
+msgid "Data Type:"
+msgstr "データ型:"
+
+msgid "Scale Factor:"
+msgstr "倍率:"
+
+msgid "Confirm Settings Change"
+msgstr "設定変更の確認"
+
+msgid "Please enter password to change settings"
+msgstr "設定を変更するにはパスワードを入力してください"
+
+msgid "Confirm"
+msgstr "確認"
+
+msgid "Connecting..."
+msgstr "接続中…"
+
+msgid "Connection successful"
+msgstr "接続に成功しました"
+
+msgid "Connection failed"
+msgstr "接続に失敗しました"
+
+msgid "Error occurred"
+msgstr "エラーが発生しました"
+
+msgid "Settings saved"
+msgstr "設定を保存しました"
+
+msgid "Equipment information updated"
+msgstr "設備情報を更新しました"
+
+msgid "Example: Mold Temperature A"
+msgstr "例: 金型温度A"
+
+msgid "Example: D100"
+msgstr "D100"
+
+msgid "For Keyence PLC only"
+msgstr "キーエンスPLC使用時のみ必要"
+
+msgid "For Keyence (Default: 502)"
+msgstr "キーエンス用 (デフォルト: 502)"
+
+msgid "Complete Setup"
+msgstr "設定完了"

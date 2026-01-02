@@ -115,3 +115,73 @@ msgstr "初始设置"
 
 msgid "Success:"
 msgstr "成功:"
+
+# Monitoring page - additional strings
+msgid "Save"
+msgstr "保存"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Remove"
+msgstr "删除"
+
+msgid "Item Name:"
+msgstr "项目名称:"
+
+msgid "Icon:"
+msgstr "图标:"
+
+msgid "Unit:"
+msgstr "单位:"
+
+msgid "PLC Address:"
+msgstr "PLC地址:"
+
+msgid "Data Type:"
+msgstr "数据类型:"
+
+msgid "Scale Factor:"
+msgstr "倍率:"
+
+msgid "Confirm Settings Change"
+msgstr "确认设置更改"
+
+msgid "Please enter password to change settings"
+msgstr "请输入密码以更改设置"
+
+msgid "Confirm"
+msgstr "确认"
+
+msgid "Connecting..."
+msgstr "连接中..."
+
+msgid "Connection successful"
+msgstr "连接成功"
+
+msgid "Connection failed"
+msgstr "连接失败"
+
+msgid "Error occurred"
+msgstr "发生错误"
+
+msgid "Settings saved"
+msgstr "设置已保存"
+
+msgid "Equipment information updated"
+msgstr "设备信息已更新"
+
+msgid "Example: Mold Temperature A"
+msgstr "例如: 模具温度A"
+
+msgid "Example: D100"
+msgstr "D100"
+
+msgid "For Keyence PLC only"
+msgstr "仅基恩士PLC需要"
+
+msgid "For Keyence (Default: 502)"
+msgstr "基恩士用 (默认: 502)"
+
+msgid "Complete Setup"
+msgstr "完成设置"

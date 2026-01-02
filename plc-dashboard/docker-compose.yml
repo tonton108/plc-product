@@ -71,9 +71,6 @@ services:
       SECRET_KEY: ${SECRET_KEY:-development-secret-key}
     ports:
       - "5001:5001"
-    volumes:
-      - ./raspi_agent:/app
-      - ./backend:/app/backend
     depends_on:
       - backend
     networks:

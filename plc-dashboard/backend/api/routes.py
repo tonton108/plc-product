@@ -436,6 +436,7 @@ def register_routes(app, socketio=None):
                 configs.append({
                     "name": getattr(config, "name", ""),
                     "data_type": config.data_type,
+                    "icon": getattr(config, "icon", ""),  # アイコンを追加
                     "enabled": config.enabled,
                     "address": config.address,
                     "scale_factor": config.scale_factor,
@@ -496,6 +497,7 @@ def register_routes(app, socketio=None):
                     "equipment_id": equipment_internal_id,
                     "name": config_data.get("name", ""),
                     "data_type": config_data.get("data_type"),
+                    "icon": config_data.get("icon", ""),  # アイコンを追加
                     "enabled": config_data.get("enabled", False),
                     "address": config_data.get("address", ""),
                     "scale_factor": config_data.get("scale_factor", 1),

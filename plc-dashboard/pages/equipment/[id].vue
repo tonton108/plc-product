@@ -1,21 +1,37 @@
 <template>
   <v-container>
-    <!-- 戻るボタン -->
-    <v-btn
-      color="primary"
-      variant="elevated"
-      size="large"
-      class="mb-6"
-      @click="goBack"
-    >
-      <template v-slot:prepend>
-        <v-icon>mdi-arrow-left</v-icon>
-      </template>
-      {{ $t('common.back') }}
-    </v-btn>
+    <!-- ヘッダーボタン群 -->
+    <div class="d-flex align-center mb-6">
+      <v-btn
+        color="primary"
+        variant="elevated"
+        size="large"
+        @click="goBack"
+      >
+        <template v-slot:prepend>
+          <v-icon>mdi-arrow-left</v-icon>
+        </template>
+        {{ $t('common.back') }}
+      </v-btn>
+      <v-spacer></v-spacer>
+      <v-btn
+        color="success"
+        variant="elevated"
+        size="large"
+        class="mr-3"
+        @click="$router.push(`/monitoring/${$route.params.id}`)"
+      >
+        <template v-slot:prepend>
+          <v-icon>mdi-monitor-dashboard</v-icon>
+        </template>
+        {{ $t('monitoring.realtimeMonitoring') }}
+      </v-btn>
+      <LanguageSwitch />
+      <ThemeToggle />
+    </div>
 
-    <v-card class="pa-6" elevation="8">
-      <v-card-title class="text-h4 mb-4 d-flex align-center">
+    <v-card class="pa-6 glass-card" elevation="0">
+      <v-card-title class="text-h4 mb-4 d-flex align-center font-weight-bold">
         <v-icon size="large" class="mr-3" color="primary">mdi-chart-box-outline</v-icon>
         {{ $t('equipmentDetail.logGraph', { name: equipment?.name || '', manufacturer: equipment?.manufacturer || '' }) }}
       </v-card-title>

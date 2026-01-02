@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ログイン - RasPi PLC Monitor</title>
+    <title>{{ _('Login') }} - RasPi PLC Monitor</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
         /* ログイン画面専用スタイル - メインCSSの影響をリセット */
@@ -180,33 +180,33 @@
         <div class="login-card">
             <div class="login-header">
                 <div class="security-icon">🔐</div>
-                <h1>PLC監視システム</h1>
-                <p>認証が必要です</p>
+                <h1>{{ _('PLC Monitoring System') }}</h1>
+                <p>{{ _('Authentication Required') }}</p>
             </div>
-            
+
             {% if error %}
             <div class="error-message">
-                <strong>❌ エラー:</strong> {{ error }}
+                <strong>❌ {{ _('Error:') }}</strong> {{ error }}
             </div>
             {% endif %}
             
             <form method="post">
                 <div class="form-group">
-                    <label for="username">👤 ユーザー名:</label>
+                    <label for="username">👤 {{ _('Username:') }}</label>
                     <input type="text" id="username" name="username" required autofocus placeholder="admin">
                 </div>
-                
+
                 <div class="form-group">
-                    <label for="password">🔑 パスワード:</label>
-                    <input type="password" id="password" name="password" required placeholder="パスワードを入力">
+                    <label for="password">🔑 {{ _('Password:') }}</label>
+                    <input type="password" id="password" name="password" required placeholder="{{ _('Enter password') }}">
                 </div>
-                
-                <button type="submit" class="login-btn">🚀 ログイン</button>
+
+                <button type="submit" class="login-btn">🚀 {{ _('Login') }}</button>
             </form>
-            
+
             <div class="system-info">
-                <p>🍓 <strong>Raspberry Pi PLC UI</strong></p>
-                <p>製造ライン監視システム</p>
+                <p>🍓 <strong>{{ _('Raspberry Pi PLC UI') }}</strong></p>
+                <p>{{ _('Manufacturing Line Monitoring System') }}</p>
             </div>
         </div>
     </div>

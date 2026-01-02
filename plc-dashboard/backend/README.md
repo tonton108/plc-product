@@ -186,8 +186,8 @@ gunicorn --bind 0.0.0.0:8000 wsgi:app
 
 ```python
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'pool_size': 10,         # 通常の接続プールサイズ
-    'max_overflow': 20,      # 最大追加接続数
+    'pool_size': 20,         # 通常の接続プールサイズ（200台規模対応）
+    'max_overflow': 50,      # 最大追加接続数（合計70接続まで対応）
     'pool_timeout': 30,      # 接続タイムアウト
     'pool_recycle': 300,     # 接続リサイクル時間
 }

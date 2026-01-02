@@ -4,9 +4,110 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}PLC UI{% endblock %}</title>
-  
+
   <!-- 📱 ラズパイ専用のシンプルCSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=6">
+
+  <style>
+    /* 🌐 言語切り替えボタン */
+    .lang-toggle {
+      position: fixed;
+      top: 16px;
+      right: 76px; /* テーマボタンの左に配置 */
+      background: linear-gradient(135deg, var(--primary), #42a5f5);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+      transition: all 0.3s ease;
+      /* GPU アクセラレーション有効化 */
+      will-change: transform, box-shadow;
+      transform: translateZ(0);
+      backface-visibility: hidden;
+      transform-origin: center center; /* 拡大の中心を明示 */
+    }
+
+    .lang-toggle:hover {
+      transform: scale(1.1) translateZ(0); /* translateZ(0)を維持 */
+      box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+    }
+
+    /* 言語選択メニュー */
+    .lang-menu {
+      position: fixed;
+      top: 72px;
+      right: 76px;
+      background: var(--card);
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      z-index: 999;
+      overflow: hidden;
+      display: none;
+      border: 1px solid var(--border);
+    }
+
+    .lang-menu.show {
+      display: block;
+      animation: fadeInDown 0.3s ease-out;
+    }
+
+    @keyframes fadeInDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .lang-menu-item {
+      display: block;
+      padding: 12px 20px;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 16px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .lang-menu-item:last-child {
+      border-bottom: none;
+    }
+
+    .lang-menu-item:hover {
+      background: rgba(33, 150, 243, 0.1);
+      color: var(--primary);
+    }
+
+    .lang-menu-item.active {
+      background: linear-gradient(135deg, var(--primary), #42a5f5);
+      color: white;
+      font-weight: 600;
+    }
+
+    body.dark .lang-menu {
+      background: var(--card);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    body.dark .lang-menu-item {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    body.dark .lang-menu-item:hover {
+      background: rgba(100, 181, 246, 0.1);
+    }
+  </style>
 </head>
 
 <body class="{{ 'dark' if request.cookies.get('theme') == 'dark' else '' }}">
@@ -14,9 +115,25 @@
     {% block content %}{% endblock %}
   </div>
 
+  <!-- 🌐 言語切り替えボタン -->
+  <button onclick="toggleLangMenu()" class="lang-toggle">🌐</button>
+
+  <!-- 言語選択メニュー -->
+  <div id="langMenu" class="lang-menu">
+    <a href="{{ url_for('change_language', lang='ja') }}" class="lang-menu-item {{ 'active' if request.cookies.get('lang', 'ja') == 'ja' else '' }}">
+      🇯🇵 日本語
+    </a>
+    <a href="{{ url_for('change_language', lang='en') }}" class="lang-menu-item {{ 'active' if request.cookies.get('lang', 'ja') == 'en' else '' }}">
+      🇺🇸 English
+    </a>
+    <a href="{{ url_for('change_language', lang='zh') }}" class="lang-menu-item {{ 'active' if request.cookies.get('lang', 'ja') == 'zh' else '' }}">
+      🇨🇳 中文
+    </a>
+  </div>
+
   <!-- 🌗 テーマ切替ボタン -->
   <button onclick="toggleTheme()" class="theme-toggle">🌗</button>
-  
+
   <!-- 📢 トースト通知 -->
   <div id="toast"></div>
 
@@ -26,6 +143,21 @@
       const darkMode = body.classList.toggle("dark");
       document.cookie = `theme=${darkMode ? 'dark' : 'light'}; path=/; max-age=31536000`;
     }
+
+    function toggleLangMenu() {
+      const menu = document.getElementById('langMenu');
+      menu.classList.toggle('show');
+    }
+
+    // メニュー外をクリックしたら閉じる
+    document.addEventListener('click', function(event) {
+      const menu = document.getElementById('langMenu');
+      const langBtn = document.querySelector('.lang-toggle');
+
+      if (menu && langBtn && !menu.contains(event.target) && !langBtn.contains(event.target)) {
+        menu.classList.remove('show');
+      }
+    });
   </script>
 </body>
 </html>

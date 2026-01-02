@@ -49,11 +49,12 @@ def create_app():
         }
     else:
         # PostgreSQL/MySQL用の設定（接続プールを最適化）
+        # 200台規模に対応した設定
         app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
             'pool_pre_ping': True,      # 接続の健全性確認
             'pool_recycle': 300,        # 300秒で接続をリサイクル
-            'pool_size': 10,            # 通常の接続プールサイズ
-            'max_overflow': 20,         # 最大追加接続数
+            'pool_size': 20,            # 通常の接続プールサイズ（10→20に増強）
+            'max_overflow': 50,         # 最大追加接続数（20→50に増強、合計70接続まで対応）
             'pool_timeout': 30,         # 接続タイムアウト(秒)
             'echo': False,
         }

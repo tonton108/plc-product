@@ -2,26 +2,18 @@
   <v-container class="fade-in">
     <v-row class="mb-6">
       <v-col>
-        <v-card class="glass-card-primary pa-6">
+        <v-card class="glass-card pa-6" color="accent">
           <v-row align="center">
             <v-col>
-              <v-card-title class="text-h4 mb-2 gradient-text">
-                <v-icon size="x-large" class="mr-3">mdi-factory</v-icon>
-                PLC リアルタイムモニタリング
+              <v-card-title class="text-h4 mb-2 font-weight-bold text-white">
+                <v-icon size="x-large" class="mr-3" color="white">mdi-factory</v-icon>
+                {{ $t('home.title') }}
               </v-card-title>
-              <v-card-subtitle class="text-subtitle-1 text-white">設備一覧からモニタリングしたい設備を選択してください</v-card-subtitle>
+              <v-card-subtitle class="text-subtitle-1 text-white" style="opacity: 1 !important;">{{ $t('home.subtitle') }}</v-card-subtitle>
             </v-col>
             <v-col cols="auto">
+              <LanguageSwitch />
               <ThemeToggle />
-              <v-btn
-                color="white"
-                size="large"
-                class="ml-3 mr-3 modern-btn"
-                @click="$router.push('/dashboard')"
-              >
-                <v-icon>mdi-view-dashboard</v-icon>
-                <span class="ml-2">ダッシュボード</span>
-              </v-btn>
               <v-btn
                 color="white"
                 size="large"
@@ -30,7 +22,7 @@
                 @click="fetchEquipment"
               >
                 <v-icon>mdi-refresh</v-icon>
-                <span class="ml-2">更新</span>
+                <span class="ml-2">{{ $t('common.refresh') }}</span>
               </v-btn>
               <v-btn
                 color="white"
@@ -39,7 +31,7 @@
                 @click="logout"
               >
                 <v-icon>mdi-logout</v-icon>
-                <span class="ml-2">ログアウト</span>
+                <span class="ml-2">{{ $t('common.logout') }}</span>
               </v-btn>
               <v-btn-toggle
                 v-model="viewMode"
@@ -145,44 +137,23 @@
           </v-card-text>
           <v-divider opacity="0.2"></v-divider>
           <v-card-actions class="pa-4">
-            <v-row dense>
-              <v-col cols="6">
-                <v-tooltip location="bottom" content-class="tooltip-custom">
-                  <template #activator="{ props }">
-                    <v-btn
-                      v-bind="props"
-                      color="primary"
-                      variant="elevated"
-                      block
-                      size="large"
-                      class="modern-btn"
-                      @click="goToMonitoring(equipment.equipment_id)"
-                    >
-                      <v-icon class="mr-1">mdi-monitor-dashboard</v-icon>監視
-                    </v-btn>
-                  </template>
-                  <span>リアルタイムモニタリング</span>
-                </v-tooltip>
-              </v-col>
-              <v-col cols="6">
-                <v-tooltip location="bottom" content-class="tooltip-custom">
-                  <template #activator="{ props }">
-                    <v-btn
-                      v-bind="props"
-                      color="secondary"
-                      variant="elevated"
-                      block
-                      size="large"
-                      class="modern-btn"
-                      @click="goToLogs(equipment.equipment_id)"
-                    >
-                      <v-icon class="mr-1">mdi-chart-line</v-icon>ログ
-                    </v-btn>
-                  </template>
-                  <span>履歴データ・グラフ表示</span>
-                </v-tooltip>
-              </v-col>
-            </v-row>
+            <v-tooltip location="bottom" content-class="tooltip-custom">
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  color="primary"
+                  variant="elevated"
+                  block
+                  size="x-large"
+                  class="modern-btn"
+                  @click="goToMonitoring(equipment.equipment_id)"
+                >
+                  <v-icon class="mr-2" size="large">mdi-open-in-app</v-icon>
+                  <span class="text-h6">{{ $t('monitoring.open') }}</span>
+                </v-btn>
+              </template>
+              <span>{{ $t('monitoring.openEquipment') }}</span>
+            </v-tooltip>
           </v-card-actions>
         </v-card>
       </v-col>

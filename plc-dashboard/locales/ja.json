@@ -121,9 +121,15 @@
   },
   "monitoring": {
     "title": "リアルタイムモニタリング",
+    "realtimeMonitoring": "リアルタイム監視",
+    "historyData": "履歴データ",
     "dataHistory": "最新データログ",
     "exportCsv": "CSVエクスポート",
-    "debugMode": "デバッグモード"
+    "debugMode": "デバッグモード",
+    "connected": "接続中",
+    "disconnected": "切断",
+    "open": "開く",
+    "openEquipment": "設備モニタリングを開始"
   }
 }
 

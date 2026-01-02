@@ -3,10 +3,10 @@
     <!-- ヘッダー -->
     <v-row class="mb-6">
       <v-col cols="12">
-        <v-card color="primary" dark class="pa-6" elevation="8">
+        <v-card class="pa-6 glass-card" elevation="0">
           <v-row align="center">
             <v-col>
-              <v-card-title class="text-h3 mb-2">
+              <v-card-title class="text-h3 mb-2 font-weight-bold">
                 <v-icon size="x-large" class="mr-4">mdi-alert-circle</v-icon>
                 {{ $t('errorsAlarmsPage.title') }}
               </v-card-title>

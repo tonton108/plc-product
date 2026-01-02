@@ -115,3 +115,73 @@ msgstr "Initial Setup"
 
 msgid "Success:"
 msgstr "Success:"
+
+# Monitoring page - additional strings
+msgid "Save"
+msgstr "Save"
+
+msgid "Cancel"
+msgstr "Cancel"
+
+msgid "Remove"
+msgstr "Remove"
+
+msgid "Item Name:"
+msgstr "Item Name:"
+
+msgid "Icon:"
+msgstr "Icon:"
+
+msgid "Unit:"
+msgstr "Unit:"
+
+msgid "PLC Address:"
+msgstr "PLC Address:"
+
+msgid "Data Type:"
+msgstr "Data Type:"
+
+msgid "Scale Factor:"
+msgstr "Scale Factor:"
+
+msgid "Confirm Settings Change"
+msgstr "Confirm Settings Change"
+
+msgid "Please enter password to change settings"
+msgstr "Please enter password to change settings"
+
+msgid "Confirm"
+msgstr "Confirm"
+
+msgid "Connecting..."
+msgstr "Connecting..."
+
+msgid "Connection successful"
+msgstr "Connection successful"
+
+msgid "Connection failed"
+msgstr "Connection failed"
+
+msgid "Error occurred"
+msgstr "Error occurred"
+
+msgid "Settings saved"
+msgstr "Settings saved"
+
+msgid "Equipment information updated"
+msgstr "Equipment information updated"
+
+msgid "Example: Mold Temperature A"
+msgstr "Example: Mold Temperature A"
+
+msgid "Example: D100"
+msgstr "D100"
+
+msgid "For Keyence PLC only"
+msgstr "For Keyence PLC only"
+
+msgid "For Keyence (Default: 502)"
+msgstr "For Keyence (Default: 502)"
+
+msgid "Complete Setup"
+msgstr "Complete Setup"
