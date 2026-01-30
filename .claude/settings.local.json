@@ -1,0 +1,45 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(py demo_data_sender.py --mode continuous --interval 2.0)",
+      "Bash(timeout /t 3)",
+      "Bash(nul)",
+      "Bash(ping:*)",
+      "Bash(curl:*)",
+      "Bash(py scripts/test_ui_ux.py)",
+      "Bash(echo:*)",
+      "Bash(env)",
+      "Bash(npm install)",
+      "Bash(npm run dev:*)",
+      "Bash(docker compose:*)",
+      "Bash(if not exist _archive mkdir _archive)",
+      "Bash(move electron _archiveelectron-dev-tool)",
+      "Bash(if [ ! -d \"_archive\" ])",
+      "Bash(then mkdir _archive)",
+      "Bash(fi)",
+      "Bash(npm run electron:dev:*)",
+      "Bash(npx electron:*)",
+      "Bash(cat:*)",
+      "Bash(findstr:*)",
+      "Bash(node_modules.binelectron electron/test-main.js)",
+      "Bash(node_modules/.bin/electron:*)",
+      "Bash(node_modules/electron/dist/electron.exe:*)",
+      "Bash(npm start)",
+      "Bash(where:*)",
+      "Bash(electron --version:*)",
+      "Bash(index.html)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm install:*)",
+      "Bash(main.js)",
+      "Bash(timeout /t 5)",
+      "Bash(npm ls:*)"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "outputStyle": "Explanatory",
+  "env": {
+    "MAX_THINKING_TOKENS": "16000",
+    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "32000"
+  }
+}
