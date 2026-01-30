@@ -7,15 +7,17 @@ MC Protocol (SLMP) を使用した三菱PLCとの通信を提供します。
 - ライブラリ: pymcprotocol
 
 CLAUDE.md参照: PLCプロトコル基礎知識 - MC Protocol
+
+Phase 4リファクタリング: データ型変換を共通関数に置き換え
 """
 import logging
-import struct
 from .base import (
     validate_plc_ip,
     update_error_stats,
     retry_on_failure,
     safe_plc_read,
     group_continuous_word_addresses,
+    convert_words_to_value,
     CONNECTION_TIMEOUT
 )
 
@@ -162,8 +164,8 @@ def read_mitsubishi_plc(plc, data_points):
                             )
                             raw_value = bit_values[0] if bit_values else 0
 
-                    elif data_type == "float32":
-                        # 32bit浮動小数点 (2ワード)
+                    elif data_type in ("float32", "dword"):
+                        # 32bitデータ (2ワード) - float32またはdword
                         # CLAUDE.md参照: 三菱PLCはBig-Endianで通信
                         if address.upper().startswith('D'):
                             addr_num = int(address[1:])
@@ -178,33 +180,11 @@ def read_mitsubishi_plc(plc, data_points):
                             readsize=2
                         )
 
-                        # IEEE754 float32に変換（Big-Endian）
+                        # 共通関数でfloat32/dwordに変換（Big-Endian）
                         if len(word_values) >= 2:
-                            # Big-Endian形式で結合（三菱PLCは全てBig-Endian）
-                            word1, word2 = word_values[0], word_values[1]
-                            combined = (word1 << 16) | word2
-                            raw_value = struct.unpack('>f', struct.pack('>I', combined))[0]
-
-                    elif data_type == "dword":
-                        # 32bit整数 (2ワード)
-                        # CLAUDE.md参照: 三菱PLCはBig-Endianで通信
-                        if address.upper().startswith('D'):
-                            addr_num = int(address[1:])
-                        elif address.upper().startswith('DM'):
-                            addr_num = int(address[2:])
-                        else:
-                            raise ValueError(f"不明なアドレス形式: {address}")
-
-                        # 2ワード読み取り
-                        word_values = plc.batchread_wordunits(
-                            headdevice=f"D{addr_num}",
-                            readsize=2
-                        )
-
-                        if len(word_values) >= 2:
-                            # 32bit整数に結合（Big-Endian）
-                            word1, word2 = word_values[0], word_values[1]
-                            raw_value = (word1 << 16) | word2
+                            raw_value = convert_words_to_value(
+                                word_values[0], word_values[1], data_type
+                            )
 
                     else:
                         # 従来の16bitワード読み取り

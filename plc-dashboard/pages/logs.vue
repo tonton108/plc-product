@@ -89,6 +89,8 @@
   import { Chart } from 'vue-chartjs'
   import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 
+  const config = useRuntimeConfig()
+
   ChartJS.register(
     Title,
     Tooltip,
@@ -167,7 +169,7 @@
   // 設備一覧を取得
   const fetchEquipment = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/equipment')
+      const res = await fetch(`${config.public.apiBase}/api/equipment`)
       const data = await res.json()
       equipmentList.value = data
       if (data.length > 0 && !selectedEquipmentId.value) {
@@ -185,7 +187,7 @@
     try {
       // 正しいエンドポイント: /api/logs/<equipment_id>/history_optimized
       const period = selectedPeriod.value || '1h'
-      const res = await fetch(`http://localhost:5000/api/logs/${selectedEquipmentId.value}/history_optimized?period=${period}`)
+      const res = await fetch(`${config.public.apiBase}/api/logs/${selectedEquipmentId.value}/history_optimized?period=${period}`)
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`)
       }

@@ -332,11 +332,11 @@ if __name__ == '__main__':
         }
 
         record_id = buffer.save('TEST_001', test_data)
-        print(f"保存完了: ID={record_id}")
+        logger.info(f"保存完了: ID={record_id}")
 
         # 未送信データ取得テスト
         pending = buffer.get_pending()
-        print(f"未送信データ: {len(pending)}件")
+        logger.info(f"未送信データ: {len(pending)}件")
 
         # 統計情報テスト
         buffer.print_stats()

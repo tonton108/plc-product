@@ -1,3 +1,15 @@
+"""
+Raspberry Pi PLCエージェント - メインアプリケーション
+
+Phase 7リファクタリング: モジュール分割による構造改善
+- config/: アプリケーション設定、PLCメーカー定義
+- auth/: 認証・パスワード管理
+- routes/: APIルート（一部）
+Phase 19: デバイス識別関数をdevice_utils.pyに統合
+
+このファイルは引き続きメインエントリーポイントとして機能します。
+"""
+
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session, make_response
 from flask_socketio import SocketIO
 from flask_babel import Babel, gettext as _
@@ -6,64 +18,74 @@ import json
 import socket
 import threading
 import time
-import uuid
 import re
-import subprocess
-import signal
 import atexit
-import random  # 追加
+import random
+import requests
 from datetime import datetime
 from dotenv import load_dotenv
-from db_utils import ConfigManager, get_cpu_serial_number
+from db_utils import ConfigManager
 from functools import wraps
-import hashlib
 import logging
-# ラズパイではローカルDBを使用しない
-# from backend.db import init_db
-# from backend.api.routes import register_routes
+
+# Phase 19: デバイス識別関数を統合モジュールからインポート
+from device_utils import get_cpu_serial_number, get_mac_address, get_ip_address
+
+# モジュール用ロガー（Phase 12）
+logger = logging.getLogger(__name__)
+
+# Phase 7: 分割モジュールからのインポート
+from config.plc_config import SERIES_LIST, MANUFACTURERS
+from config.constants import (
+    LONG_OPERATION_TIMEOUT, THREAD_JOIN_TIMEOUT, DEFAULT_MODBUS_PORT,
+    DEFAULT_CENTRAL_SERVER_IP, DEFAULT_CENTRAL_SERVER_PORT
+)
+from auth.authentication import (
+    hash_password, verify_password, get_current_admin_password_hash,
+    generate_initial_password, require_auth, ADMIN_USERNAME, REQUIRE_AUTH
+)
+
 # PLCエージェント関連インポート
 from plc_agent import main_loop as plc_main_loop
 
+# Phase 9: 設備検索サービス
+from services.equipment_discovery import search_equipment_with_device_info
+
 load_dotenv()
 
-# Windows環境でのUnicodeEncodeError回避用ヘルパー関数
+# Windows環境でのUnicodeEncodeError回避用ヘルパー関数（Phase 12: loggerベースに変更）
 def safe_print(*args, **kwargs):
-    """Windows環境でemojiを含むprint文のエンコードエラーを回避"""
+    """Windows環境でemojiを含むログ出力のエンコードエラーを回避
+
+    Phase 12: print()からlogger.info()に変更
+    既存のsafe_print呼び出しとの後方互換性を維持
+    """
+    # メッセージを結合
+    message = ' '.join(str(arg) for arg in args)
+
+    # ログレベルを判定（メッセージの先頭文字で判断）
+    if '[ERROR]' in message or '❌' in message:
+        log_func = logger.error
+    elif '[WARNING]' in message or '⚠️' in message:
+        log_func = logger.warning
+    elif '[DEBUG]' in message:
+        log_func = logger.debug
+    else:
+        log_func = logger.info
+
     try:
-        print(*args, **kwargs)
+        log_func(message)
     except UnicodeEncodeError:
         # emojiと特殊文字を削除してから出力
-        import re
-        safe_args = []
-        for arg in args:
-            if isinstance(arg, str):
-                # Unicode emoji・記号文字を削除（広範囲をカバー）
-                # U+1F000-U+1FFFF: 絵文字
-                # U+2000-U+2BFF: 各種記号
-                safe_arg = re.sub(r'[\U0001F000-\U0001FFFF\u2000-\u2BFF\uFE00-\uFE0F]', '', arg)
-                safe_args.append(safe_arg)
-            else:
-                safe_args.append(arg)
-        print(*safe_args, **kwargs)
+        safe_message = re.sub(r'[\U0001F000-\U0001FFFF\u2000-\u2BFF\uFE00-\uFE0F]', '', message)
+        log_func(safe_message)
 
 # PLCエージェントプロセス管理
 plc_agent_thread = None
 plc_agent_stop_event = threading.Event()
 
-# デバイス情報取得関数
-def get_mac_address():
-    """MACアドレスを取得"""
-    mac = uuid.getnode()
-    return ':'.join(re.findall('..', f'{mac:012x}'))
-
-def get_ip_address():
-    """IPアドレスを取得"""
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            s.connect(('8.8.8.8', 80))
-            return s.getsockname()[0]
-    except Exception:
-        return '127.0.0.1'
+# Phase 19: デバイス情報取得関数はdevice_utils.pyに統合済み
+# get_mac_address(), get_ip_address() は上部でインポート
 
 app = Flask(__name__)
 
@@ -97,52 +119,56 @@ babel.init_app(app, locale_selector=get_locale)
 # SocketIO初期化
 socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True)
 
-# 認証設定
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
-DEFAULT_ADMIN_PASSWORD_HASH = hashlib.sha256("admin123".encode()).hexdigest()  # デフォルト: admin123
-REQUIRE_AUTH = os.getenv("REQUIRE_AUTH", "true").lower() == "true"  # デフォルトで認証必須に変更
-
-def get_current_admin_password_hash():
-    """現在の管理者パスワードハッシュを取得（ローカル設定優先）"""
-    config_manager = ConfigManager()
-    local_hash = config_manager.get_admin_password_hash()
-    
-    if local_hash:
-        return local_hash
-    
-    # ローカル設定がない場合は環境変数またはデフォルトを使用
-    return os.getenv("ADMIN_PASSWORD_HASH", DEFAULT_ADMIN_PASSWORD_HASH)
-
-def hash_password(password):
-    """パスワードをハッシュ化"""
-    return hashlib.sha256(password.encode()).hexdigest()
-
-def require_auth(f):
-    """認証が必要な機能のデコレータ"""
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not REQUIRE_AUTH:
-            return f(*args, **kwargs)
-        
-        if 'authenticated' not in session:
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated
+# Phase 7: 認証関連はauth.authenticationからインポート済み
+# ADMIN_USERNAME, REQUIRE_AUTH, hash_password, verify_password,
+# get_current_admin_password_hash, generate_initial_password, require_auth
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    """ログイン処理（Phase 6セキュリティ修正: 安全なパスワード検証）"""
+    current_hash = get_current_admin_password_hash()
+
+    # パスワードが未設定の場合は初期設定を促す
+    if current_hash is None:
+        if request.method == "POST":
+            # 初期パスワード設定
+            new_password = request.form.get("new_password", "")
+            confirm_password = request.form.get("confirm_password", "")
+
+            if len(new_password) < 6:
+                return render_template('login.html',
+                    initial_setup=True,
+                    error="パスワードは6文字以上で設定してください")
+
+            if new_password != confirm_password:
+                return render_template('login.html',
+                    initial_setup=True,
+                    error="パスワードが一致しません")
+
+            # 新しいパスワードを保存（PBKDF2ハッシュ）
+            config_manager = ConfigManager()
+            config_manager.save_admin_password(hash_password(new_password))
+            logger.info("✅ 初期パスワードが設定されました")
+
+            # 設定後、認証状態にしてリダイレクト
+            session['authenticated'] = True
+            session['username'] = ADMIN_USERNAME
+            return redirect(url_for('index'))
+
+        return render_template('login.html', initial_setup=True)
+
+    # 通常のログイン処理
     if request.method == "POST":
         username = request.form.get("username", "")
         password = request.form.get("password", "")
-        
-        if (username == ADMIN_USERNAME and 
-            hash_password(password) == get_current_admin_password_hash()):
+
+        if username == ADMIN_USERNAME and verify_password(password, current_hash):
             session['authenticated'] = True
             session['username'] = username
             return redirect(url_for('index'))
         else:
             return render_template('login.html', error="認証に失敗しました")
-    
+
     return render_template('login.html')
 
 @app.route("/logout")
@@ -161,8 +187,8 @@ def change_language(lang):
 
 class Config:
     def __init__(self):
-        self.central_server_ip = os.getenv("CENTRAL_SERVER_IP", "192.168.1.10")
-        self.central_server_port = os.getenv("CENTRAL_SERVER_PORT", "5000")
+        self.central_server_ip = os.getenv("CENTRAL_SERVER_IP", DEFAULT_CENTRAL_SERVER_IP)
+        self.central_server_port = os.getenv("CENTRAL_SERVER_PORT", DEFAULT_CENTRAL_SERVER_PORT)
         self.raspi_ui_port = os.getenv("RASPI_UI_PORT", "5001")
         self.config_manager = ConfigManager()
         
@@ -176,61 +202,22 @@ class Config:
 
 config = Config()
 
-# PLCメーカー・シリーズ
-series_list = {
-    "三菱": ["FX", "Q", "iQ-R", "iQ-F"],
-    "キーエンス": ["KV-8000 (Modbus)", "KV-5000 (Modbus)", "KV Nano (Modbus)"],
-    "オムロン": ["CJ", "CP", "NX", "NJ"],
-    "シーメンス": ["S7-1200 (未実装)", "S7-1500 (未実装)"]
-}
-manufacturers = list(series_list.keys())
+# Phase 7: PLCメーカー・シリーズはconfig.plc_configからインポート済み
+# 後方互換性のためのエイリアス
+series_list = SERIES_LIST
+manufacturers = MANUFACTURERS
 
 @app.route("/")
 @require_auth
 def index():
     """ログイン後の自動分岐：DB確認 → CPUシリアル番号で設備検索 → 適切な画面へ遷移"""
     try:
-        from db_utils import get_cpu_serial_number, get_mac_address, get_ip_address
-        
-        # デバイス情報を取得
-        cpu_serial_number = get_cpu_serial_number()
-        mac_address = get_mac_address()
-        ip_address = get_ip_address()
-        
-        safe_print(f"🔍 [自動分岐] デバイス情報取得完了")
-        safe_print(f"   CPUシリアル番号: {cpu_serial_number}")
-        safe_print(f"   MACアドレス: {mac_address}")
-        safe_print(f"   IPアドレス: {ip_address}")
-        
-        # DB APIで設備検索（CPUシリアル番号最優先）
+        # Phase 9: 統一された設備検索サービスを使用
         db_api = config.config_manager.db_api
-        equipment_info = None
-        search_method = "なし"
-        
-        # 1. CPUシリアル番号で検索（最優先・最も確実）
-        if cpu_serial_number:
-            safe_print(f"🔍 [自動分岐] CPUシリアル番号 '{cpu_serial_number}' で設備検索中...")
-            equipment_info = db_api.get_equipment_by_device_info(cpu_serial_number=cpu_serial_number)
-            if equipment_info:
-                search_method = "CPUシリアル番号"
-                safe_print(f"✅ [自動分岐] CPUシリアル番号で設備発見: {equipment_info.get('equipment_id')}")
-        
-        # 2. CPUシリアル番号で見つからない場合、MACアドレスで検索
-        if not equipment_info and mac_address:
-            safe_print(f"🔍 [自動分岐] MACアドレス '{mac_address}' で設備検索中...")
-            equipment_info = db_api.get_equipment_by_device_info(mac_address=mac_address)
-            if equipment_info:
-                search_method = "MACアドレス"
-                safe_print(f"✅ [自動分岐] MACアドレスで設備発見: {equipment_info.get('equipment_id')}")
-        
-        # 3. MACアドレスでも見つからない場合、IPアドレスで検索
-        if not equipment_info and ip_address:
-            safe_print(f"🔍 [自動分岐] IPアドレス '{ip_address}' で設備検索中...")
-            equipment_info = db_api.get_equipment_by_device_info(ip_address=ip_address)
-            if equipment_info:
-                search_method = "IPアドレス"
-                safe_print(f"✅ [自動分岐] IPアドレスで設備発見: {equipment_info.get('equipment_id')}")
-        
+        equipment_info, search_method, device_info = search_equipment_with_device_info(
+            db_api, verbose=True
+        )
+
         # 分岐判定
         if equipment_info:
             equipment_id = equipment_info.get('equipment_id')
@@ -272,7 +259,7 @@ def initial_setup():
             "equipment_id": request.form["equipment_id"],
             "plc_ip": request.form["plc_ip"],
             "plc_port": int(request.form["plc_port"]),
-            "modbus_port": int(request.form.get("modbus_port", 502)),  # Modbusポート追加
+            "modbus_port": int(request.form.get("modbus_port", DEFAULT_MODBUS_PORT)),  # Modbusポート追加
             "manufacturer": request.form["manufacturer"],
             "series": request.form["series"],
             "interval": int(request.form["interval"]),
@@ -343,14 +330,13 @@ def initial_setup():
                 "modbus_port": plc_data["modbus_port"],
                 "interval": plc_data["interval"]
             }
-            
-            import requests
+
             api_url = f"http://{plc_data['central_server_ip']}:{plc_data['central_server_port']}/api/register"
             
             safe_print(f"[INFO] API サーバーに設備登録中: {api_url}")
             safe_print(f"[INFO] 送信データ: {api_data}")
             
-            response = requests.post(api_url, json=api_data, timeout=10)
+            response = requests.post(api_url, json=api_data, timeout=LONG_OPERATION_TIMEOUT)
             
             if response.status_code == 200:
                 safe_print("✅ API サーバーへの設備登録成功")
@@ -372,7 +358,7 @@ def initial_setup():
 
                     plc_config_url = f"http://{plc_data['central_server_ip']}:{plc_data['central_server_port']}/api/equipment/{plc_data['equipment_id']}/plc_configs"
                     safe_print(f"[INFO] 送信するPLC設定: {plc_configs}")  # デバッグ用
-                    plc_response = requests.put(plc_config_url, json=plc_configs, timeout=10)
+                    plc_response = requests.put(plc_config_url, json=plc_configs, timeout=LONG_OPERATION_TIMEOUT)
                     
                     if plc_response.status_code == 200:
                         safe_print("✅ PLCデータ設定も送信成功")
@@ -399,7 +385,7 @@ def initial_setup():
     current = config.load_plc_config()
     current.setdefault("central_server_ip", config.central_server_ip)
     current.setdefault("central_server_port", config.central_server_port)
-    current.setdefault("modbus_port", 502)  # Modbusポートのデフォルト値
+    current.setdefault("modbus_port", DEFAULT_MODBUS_PORT)  # Modbusポートのデフォルト値
     
     # data_pointsのデフォルト値を設定（初回アクセス時）
     if "data_points" not in current:
@@ -505,16 +491,17 @@ def test_connection():
 
 @app.route("/api/verify-password", methods=["POST"])
 @require_auth
-def verify_password():
-    """設定変更時のパスワード確認"""
+def api_verify_password():
+    """設定変更時のパスワード確認（Phase 6セキュリティ修正）"""
     data = request.get_json()
     if not data:
         return jsonify({"success": False, "error": "無効なリクエスト"}), 400
-    
+
     password = data.get("password", "")
-    
+    current_hash = get_current_admin_password_hash()
+
     # 現在ログインしているユーザーのパスワードと照合
-    if hash_password(password) == get_current_admin_password_hash():
+    if current_hash and verify_password(password, current_hash):
         return jsonify({"success": True})
     else:
         return jsonify({"success": False, "error": "パスワードが正しくありません"})
@@ -605,7 +592,7 @@ def api_update_equipment(equipment_id):
             "series": data.get("series"),
             "plc_ip": data.get("plc_ip"),
             "plc_port": data.get("plc_port"),
-            "modbus_port": data.get("modbus_port", 502),
+            "modbus_port": data.get("modbus_port", DEFAULT_MODBUS_PORT),
             "interval": data.get("interval"),
             "central_server_ip": data.get("central_server_ip", config.central_server_ip),
             "central_server_port": data.get("central_server_port", config.central_server_port),
@@ -625,7 +612,6 @@ def api_update_equipment(equipment_id):
 
         # 中央サーバーに設備情報を送信
         try:
-            import requests
             api_data = {
                 "equipment_id": updated_config["equipment_id"],
                 "manufacturer": updated_config["manufacturer"],
@@ -643,7 +629,7 @@ def api_update_equipment(equipment_id):
             api_url = f"http://{updated_config['central_server_ip']}:{updated_config['central_server_port']}/api/register"
             safe_print(f"📡 中央サーバーに設備更新を送信: {api_url}")
 
-            response = requests.post(api_url, json=api_data, timeout=10)
+            response = requests.post(api_url, json=api_data, timeout=LONG_OPERATION_TIMEOUT)
 
             if response.status_code == 200:
                 safe_print(f"✅ 中央サーバーへの設備更新成功")
@@ -698,11 +684,10 @@ def api_update_plc_configs(equipment_id):
 
         # 中央サーバーにPLCデータ設定を送信
         try:
-            import requests
             plc_config_url = f"http://{current_config.get('central_server_ip', config.central_server_ip)}:{current_config.get('central_server_port', config.central_server_port)}/api/equipment/{equipment_id}/plc_configs"
             safe_print(f"📡 中央サーバーにPLCデータ設定を送信: {plc_config_url}")
 
-            response = requests.put(plc_config_url, json=plc_configs, timeout=10)
+            response = requests.put(plc_config_url, json=plc_configs, timeout=LONG_OPERATION_TIMEOUT)
 
             if response.status_code == 200:
                 safe_print(f"✅ 中央サーバーへのPLCデータ設定送信成功")
@@ -766,31 +751,17 @@ def api_get_plc_configs(equipment_id):
 def api_current_equipment_info():
     """現在のデバイスの設備情報をDB優先で取得"""
     try:
-        from db_utils import get_cpu_serial_number, get_mac_address, get_ip_address
-        
-        # デバイス情報を取得
-        cpu_serial_number = get_cpu_serial_number()
-        mac_address = get_mac_address()
-        ip_address = get_ip_address()
-        
-        safe_print(f"🔍 [DEBUG] デバイス情報 - CPU: {cpu_serial_number}, MAC: {mac_address}, IP: {ip_address}")
-        
-        # DB APIで設備検索（CPUシリアル番号最優先）
+        # Phase 9: 統一された設備検索サービスを使用
         db_api = config.config_manager.db_api
-        equipment_info = None
-        
-        # CPUシリアル番号で検索（最優先）
-        if cpu_serial_number:
-            equipment_info = db_api.get_equipment_by_device_info(cpu_serial_number=cpu_serial_number)
-            if equipment_info:
-                safe_print(f"✅ [DEBUG] CPUシリアル番号で設備発見: {equipment_info.get('equipment_id')}")
-        
-        # CPUシリアル番号で見つからない場合、MACアドレスで検索
-        if not equipment_info and mac_address:
-            equipment_info = db_api.get_equipment_by_device_info(mac_address=mac_address)
-            if equipment_info:
-                safe_print(f"✅ [DEBUG] MACアドレスで設備発見: {equipment_info.get('equipment_id')}")
-        
+        equipment_info, search_method, device_info = search_equipment_with_device_info(
+            db_api, verbose=True
+        )
+
+        # デバイス情報を展開
+        cpu_serial_number = device_info['cpu_serial_number']
+        mac_address = device_info['mac_address']
+        ip_address = device_info['ip_address']
+
         if equipment_info:
             # DB設備情報が見つかった場合
             equipment_id = equipment_info.get("equipment_id")
@@ -818,7 +789,7 @@ def api_current_equipment_info():
                     "series": detailed_config.get("series"),
                     "plc_ip": detailed_config.get("plc_ip"),
                     "plc_port": detailed_config.get("port"),
-                    "modbus_port": detailed_config.get("modbus_port", 502),
+                    "modbus_port": detailed_config.get("modbus_port", DEFAULT_MODBUS_PORT),
                     "central_server_ip": config.central_server_ip,
                     "central_server_port": config.central_server_port,
                     "interval": detailed_config.get("interval"),
@@ -886,8 +857,8 @@ def stop_plc_agent():
         # 停止イベントを設定
         plc_agent_stop_event.set()
         
-        # スレッドの終了を最大5秒待機
-        plc_agent_thread.join(timeout=5)
+        # スレッドの終了を待機
+        plc_agent_thread.join(timeout=THREAD_JOIN_TIMEOUT)
         
         if plc_agent_thread.is_alive():
             safe_print("⚠️ PLCエージェントの停止に時間がかかっています")

@@ -55,6 +55,8 @@
 /**
  * データ履歴テーブルコンポーネント
  * 最新データを表形式で表示
+ *
+ * Phase 3リファクタリング: useDateTime composableを使用して多言語対応
  */
 defineProps({
   dataHistory: {
@@ -69,23 +71,8 @@ defineProps({
 
 defineEmits(['export-csv'])
 
-/**
- * 日時フォーマット
- * @param {string} timestamp - タイムスタンプ
- * @returns {string} フォーマット済み日時
- */
-const formatDateTime = (timestamp) => {
-  if (!timestamp) return '-'
-  const date = new Date(timestamp)
-  return date.toLocaleString('ja-JP', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  })
-}
+// useDateTime composableを使用（多言語対応）
+const { formatDateTime } = useDateTime()
 </script>
 
 <style scoped>

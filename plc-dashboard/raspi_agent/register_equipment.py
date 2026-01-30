@@ -1,47 +1,38 @@
+"""
+設備登録スクリプト
+
+Raspberry Piエージェントを中央サーバーに登録します。
+
+Phase 4リファクタリング: db_utils.pyから共通関数をインポートして重複を排除
+Phase 14: print() → logger統一
+"""
 import requests
 import socket
-import uuid
-import re
 import os
+import logging
 from dotenv import load_dotenv
+
+# db_utils.pyから共通関数をインポート（重複排除）
+from db_utils import get_cpu_serial_number, get_mac_address
+from config.constants import DEFAULT_MODBUS_PORT
+
+# Phase 14: ロギング設定
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # .env読み込み
 load_dotenv()
 
 # .envから取得（デフォルト値を設定）
 FLASK_SERVER = os.getenv("FLASK_SERVER", "http://localhost:5000")
-print(f"[DEBUG] FLASK_SERVER: {FLASK_SERVER}")
+logger.debug(f"FLASK_SERVER: {FLASK_SERVER}")
 
-def get_cpu_serial_number():
-    """ラズパイのCPUシリアル番号を取得（不変識別子）"""
-    try:
-        with open('/proc/cpuinfo', 'r') as f:
-            for line in f:
-                if line.startswith('Serial'):
-                    # Serial行から値を抽出
-                    serial = line.split(':')[1].strip()
-                    if serial and serial != "0000000000000000":
-                        return serial
-        # SerialがないかデフォルトIDの場合は、fallback
-        print("⚠️ CPU Serial情報が見つからないため、フォールバックIDを使用")
-        return _generate_fallback_serial()
-    except Exception as e:
-        print(f"❌ CPUシリアル番号取得エラー: {e}")
-        print("🔄 フォールバックIDを生成します")
-        return _generate_fallback_serial()
-
-def _generate_fallback_serial():
-    """CPUシリアル番号が取得できない場合の固定フォールバックIDを返す"""
-    # 不変の固定値を使用
-    fallback_id = "FALLBACK_FIXED_ID"
-    print(f"💡 フォールバックID使用: {fallback_id} (固定値)")
-    return fallback_id
-
-def get_mac_address():
-    mac = uuid.getnode()
-    return ':'.join(re.findall('..', f'{mac:012x}'))
 
 def get_ip():
+    """ホスト名からIPアドレスを取得"""
     hostname = socket.gethostname()
     return socket.gethostbyname(hostname)
 
@@ -58,17 +49,17 @@ data = {
     "hostname": socket.gethostname(),
     "manufacturer": "",  # 空文字で初期化
     "series": "",        # 空文字で初期化
-    "port": 502,         # デフォルトポート
+    "port": DEFAULT_MODBUS_PORT,  # デフォルトポート
     "interval": 60       # デフォルト間隔（秒）
 }
 
-print(f"[INFO] 送信データ: {data}")
-print(f"[INFO] CPUシリアル番号: {cpu_serial}")
+logger.info(f"送信データ: {data}")
+logger.info(f"CPUシリアル番号: {cpu_serial}")
 
 try:
     r = requests.post(f"{FLASK_SERVER}/api/register", json=data, timeout=5)
     r.raise_for_status()
-    print("✅ 登録レスポンス:", r.json())
+    logger.info(f"登録レスポンス: {r.json()}")
 except requests.RequestException as e:
-    print("❌ 登録失敗:", e)
-    print("ℹ️ 中央サーバーが起動しているか確認してください")
+    logger.error(f"登録失敗: {e}")
+    logger.info("中央サーバーが起動しているか確認してください")

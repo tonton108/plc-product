@@ -4,6 +4,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## 📋 目次（Quick Navigation）
+
+| セクション | 内容 |
+|-----------|------|
+| [会話ルール](#claude-code-会話ルール日本語モード固定) | 日本語モード、コミットメッセージ |
+| [作業フロー](#作業フロー) | 開発フロー、コンポーネント別確認方法 |
+| [プロジェクト概要](#プロジェクト概要) | アーキテクチャ、システム構成 |
+| [クイックスタート](#クイックスタート) | 環境セットアップ、起動方法 |
+| [主要ドキュメント](#主要ドキュメント) | _docs/へのリンク集 |
+| [重要な注意点](#重要な注意点) | 必読の実装ルール（7項目） |
+| [Playwrightテスト](#playwrightによる動作確認) | 動作確認方法 |
+| [トラブルシューティング](#トラブルシューティング) | よくある問題と解決策 |
+| [ドキュメント更新ルール](#ドキュメント更新ルール) | ドキュメント管理方針 |
+
+---
+
 ## Claude Code 会話ルール（日本語モード固定）
 
 - Claudeはすべての**会話・提案・説明・コメント**を**日本語**で行うこと。
@@ -207,18 +223,18 @@ python ../backend/demo_data_sender.py --mode single
 
 ### 📚 プロジェクト知識ベース
 
-設計判断や実装の背景、PLC特有の知見は `_docs/` ディレクトリに体系的に記録されています：
+設計判断や実装の背景、PLC特有の知見は `plc-dashboard/_docs/` ディレクトリに体系的に記録されています：
 
-- **`_docs/decisions/`** - 設計判断の根拠（なぜSocket.IOをthreadingモードにしたか、など）
-- **`_docs/features/`** - 機能実装の記録（Codex自動レビュー、ローカルバッファリング、など）
-- **`_docs/plc-knowledge/`** - PLC特有の知見（プロトコル、エンディアン、タイムアウト、トラブルシューティング）
-- **`_docs/architecture/`** - コードアーキテクチャの詳細
-- **`_docs/deployment/`** - デプロイメント手順
-- **`_docs/setup/`** - 環境セットアップ（MCP, CI/CD等）
-- **`_docs/commands/`** - 開発コマンド集
-- **`_docs/testing/`** - テスト・デバッグガイド
+- **`plc-dashboard/_docs/decisions/`** - 設計判断の根拠（なぜSocket.IOをthreadingモードにしたか、など）
+- **`plc-dashboard/_docs/features/`** - 機能実装の記録（Codex自動レビュー、ローカルバッファリング、など）
+- **`plc-dashboard/_docs/plc-knowledge/`** - PLC特有の知見（プロトコル、エンディアン、タイムアウト、トラブルシューティング）
+- **`plc-dashboard/_docs/architecture/`** - コードアーキテクチャの詳細
+- **`plc-dashboard/_docs/deployment/`** - デプロイメント手順
+- **`plc-dashboard/_docs/setup/`** - 環境セットアップ（MCP, CI/CD等）
+- **`plc-dashboard/_docs/commands/`** - 開発コマンド集
+- **`plc-dashboard/_docs/testing/`** - テスト・デバッグガイド
 
-詳細は `_docs/README.md` を参照してください。
+詳細は `plc-dashboard/_docs/README.md` を参照してください。
 
 ---
 
@@ -263,7 +279,7 @@ python demo_data_sender.py --mode continuous --interval 2.0
 
 ブラウザで `http://localhost:3000/monitoring/DEMO_001` にアクセスしてリアルタイムデータを確認。
 
-詳細は `_docs/commands/development.md` を参照してください。
+詳細は `plc-dashboard/_docs/commands/development.md` を参照してください。
 
 ---
 
@@ -273,65 +289,65 @@ python demo_data_sender.py --mode continuous --interval 2.0
 
 なぜその技術・設計を選んだのか、判断理由を記録：
 
-- `_docs/decisions/socketio-threading-mode.md` - Socket.IO threading mode選択理由
-- `_docs/decisions/equipment-identification-strategy.md` - 設備識別の優先順位戦略
-- `_docs/decisions/data-archiving-strategy.md` - 階層化アーカイブシステム
-- `_docs/decisions/query-optimization.md` - クエリ最適化戦略
-- `_docs/decisions/performance-optimization.md` - パフォーマンス最適化施策
+- `plc-dashboard/_docs/decisions/socketio-threading-mode.md` - Socket.IO threading mode選択理由
+- `plc-dashboard/_docs/decisions/equipment-identification-strategy.md` - 設備識別の優先順位戦略
+- `plc-dashboard/_docs/decisions/data-archiving-strategy.md` - 階層化アーカイブシステム
+- `plc-dashboard/_docs/decisions/query-optimization.md` - クエリ最適化戦略
+- `plc-dashboard/_docs/decisions/performance-optimization.md` - パフォーマンス最適化施策
 
 ### アーキテクチャ（architecture）
 
 コード構造と主要ファイルの詳細：
 
-- `_docs/architecture/data-flow.md` - **データフロー全体図**（PLCからNuxt UIまでの完全な流れ）
-- `_docs/architecture/backend.md` - バックエンド（Flask）詳細
-- `_docs/architecture/frontend.md` - フロントエンド（Nuxt.js）詳細
-- `_docs/architecture/raspi-agent.md` - Raspberry Piエージェント詳細
-- `_docs/architecture/database.md` - データベース設計詳細
-- `_docs/architecture/realtime-communication.md` - リアルタイム通信実装詳細
+- `plc-dashboard/_docs/architecture/data-flow.md` - **データフロー全体図**（PLCからNuxt UIまでの完全な流れ）
+- `plc-dashboard/_docs/architecture/backend.md` - バックエンド（Flask）詳細
+- `plc-dashboard/_docs/architecture/frontend.md` - フロントエンド（Nuxt.js）詳細
+- `plc-dashboard/_docs/architecture/raspi-agent.md` - Raspberry Piエージェント詳細
+- `plc-dashboard/_docs/architecture/database.md` - データベース設計詳細
+- `plc-dashboard/_docs/architecture/realtime-communication.md` - リアルタイム通信実装詳細
 
 ### PLC知見（plc-knowledge）
 
 PLCプロジェクト特有の実装ノウハウ：
 
-- `_docs/plc-knowledge/protocols.md` - PLCプロトコル実装ガイド（Modbus、FINS、MC Protocol）
-- `_docs/plc-knowledge/endianness.md` - エンディアン問題と対処法（Big-Endian必須）
-- `_docs/plc-knowledge/timeout-settings.md` - タイムアウト設定のベストプラクティス
-- `_docs/plc-knowledge/troubleshooting.md` - トラブルシューティングガイド
-- `_docs/plc-knowledge/plc-manufacturers.md` - 対応メーカーとプロトコル一覧
+- `plc-dashboard/_docs/plc-knowledge/protocols.md` - PLCプロトコル実装ガイド（Modbus、FINS、MC Protocol）
+- `plc-dashboard/_docs/plc-knowledge/endianness.md` - エンディアン問題と対処法（Big-Endian必須）
+- `plc-dashboard/_docs/plc-knowledge/timeout-settings.md` - タイムアウト設定のベストプラクティス
+- `plc-dashboard/_docs/plc-knowledge/troubleshooting.md` - トラブルシューティングガイド
+- `plc-dashboard/_docs/plc-knowledge/plc-manufacturers.md` - 対応メーカーとプロトコル一覧
 
 ### 機能実装（features）
 
 新機能の実装記録：
 
-- `_docs/features/codex-auto-review.md` - Codex AI自動レビュー機能
-- `_docs/features/phase2-7-error-alarm-system.md` - エラー・アラームシステム（Phase 2-7実装）
+- `plc-dashboard/_docs/features/codex-auto-review.md` - Codex AI自動レビュー機能
+- `plc-dashboard/_docs/features/phase2-7-error-alarm-system.md` - エラー・アラームシステム（Phase 2-7実装）
 
 ### デプロイメント（deployment）
 
 本番環境へのデプロイ手順：
 
-- `_docs/deployment/raspi-deployment.md` - Raspberry Piデプロイメント
-- `_docs/deployment/environment-variables.md` - 環境変数設定ガイド
+- `plc-dashboard/_docs/deployment/raspi-deployment.md` - Raspberry Piデプロイメント
+- `plc-dashboard/_docs/deployment/environment-variables.md` - 環境変数設定ガイド
 
 ### テスト（testing）
 
 テストとデバッグの詳細：
 
-- `_docs/testing/debugging-guide.md` - テスト・デバッグガイド
+- `plc-dashboard/_docs/testing/debugging-guide.md` - テスト・デバッグガイド
 
 ### セットアップ（setup）
 
 開発環境・CI/CDのセットアップ：
 
-- `_docs/setup/mcp-servers.md` - MCP Server設定
-- `_docs/setup/ci-cd.md` - CI/CDセットアップ
+- `plc-dashboard/_docs/setup/mcp-servers.md` - MCP Server設定
+- `plc-dashboard/_docs/setup/ci-cd.md` - CI/CDセットアップ
 
 ### 開発コマンド（commands）
 
 日常的に使う開発コマンド集：
 
-- `_docs/commands/development.md` - 開発コマンド集
+- `plc-dashboard/_docs/commands/development.md` - 開発コマンド集
 
 ---
 
@@ -348,7 +364,7 @@ socketio.init_app(app, async_mode='threading', cors_allowed_origins="*")
 
 **理由:** Greenletエラーを回避し、Flaskとの互換性を確保するため。
 
-詳細は `_docs/decisions/socketio-threading-mode.md` を参照。
+詳細は `plc-dashboard/_docs/decisions/socketio-threading-mode.md` を参照。
 
 ### 2. 設備識別の優先順位
 
@@ -365,7 +381,7 @@ if equipment:
     equipment.equipment_id = equipment_id  # 設備IDを新しい値に更新
 ```
 
-詳細は `_docs/decisions/equipment-identification-strategy.md` を参照。
+詳細は `plc-dashboard/_docs/decisions/equipment-identification-strategy.md` を参照。
 
 ### 3. PLCプロトコル実装
 
@@ -392,7 +408,7 @@ combined = (word1 << 16) | word2
 float_value = struct.unpack('>f', struct.pack('>I', combined))[0]  # '>f' = Big-Endian
 ```
 
-詳細は `_docs/plc-knowledge/endianness.md` を参照。
+詳細は `plc-dashboard/_docs/plc-knowledge/endianness.md` を参照。
 
 ### 4. タイムアウト設定
 
@@ -406,7 +422,7 @@ plc.connect(ip, port, timeout=5.0)
 plc.connect(ip, port)
 ```
 
-詳細は `_docs/plc-knowledge/timeout-settings.md` を参照。
+詳細は `plc-dashboard/_docs/plc-knowledge/timeout-settings.md` を参照。
 
 ### 5. 変数シャドーイング問題
 
@@ -428,60 +444,21 @@ for plc_config in plc_configs:  # 別の変数名を使用
 
 ### 6. Vuetifyツールチップの実装
 
-**問題:** Vuetifyのデフォルトツールチップは、ダークモードで黒背景に黒文字となり見えなくなることがあります。
+**問題:** ダークモードで黒背景に黒文字となり見えなくなる。
 
-**必ずcontent-classを使用してツールチップを実装してください：**
+**必須ルール:** `content-class="tooltip-custom"` を必ず追加
 
 ```vue
-<!-- ✅ 正しい実装 -->
+<!-- ✅ 正しい -->
 <v-tooltip location="bottom" content-class="tooltip-custom">
   <template #activator="{ props }">
-    <v-btn v-bind="props" color="primary">
-      ボタン
-    </v-btn>
+    <v-btn v-bind="props">ボタン</v-btn>
   </template>
-  <span>ツールチップのテキスト</span>
-</v-tooltip>
-
-<!-- ❌ 避けるべき実装 -->
-<v-tooltip text="ツールチップのテキスト" location="bottom">
-  <template #activator="{ props }">
-    <v-btn v-bind="props" color="primary">
-      ボタン
-    </v-btn>
-  </template>
+  <span>テキスト</span>
 </v-tooltip>
 ```
 
-**既存の設定:**
-
-1. **plugins/vuetify.ts:50-54** - VTooltipデフォルト設定
-   ```typescript
-   defaults: {
-     VTooltip: {
-       color: 'grey-darken-3',
-     },
-   }
-   ```
-
-2. **app.vue:8-35** - グローバルCSS（!important付き）
-   ```css
-   .tooltip-custom {
-     background-color: #424242 !important;
-     color: #ffffff !important;
-     opacity: 1 !important;
-   }
-   ```
-
-**新しいツールチップを追加する際のチェックリスト:**
-- [ ] `content-class="tooltip-custom"`を追加
-- [ ] `<span>`タグでテキストを囲む
-- [ ] Playwrightテストでダークモードでの表示を確認
-
-**実装箇所:**
-- `pages/index.vue:150,168,222,240`
-- `pages/dashboard.vue:156,174`
-- `components/ThemeToggle.vue:2`
+詳細は `plc-dashboard/_docs/architecture/frontend.md` の「Vuetifyツールチップの実装ルール」を参照。
 
 ### 7. エラー・アラームシステム（Phase 2-7）
 
@@ -506,7 +483,7 @@ PLCとの通信エラーおよびアラームを管理するための専用ペ�
 - `raspi_agent/error_reporter.py` - エラー報告モジュール
 - `raspi_agent/plc_agent.py` - エラー検出・送信統合
 
-詳細は `_docs/features/phase2-7-error-alarm-system.md` を参照。
+詳細は `plc-dashboard/_docs/features/phase2-7-error-alarm-system.md` を参照。
 
 ---
 
@@ -539,7 +516,7 @@ python scripts/test_e2e_deployment.py
 
 新機能を追加した場合は、`scripts/`ディレクトリに対応するPlaywrightテストスクリプトを作成することを推奨します。
 
-詳細は `_docs/testing/debugging-guide.md` を参照。
+詳細は `plc-dashboard/_docs/testing/debugging-guide.md` を参照。
 
 ---
 
@@ -590,16 +567,16 @@ docker compose logs -f backend | grep "📡 WebSocket"
 
 以下のドキュメントを参照してください：
 
-- `_docs/testing/debugging-guide.md` - テスト・デバッグガイド
-- `_docs/plc-knowledge/troubleshooting.md` - PLCトラブルシューティング
+- `plc-dashboard/_docs/testing/debugging-guide.md` - テスト・デバッグガイド
+- `plc-dashboard/_docs/plc-knowledge/troubleshooting.md` - PLCトラブルシューティング
 
 ---
 
 ## ドキュメント更新ルール
 
-このセクションでは、作業完了時にCLAUDE.mdと_docs/を更新するためのガイドラインを提供します。
+このセクションでは、作業完了時にCLAUDE.mdとplc-dashboard/_docs/を更新するためのガイドラインを提供します。
 
-詳細は `_docs/DOCUMENT_MAINTENANCE.md` を参照してください。
+詳細は `plc-dashboard/_docs/DOCUMENT_MAINTENANCE.md` を参照してください。
 
 ### 更新が必要なケース
 
@@ -607,15 +584,15 @@ docker compose logs -f backend | grep "📡 WebSocket"
 
 | 変更内容 | 更新対象ドキュメント |
 |---------|-------------------|
-| 新しいAPIエンドポイント追加 | `_docs/architecture/backend.md` |
-| データベースモデル変更 | `_docs/architecture/database.md` |
-| マイグレーション追加 | `_docs/architecture/database.md` |
-| 新しいPLCメーカー対応 | `_docs/plc-knowledge/plc-manufacturers.md` |
-| プロトコル実装追加 | `_docs/plc-knowledge/protocols.md` |
-| 新機能追加 | `_docs/features/[機能名].md`（新規作成） |
-| 設計判断 | `_docs/decisions/[判断内容].md`（新規作成） |
+| 新しいAPIエンドポイント追加 | `plc-dashboard/_docs/architecture/backend.md` |
+| データベースモデル変更 | `plc-dashboard/_docs/architecture/database.md` |
+| マイグレーション追加 | `plc-dashboard/_docs/architecture/database.md` |
+| 新しいPLCメーカー対応 | `plc-dashboard/_docs/plc-knowledge/plc-manufacturers.md` |
+| プロトコル実装追加 | `plc-dashboard/_docs/plc-knowledge/protocols.md` |
+| 新機能追加 | `plc-dashboard/_docs/features/[機能名].md`（新規作成） |
+| 設計判断 | `plc-dashboard/_docs/decisions/[判断内容].md`（新規作成） |
 | 作業フロー変更 | `CLAUDE.md` |
-| 環境変数追加 | `_docs/deployment/environment-variables.md` |
+| 環境変数追加 | `plc-dashboard/_docs/deployment/environment-variables.md` |
 
 ### 更新が不要なケース
 
@@ -630,4 +607,4 @@ docker compose logs -f backend | grep "📡 WebSocket"
 
 ---
 
-**最終更新:** 2025-10-30
+**最終更新:** 2026-01-19

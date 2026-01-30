@@ -1,17 +1,35 @@
 """
 PLC通信の共通機能モジュール
 
-エラー統計、バリデーション、リトライ処理、アドレス解析など、
+エラー統計、バリデーション、リトライ処理、アドレス解析、データ型変換など、
 全メーカー共通で使用する機能を提供します。
 
 CLAUDE.md参照: パフォーマンス最適化とセキュリティ
+
+Phase 4リファクタリング: データ型変換関数を追加して重複コードを削減
+Phase 11リファクタリング: converters.pyとbatch_reader.pyに分割
+Phase 16: 型ヒント追加
 """
 import os
 import time
 import random
 import logging
 from datetime import datetime
+from typing import Optional, Dict, Any, Callable, TypeVar
 from dotenv import load_dotenv
+
+T = TypeVar('T')
+
+# Phase 11: 分割されたモジュールからインポート（後方互換性）
+from .converters import (
+    convert_words_to_float32,
+    convert_words_to_dword,
+    convert_words_to_value,
+)
+from .batch_reader import (
+    extract_address_number,
+    group_continuous_word_addresses,
+)
 
 load_dotenv()
 
@@ -43,23 +61,25 @@ error_stats = {
 }
 
 
-def print_error_stats():
+def print_error_stats() -> None:
     """
     パフォーマンス統計を表示（CLAUDE.md参照）
     目標指標: 通信成功率95%以上、平均応答時間100ms以下、エラー率5%以下
+
+    Phase 14: print() → logger統一
     """
     global error_stats
 
     # 基本統計
-    print("\n" + "="*60)
-    print("📊 PLCエージェント パフォーマンス統計")
-    print("="*60)
+    logger.info("=" * 60)
+    logger.info("PLCエージェント パフォーマンス統計")
+    logger.info("=" * 60)
 
     # エラー統計
-    print("\n【エラー統計】")
-    print(f"  接続エラー: {error_stats['connection_errors']}回")
-    print(f"  読み取りエラー: {error_stats['read_errors']}回")
-    print(f"  連続失敗: {error_stats['consecutive_failures']}回")
+    logger.info("【エラー統計】")
+    logger.info(f"  接続エラー: {error_stats['connection_errors']}回")
+    logger.info(f"  読み取りエラー: {error_stats['read_errors']}回")
+    logger.info(f"  連続失敗: {error_stats['consecutive_failures']}回")
 
     # 通信成功率
     total = error_stats['total_attempts']
@@ -67,37 +87,41 @@ def print_error_stats():
     if total > 0:
         success_rate = (success / total) * 100
         error_rate = 100 - success_rate
-        print(f"\n【通信統計】")
-        print(f"  総試行回数: {total}回")
-        print(f"  成功回数: {success}回")
-        print(f"  失敗回数: {total - success}回")
-        print(f"  通信成功率: {success_rate:.2f}% {'✅' if success_rate >= 95 else '⚠️'}")
-        print(f"  エラー率: {error_rate:.2f}% {'✅' if error_rate <= 5 else '⚠️'}")
+        logger.info("【通信統計】")
+        logger.info(f"  総試行回数: {total}回")
+        logger.info(f"  成功回数: {success}回")
+        logger.info(f"  失敗回数: {total - success}回")
+        logger.info(f"  通信成功率: {success_rate:.2f}% {'(達成)' if success_rate >= 95 else '(未達成)'}")
+        logger.info(f"  エラー率: {error_rate:.2f}% {'(達成)' if error_rate <= 5 else '(未達成)'}")
 
     # 応答時間統計
     if success > 0:
         avg_response = error_stats['total_response_time'] / success
-        print(f"\n【応答時間統計】")
-        print(f"  平均応答時間: {avg_response:.2f}ms {'✅' if avg_response <= 100 else '⚠️'}")
-        print(f"  最大応答時間: {error_stats['max_response_time']:.2f}ms")
+        logger.info("【応答時間統計】")
+        logger.info(f"  平均応答時間: {avg_response:.2f}ms {'(達成)' if avg_response <= 100 else '(未達成)'}")
+        logger.info(f"  最大応答時間: {error_stats['max_response_time']:.2f}ms")
         if error_stats['min_response_time'] != float('inf'):
-            print(f"  最小応答時間: {error_stats['min_response_time']:.2f}ms")
+            logger.info(f"  最小応答時間: {error_stats['min_response_time']:.2f}ms")
 
     # 稼働時間
     uptime = datetime.now() - error_stats['start_time']
-    print(f"\n【稼働時間】")
-    print(f"  開始時刻: {error_stats['start_time'].strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"  稼働時間: {uptime}")
+    logger.info("【稼働時間】")
+    logger.info(f"  開始時刻: {error_stats['start_time'].strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"  稼働時間: {uptime}")
 
     if error_stats['last_success']:
-        print(f"  最終成功: {error_stats['last_success'].strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info(f"  最終成功: {error_stats['last_success'].strftime('%Y-%m-%d %H:%M:%S')}")
     else:
-        print(f"  最終成功: なし")
+        logger.info("  最終成功: なし")
 
-    print("="*60 + "\n")
+    logger.info("=" * 60)
 
 
-def update_error_stats(success=True, error_type=None, response_time_ms=None):
+def update_error_stats(
+    success: bool = True,
+    error_type: Optional[str] = None,
+    response_time_ms: Optional[float] = None
+) -> None:
     """
     パフォーマンス統計を更新（CLAUDE.md参照）
 
@@ -142,7 +166,7 @@ def update_error_stats(success=True, error_type=None, response_time_ms=None):
         print_error_stats()
 
 
-def validate_plc_ip(ip_address):
+def validate_plc_ip(ip_address: str) -> bool:
     """
     PLCのIPアドレスをホワイトリストで検証（CLAUDE.md参照）
 
@@ -165,7 +189,7 @@ def validate_plc_ip(ip_address):
         return False
 
 
-def check_write_permission():
+def check_write_permission() -> bool:
     """
     PLC書き込み権限をチェック（CLAUDE.md参照）
 
@@ -178,7 +202,11 @@ def check_write_permission():
     return True
 
 
-def retry_on_failure(func, max_retries=MAX_RETRY_ATTEMPTS, delay=1):
+def retry_on_failure(
+    func: Callable[[], T],
+    max_retries: int = MAX_RETRY_ATTEMPTS,
+    delay: int = 1
+) -> Optional[T]:
     """
     リトライ機構付きの関数実行
 
@@ -205,7 +233,10 @@ def retry_on_failure(func, max_retries=MAX_RETRY_ATTEMPTS, delay=1):
     return None
 
 
-def safe_plc_read(plc_func, error_msg="PLC読み取りエラー"):
+def safe_plc_read(
+    plc_func: Callable[[], T],
+    error_msg: str = "PLC読み取りエラー"
+) -> Optional[T]:
     """
     安全なPLC読み取り（タイムアウト・エラー処理付き）
 
@@ -225,115 +256,7 @@ def safe_plc_read(plc_func, error_msg="PLC読み取りエラー"):
         return None
 
 
-def extract_address_number(address):
-    """
-    アドレス文字列から数値部分を抽出
-
-    Args:
-        address: アドレス文字列（例: "D100", "DM200", "D100.5"）
-
-    Returns:
-        int: アドレス番号（例: 100, 200, 100）
-    """
-    import re
-    # ビット指定がある場合は除外（D100.5 → D100）
-    address_base = address.split('.')[0]
-    # 数字部分を抽出
-    match = re.search(r'\d+', address_base)
-    if match:
-        return int(match.group())
-    return None
-
-
-def group_continuous_word_addresses(data_points, device_type='D'):
-    """
-    連続したワードアドレスをグループ化（バッチ読み取り最適化用）
-    CLAUDE.md参照: パフォーマンス最適化 - バッチ読み取りの活用
-
-    Args:
-        data_points: データ項目の辞書
-        device_type: デバイスタイプ（'D', 'DM'等）
-
-    Returns:
-        list: グループ化されたアドレスリスト
-        [
-            {
-                'keys': ['temp1', 'temp2', 'temp3'],  # データキー
-                'start_address': 100,  # 開始アドレス
-                'count': 3,  # ワード数
-                'settings': [{...}, {...}, {...}]  # 各項目の設定
-            },
-            ...
-        ]
-    """
-    # wordデータ型のみをフィルタ（dword, float32は除外）
-    word_items = []
-    for key, setting in data_points.items():
-        if not setting.get("enabled", False):
-            continue
-
-        data_type = setting.get("data_type", "word")
-        address = setting.get("address", "")
-
-        # ビット指定やdword/float32は個別処理
-        if data_type != "word" or '.' in address:
-            continue
-
-        # 指定デバイスタイプのみ
-        if not address.upper().startswith(device_type):
-            continue
-
-        addr_num = extract_address_number(address)
-        if addr_num is not None:
-            word_items.append({
-                'key': key,
-                'setting': setting,
-                'address_num': addr_num,
-                'address': address
-            })
-
-    # アドレス番号でソート
-    word_items.sort(key=lambda x: x['address_num'])
-
-    # 連続アドレスをグループ化
-    groups = []
-    current_group = None
-
-    for item in word_items:
-        if current_group is None:
-            # 新しいグループ開始
-            current_group = {
-                'keys': [item['key']],
-                'start_address': item['address_num'],
-                'count': 1,
-                'settings': [item['setting']],
-                'addresses': [item['address']]
-            }
-        elif item['address_num'] == current_group['start_address'] + current_group['count']:
-            # 連続している → グループに追加
-            current_group['keys'].append(item['key'])
-            current_group['count'] += 1
-            current_group['settings'].append(item['setting'])
-            current_group['addresses'].append(item['address'])
-        else:
-            # 連続していない → グループ確定して新しいグループ開始
-            groups.append(current_group)
-            current_group = {
-                'keys': [item['key']],
-                'start_address': item['address_num'],
-                'count': 1,
-                'settings': [item['setting']],
-                'addresses': [item['address']]
-            }
-
-    # 最後のグループを追加
-    if current_group:
-        groups.append(current_group)
-
-    return groups
-
-
-def generate_dummy_data(data_points):
+def generate_dummy_data(data_points: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
     """
     ダミーデータを生成
 
@@ -372,3 +295,42 @@ def generate_dummy_data(data_points):
                 dummy_data[key] = round(random.uniform(0.0, 100.0), 1)
 
     return dummy_data
+
+
+# ============================================================
+# 後方互換性のためのエクスポート（Phase 11）
+# ============================================================
+# 以下の関数はconverters.pyとbatch_reader.pyに移動されましたが、
+# 既存のimport文との互換性を維持するため、このモジュールからも利用可能です。
+#
+# from plc_drivers.base import convert_words_to_float32  # 引き続き動作
+# from plc_drivers.converters import convert_words_to_float32  # 推奨
+#
+# ============================================================
+
+__all__ = [
+    # エラー統計
+    'error_stats',
+    'print_error_stats',
+    'update_error_stats',
+    # セキュリティ・バリデーション
+    'validate_plc_ip',
+    'check_write_permission',
+    'retry_on_failure',
+    'safe_plc_read',
+    # ダミーデータ
+    'generate_dummy_data',
+    # 環境変数
+    'MAX_RETRY_ATTEMPTS',
+    'CONNECTION_TIMEOUT',
+    'READ_TIMEOUT',
+    'ALLOWED_PLC_IPS',
+    'READ_ONLY_MODE',
+    # converters.pyからの再エクスポート
+    'convert_words_to_float32',
+    'convert_words_to_dword',
+    'convert_words_to_value',
+    # batch_reader.pyからの再エクスポート
+    'extract_address_number',
+    'group_continuous_word_addresses',
+]

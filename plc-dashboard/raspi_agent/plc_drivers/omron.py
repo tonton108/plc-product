@@ -7,15 +7,17 @@ FINS Protocol を使用したオムロンPLCとの通信を提供します。
 - ライブラリ: fins
 
 CLAUDE.md参照: PLCプロトコル基礎知識 - FINS Protocol
+
+Phase 4リファクタリング: データ型変換を共通関数に置き換え
 """
 import logging
-import struct
 from .base import (
     validate_plc_ip,
     update_error_stats,
     retry_on_failure,
     safe_plc_read,
     group_continuous_word_addresses,
+    convert_words_to_value,
     CONNECTION_TIMEOUT
 )
 
@@ -163,8 +165,8 @@ def read_omron_plc(fins_client, data_points):
                         else:
                             raise ValueError(f"オムロンビットアドレスには.XX指定が必要: {address}")
 
-                    elif data_type == "float32":
-                        # 32bit浮動小数点 (2ワード)
+                    elif data_type in ("float32", "dword"):
+                        # 32bitデータ (2ワード) - float32またはdword
                         if address.upper().startswith('DM'):
                             addr_num = int(address[2:])
                         elif address.upper().startswith('D'):
@@ -176,31 +178,11 @@ def read_omron_plc(fins_client, data_points):
                         addr_bytes = addr_num.to_bytes(2, byteorder='big') + b'\x00'
                         mem_area = fins_client.memory_area_read(b'\x82', addr_bytes, 2)
 
+                        # 共通関数でfloat32/dwordに変換（Big-Endian）
                         if mem_area and len(mem_area) >= 4:
-                            # IEEE754 float32に変換 (ビッグエンディアン)
                             word1 = int.from_bytes(mem_area[0:2], byteorder='big')
                             word2 = int.from_bytes(mem_area[2:4], byteorder='big')
-                            combined = (word1 << 16) | word2
-                            raw_value = struct.unpack('>f', struct.pack('>I', combined))[0]
-
-                    elif data_type == "dword":
-                        # 32bit整数 (2ワード)
-                        if address.upper().startswith('DM'):
-                            addr_num = int(address[2:])
-                        elif address.upper().startswith('D'):
-                            addr_num = int(address[1:])
-                        else:
-                            raise ValueError(f"不明なアドレス形式: {address}")
-
-                        # 2ワード読み取り
-                        addr_bytes = addr_num.to_bytes(2, byteorder='big') + b'\x00'
-                        mem_area = fins_client.memory_area_read(b'\x82', addr_bytes, 2)
-
-                        if mem_area and len(mem_area) >= 4:
-                            # 32bit整数に結合
-                            word1 = int.from_bytes(mem_area[0:2], byteorder='big')
-                            word2 = int.from_bytes(mem_area[2:4], byteorder='big')
-                            raw_value = (word1 << 16) | word2
+                            raw_value = convert_words_to_value(word1, word2, data_type)
 
                     else:
                         # 従来の16bitワード読み取り

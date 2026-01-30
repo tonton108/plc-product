@@ -7,22 +7,25 @@ Modbus TCP を使用したキーエンスPLCとの通信を提供します。
 - ライブラリ: pymodbus
 
 CLAUDE.md参照: PLCプロトコル基礎知識 - Modbus TCP
+
+Phase 4リファクタリング: データ型変換を共通関数に置き換え
 """
 import logging
-import struct
 from .base import (
     validate_plc_ip,
     update_error_stats,
     retry_on_failure,
     safe_plc_read,
     group_continuous_word_addresses,
+    convert_words_to_value,
     CONNECTION_TIMEOUT
 )
+from ..config.constants import DEFAULT_MODBUS_PORT
 
 logger = logging.getLogger(__name__)
 
 
-def connect_keyence_plc(ip, port=502, timeout=CONNECTION_TIMEOUT):
+def connect_keyence_plc(ip, port=DEFAULT_MODBUS_PORT, timeout=CONNECTION_TIMEOUT):
     """
     キーエンスPLC接続（Modbus/TCP）
     CLAUDE.md参照: Modbus TCP, ポート502, Big-Endian
@@ -146,31 +149,19 @@ def read_keyence_modbus(client, address, data_type="word", scale=1):
             else:
                 raise ValueError("ビット読み取りはCoilのみ対応")
 
-        elif data_type == "float32":
-            # 32bit浮動小数点 (2レジスタ)
+        elif data_type in ("float32", "dword"):
+            # 32bitデータ (2レジスタ) - float32またはdword
             if register_type == "holding":
                 result = client.read_holding_registers(modbus_addr, 2)
                 if not result.isError():
-                    # IEEE754変換 (ビッグエンディアン)
-                    word1, word2 = result.registers[0], result.registers[1]
-                    combined = (word1 << 16) | word2
-                    return struct.unpack('>f', struct.pack('>I', combined))[0]
+                    # 共通関数でfloat32/dwordに変換（Big-Endian）
+                    return convert_words_to_value(
+                        result.registers[0], result.registers[1], data_type
+                    )
                 else:
                     raise Exception(f"Holding Register読み取りエラー: {result}")
             else:
-                raise ValueError("float32はHolding Registerのみ対応")
-
-        elif data_type == "dword":
-            # 32bit整数 (2レジスタ)
-            if register_type == "holding":
-                result = client.read_holding_registers(modbus_addr, 2)
-                if not result.isError():
-                    word1, word2 = result.registers[0], result.registers[1]
-                    return (word1 << 16) | word2
-                else:
-                    raise Exception(f"Holding Register読み取りエラー: {result}")
-            else:
-                raise ValueError("dwordはHolding Registerのみ対応")
+                raise ValueError(f"{data_type}はHolding Registerのみ対応")
 
         else:
             # 16bit word
@@ -197,7 +188,7 @@ def read_keyence_modbus(client, address, data_type="word", scale=1):
         return None
 
 
-def read_keyence_plc(client, data_points, modbus_port=502):
+def read_keyence_plc(client, data_points, modbus_port=DEFAULT_MODBUS_PORT):
     """
     キーエンスPLCからデータを読み取り
 

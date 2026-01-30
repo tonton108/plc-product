@@ -1,16 +1,25 @@
 """
 データクリーンアップと集計作成のスケジューラー
+
+Phase 5リファクタリング: N+1クエリ問題の解消とバッチDELETE最適化
+Phase 10リファクタリング: クリーンアップロジック統一、logger使用
 """
+import logging
 from flask import current_app
 from db import db
 from db.models import (
     Equipment, Log, DailyLogSummary, MonthlyLogSummary,
     CommunicationErrorLog, AlarmHistory, PLCStatus
 )
+from sqlalchemy import func
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from calendar import monthrange
 import threading
 import time
+
+# モジュール用ロガー
+logger = logging.getLogger(__name__)
 
 
 # データ保存期間設定
@@ -23,71 +32,190 @@ DATA_RETENTION_CONFIG = {
 }
 
 
-def cleanup_old_logs():
-    """古いログデータのクリーンアップ（app_context内で実行すること）"""
-    try:
-        print(f"🧹 クリーンアップ開始: {DATA_RETENTION_CONFIG['raw_data_days']}日以上古いデータを削除")
+# ==========================================
+# Phase 10: 汎用クリーンアップ関数
+# ==========================================
 
-        # 90日以上古い詳細データを削除
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=DATA_RETENTION_CONFIG['raw_data_days'])
+def batch_cleanup(model, date_column, retention_days, extra_filter=None, data_name="データ", batch_size=10000):
+    """汎用バッチクリーンアップ関数
+
+    Phase 10で導入: 3つのクリーンアップ関数の共通ロジックを統一
+
+    Args:
+        model: SQLAlchemyモデルクラス（Log, CommunicationErrorLog, AlarmHistory等）
+        date_column: 日付カラム（model.timestamp, model.occurred_at等）
+        retention_days: 保持日数
+        extra_filter: 追加のフィルタ条件（オプション）- 例: AlarmHistory.cleared_at.isnot(None)
+        data_name: ログ出力用のデータ名
+        batch_size: バッチサイズ（デフォルト10000）
+
+    Returns:
+        int: 削除された件数
+    """
+    try:
+        logger.info(f"クリーンアップ開始: {retention_days}日以上古い{data_name}を削除")
+
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
+
+        # 基本クエリを構築
+        base_query = model.query.filter(date_column < cutoff_date)
+
+        # 追加フィルタがある場合は適用
+        if extra_filter is not None:
+            base_query = base_query.filter(extra_filter)
 
         # 削除対象件数を確認
-        old_logs_count = Log.query.filter(Log.timestamp < cutoff_date).count()
+        target_count = base_query.count()
 
-        if old_logs_count > 0:
-            print(f"📊 削除対象: {old_logs_count}件のログ")
+        if target_count == 0:
+            logger.info(f"削除対象の{data_name}はありません")
+            return 0
 
-            # バッチ削除（大量データ対応）
-            batch_size = 1000
-            total_deleted = 0
+        logger.info(f"削除対象: {target_count}件の{data_name}")
 
-            while True:
-                # 1000件ずつ削除
-                old_logs = Log.query.filter(Log.timestamp < cutoff_date).limit(batch_size)
-                logs_to_delete = old_logs.all()
+        total_deleted = 0
 
-                if not logs_to_delete:
-                    break
+        while total_deleted < target_count:
+            # サブクエリでIDを取得してバッチ削除
+            id_column = getattr(model, 'id')
+            subquery_base = db.session.query(id_column).filter(date_column < cutoff_date)
 
-                for log in logs_to_delete:
-                    db.session.delete(log)
+            if extra_filter is not None:
+                subquery_base = subquery_base.filter(extra_filter)
 
-                db.session.commit()
-                total_deleted += len(logs_to_delete)
-                print(f"📝 削除進行中: {total_deleted}/{old_logs_count}件")
+            subquery = subquery_base.limit(batch_size).subquery()
 
-                # CPU負荷軽減のため少し待機
-                time.sleep(0.1)
+            deleted_count = db.session.query(model).filter(
+                id_column.in_(subquery)
+            ).delete(synchronize_session=False)
 
-            print(f" クリーンアップ完了: {total_deleted}件のログを削除しました")
-        else:
-            print("ℹ️ 削除対象のログはありません")
+            db.session.commit()
+
+            if deleted_count == 0:
+                break
+
+            total_deleted += deleted_count
+            logger.debug(f"削除進行中: {total_deleted}/{target_count}件")
+
+            # CPU負荷軽減
+            time.sleep(0.1)
+
+        logger.info(f"クリーンアップ完了: {total_deleted}件の{data_name}を削除しました")
+        return total_deleted
 
     except Exception as e:
-        print(f" クリーンアップエラー: {e}")
+        logger.error(f"クリーンアップエラー ({data_name}): {e}", exc_info=True)
         db.session.rollback()
+        return 0
 
+
+# ==========================================
+# クリーンアップ関数（汎用関数を使用）
+# ==========================================
+
+def cleanup_old_logs():
+    """古いログデータのクリーンアップ（app_context内で実行すること）
+
+    Phase 10: batch_cleanup()を使用してシンプル化
+    """
+    return batch_cleanup(
+        model=Log,
+        date_column=Log.timestamp,
+        retention_days=DATA_RETENTION_CONFIG['raw_data_days'],
+        data_name="ログ"
+    )
+
+
+def cleanup_old_error_logs():
+    """古いエラーログのクリーンアップ（Phase 2）
+
+    Phase 10: batch_cleanup()を使用してシンプル化
+    """
+    return batch_cleanup(
+        model=CommunicationErrorLog,
+        date_column=CommunicationErrorLog.occurred_at,
+        retention_days=DATA_RETENTION_CONFIG['error_log_days'],
+        data_name="エラーログ"
+    )
+
+
+def cleanup_old_alarm_history():
+    """古いアラーム履歴のクリーンアップ（Phase 2）
+
+    注意: 解除済み（cleared_at IS NOT NULL）のアラームのみ削除
+    未解除のアラームは保持（長期間継続する問題を見逃さないため）
+
+    Phase 10: batch_cleanup()を使用してシンプル化
+    """
+    deleted = batch_cleanup(
+        model=AlarmHistory,
+        date_column=AlarmHistory.occurred_at,
+        retention_days=DATA_RETENTION_CONFIG['alarm_history_days'],
+        extra_filter=AlarmHistory.cleared_at.isnot(None),  # 解除済みのみ
+        data_name="アラーム履歴（解除済み）"
+    )
+
+    # 未解除アラームの件数を確認（情報提供）
+    try:
+        uncleared_count = AlarmHistory.query.filter(
+            AlarmHistory.cleared_at.is_(None)
+        ).count()
+        if uncleared_count > 0:
+            logger.warning(f"未解除アラーム: {uncleared_count}件（削除せずに保持）")
+    except Exception as e:
+        logger.error(f"未解除アラーム件数取得エラー: {e}")
+
+    return deleted
+
+
+# ==========================================
+# 集計作成関数
+# ==========================================
 
 def create_daily_summary(target_date):
-    """指定日の日次集計を作成（app_context内で実行すること）"""
-    try:
-        print(f"📊 日次集計作成開始: {target_date}")
+    """指定日の日次集計を作成（app_context内で実行すること）
 
-        # 各設備の日次集計を作成
-        equipments = Equipment.query.all()
+    Phase 5最適化: N+1クエリ問題の解消
+    - 旧方式: 設備ごとにログをクエリ → 1 + N クエリ
+    - 新方式: 全設備のログを1クエリで取得 → Python側でグループ化 → 2クエリのみ
+    """
+    try:
+        logger.info(f"日次集計作成開始: {target_date}")
+
+        # 日付範囲を計算
+        start_date = datetime.combine(target_date, datetime.min.time())
+        end_date = start_date + timedelta(days=1)
+
+        # 全設備のIDマップを取得（1クエリ）
+        equipments = {eq.id: eq for eq in Equipment.query.all()}
+
+        if not equipments:
+            logger.info("設備が登録されていません")
+            return
+
+        # 全設備の対象日ログを1クエリで取得（N+1解消）
+        all_logs = Log.query.filter(
+            Log.equipment_id.in_(equipments.keys()),
+            Log.timestamp >= start_date,
+            Log.timestamp < end_date
+        ).all()
+
+        # Python側で設備ごとにグループ化
+        logs_by_equipment = defaultdict(list)
+        for log in all_logs:
+            logs_by_equipment[log.equipment_id].append(log)
+
+        logger.debug(f"取得ログ数: {len(all_logs)}件 ({len(logs_by_equipment)}設備)")
+
+        # 既存の日次集計を一括削除（1クエリ）
+        DailyLogSummary.query.filter(
+            DailyLogSummary.equipment_id.in_(equipments.keys()),
+            DailyLogSummary.date == target_date
+        ).delete(synchronize_session=False)
+
         created_count = 0
 
-        for equipment in equipments:
-            # 指定日のログデータを取得
-            start_date = datetime.combine(target_date, datetime.min.time())
-            end_date = start_date + timedelta(days=1)
-
-            daily_logs = Log.query.filter(
-                Log.equipment_id == equipment.id,
-                Log.timestamp >= start_date,
-                Log.timestamp < end_date
-            ).all()
-
+        for equipment_id, daily_logs in logs_by_equipment.items():
             if not daily_logs:
                 continue
 
@@ -103,17 +231,9 @@ def create_daily_summary(target_date):
             # エラー件数
             error_count = len([log for log in daily_logs if log.error_code and log.error_code > 0])
 
-            # 既存の日次集計を削除
-            existing = DailyLogSummary.query.filter_by(
-                equipment_id=equipment.id,
-                date=target_date
-            ).first()
-            if existing:
-                db.session.delete(existing)
-
             # 新しい日次集計を作成
             daily_summary = DailyLogSummary(
-                equipment_id=equipment.id,
+                equipment_id=equipment_id,
                 date=target_date,
                 production_count_total=production_total,
                 current_avg=sum(current_values) / len(current_values) if current_values else None,
@@ -134,32 +254,58 @@ def create_daily_summary(target_date):
             created_count += 1
 
         db.session.commit()
-        print(f" {target_date}の日次集計を作成しました: {created_count}設備")
+        logger.info(f"{target_date}の日次集計を作成しました: {created_count}設備")
 
     except Exception as e:
-        print(f" 日次集計作成エラー: {e}")
+        logger.error(f"日次集計作成エラー: {e}", exc_info=True)
         db.session.rollback()
 
 
 def create_monthly_summary(year, month):
-    """指定月の月次集計を作成（app_context内で実行すること）"""
-    try:
-        print(f"📊 月次集計作成開始: {year}年{month}月")
+    """指定月の月次集計を作成（app_context内で実行すること）
 
-        equipments = Equipment.query.all()
+    Phase 5最適化: N+1クエリ問題の解消
+    - 旧方式: 設備ごとに日次集計をクエリ → 1 + N クエリ
+    - 新方式: 全設備の日次集計を1クエリで取得 → Python側でグループ化 → 2クエリのみ
+    """
+    try:
+        logger.info(f"月次集計作成開始: {year}年{month}月")
+
+        # 日付範囲を計算
+        start_date = datetime(year, month, 1).date()
+        end_date = datetime(year, month, monthrange(year, month)[1]).date()
+
+        # 全設備のIDマップを取得（1クエリ）
+        equipments = {eq.id: eq for eq in Equipment.query.all()}
+
+        if not equipments:
+            logger.info("設備が登録されていません")
+            return
+
+        # 全設備の対象月日次集計を1クエリで取得（N+1解消）
+        all_summaries = DailyLogSummary.query.filter(
+            DailyLogSummary.equipment_id.in_(equipments.keys()),
+            DailyLogSummary.date >= start_date,
+            DailyLogSummary.date <= end_date
+        ).all()
+
+        # Python側で設備ごとにグループ化
+        summaries_by_equipment = defaultdict(list)
+        for summary in all_summaries:
+            summaries_by_equipment[summary.equipment_id].append(summary)
+
+        logger.debug(f"取得日次集計数: {len(all_summaries)}件 ({len(summaries_by_equipment)}設備)")
+
+        # 既存の月次集計を一括削除（1クエリ）
+        MonthlyLogSummary.query.filter(
+            MonthlyLogSummary.equipment_id.in_(equipments.keys()),
+            MonthlyLogSummary.year == year,
+            MonthlyLogSummary.month == month
+        ).delete(synchronize_session=False)
+
         created_count = 0
 
-        for equipment in equipments:
-            # 指定月の日次集計を取得
-            start_date = datetime(year, month, 1).date()
-            end_date = datetime(year, month, monthrange(year, month)[1]).date()
-
-            daily_summaries = db.session.query(DailyLogSummary)\
-                .filter_by(equipment_id=equipment.id)\
-                .filter(DailyLogSummary.date >= start_date)\
-                .filter(DailyLogSummary.date <= end_date)\
-                .all()
-
+        for equipment_id, daily_summaries in summaries_by_equipment.items():
             if not daily_summaries:
                 continue
 
@@ -171,18 +317,9 @@ def create_monthly_summary(year, month):
             cycle_avgs = [ds.cycle_time_avg for ds in daily_summaries if ds.cycle_time_avg is not None]
             error_total = sum([ds.error_count for ds in daily_summaries if ds.error_count])
 
-            # 既存の月次集計を削除
-            existing = MonthlyLogSummary.query.filter_by(
-                equipment_id=equipment.id,
-                year=year,
-                month=month
-            ).first()
-            if existing:
-                db.session.delete(existing)
-
             # 新しい月次集計を作成
             monthly_summary = MonthlyLogSummary(
-                equipment_id=equipment.id,
+                equipment_id=equipment_id,
                 year=year,
                 month=month,
                 production_count_total=production_total,
@@ -202,117 +339,16 @@ def create_monthly_summary(year, month):
             created_count += 1
 
         db.session.commit()
-        print(f" {year}年{month}月の月次集計を作成しました: {created_count}設備")
+        logger.info(f"{year}年{month}月の月次集計を作成しました: {created_count}設備")
 
     except Exception as e:
-        print(f" 月次集計作成エラー: {e}")
+        logger.error(f"月次集計作成エラー: {e}", exc_info=True)
         db.session.rollback()
 
 
-def cleanup_old_error_logs():
-    """古いエラーログのクリーンアップ（Phase 2）"""
-    try:
-        print(f"🧹 エラーログクリーンアップ開始: {DATA_RETENTION_CONFIG['error_log_days']}日以上古いデータを削除")
-
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=DATA_RETENTION_CONFIG['error_log_days'])
-
-        # 削除対象件数を確認
-        old_errors_count = CommunicationErrorLog.query.filter(
-            CommunicationErrorLog.occurred_at < cutoff_date
-        ).count()
-
-        if old_errors_count > 0:
-            print(f"📊 削除対象: {old_errors_count}件のエラーログ")
-
-            # バッチ削除
-            batch_size = 1000
-            total_deleted = 0
-
-            while True:
-                old_errors = CommunicationErrorLog.query.filter(
-                    CommunicationErrorLog.occurred_at < cutoff_date
-                ).limit(batch_size)
-                errors_to_delete = old_errors.all()
-
-                if not errors_to_delete:
-                    break
-
-                for error in errors_to_delete:
-                    db.session.delete(error)
-
-                db.session.commit()
-                total_deleted += len(errors_to_delete)
-                print(f"📝 削除進行中: {total_deleted}/{old_errors_count}件")
-
-                time.sleep(0.1)
-
-            print(f"✅ エラーログクリーンアップ完了: {total_deleted}件を削除しました")
-        else:
-            print("ℹ️ 削除対象のエラーログはありません")
-
-    except Exception as e:
-        print(f"❌ エラーログクリーンアップエラー: {e}")
-        db.session.rollback()
-
-
-def cleanup_old_alarm_history():
-    """古いアラーム履歴のクリーンアップ（Phase 2）
-
-    注意: 解除済み（cleared_at IS NOT NULL）のアラームのみ削除
-    未解除のアラームは保持（長期間継続する問題を見逃さないため）
-    """
-    try:
-        print(f"🧹 アラーム履歴クリーンアップ開始: {DATA_RETENTION_CONFIG['alarm_history_days']}日以上古い解除済みアラームを削除")
-
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=DATA_RETENTION_CONFIG['alarm_history_days'])
-
-        # 削除対象件数を確認（解除済みのみ）
-        old_alarms_count = AlarmHistory.query.filter(
-            AlarmHistory.occurred_at < cutoff_date,
-            AlarmHistory.cleared_at.isnot(None)  # 解除済みのみ
-        ).count()
-
-        if old_alarms_count > 0:
-            print(f"📊 削除対象: {old_alarms_count}件のアラーム履歴（解除済み）")
-
-            # バッチ削除
-            batch_size = 1000
-            total_deleted = 0
-
-            while True:
-                old_alarms = AlarmHistory.query.filter(
-                    AlarmHistory.occurred_at < cutoff_date,
-                    AlarmHistory.cleared_at.isnot(None)
-                ).limit(batch_size)
-                alarms_to_delete = old_alarms.all()
-
-                if not alarms_to_delete:
-                    break
-
-                for alarm in alarms_to_delete:
-                    db.session.delete(alarm)
-
-                db.session.commit()
-                total_deleted += len(alarms_to_delete)
-                print(f"📝 削除進行中: {total_deleted}/{old_alarms_count}件")
-
-                time.sleep(0.1)
-
-            print(f"✅ アラーム履歴クリーンアップ完了: {total_deleted}件を削除しました")
-        else:
-            print("ℹ️ 削除対象のアラーム履歴はありません")
-
-        # 未解除アラームの件数を確認（情報提供）
-        uncleared_count = AlarmHistory.query.filter(
-            AlarmHistory.cleared_at.is_(None)
-        ).count()
-        if uncleared_count > 0:
-            print(f"⚠️ 未解除アラーム: {uncleared_count}件（削除せずに保持）")
-
-    except Exception as e:
-        print(f"❌ アラーム履歴クリーンアップエラー: {e}")
-        db.session.rollback()
-
+# ==========================================
+# スケジューラー
+# ==========================================
 
 def start_cleanup_scheduler(app):
     """クリーンアップスケジューラーを開始
@@ -327,7 +363,7 @@ def start_cleanup_scheduler(app):
                 # 24時間待機
                 time.sleep(DATA_RETENTION_CONFIG['cleanup_interval_hours'] * 3600)
 
-                print("🕒 定期クリーンアップを開始します")
+                logger.info("定期クリーンアップを開始します")
 
                 # Flaskアプリケーションコンテキストを設定
                 with app.app_context():
@@ -340,17 +376,15 @@ def start_cleanup_scheduler(app):
                         last_month = datetime.now(timezone.utc) - timedelta(days=1)
                         create_monthly_summary(last_month.year, last_month.month)
 
-                    # 古いデータのクリーンアップ（既存）
+                    # 古いデータのクリーンアップ
                     cleanup_old_logs()
-
-                    # Phase 2: エラーログとアラーム履歴のクリーンアップ
                     cleanup_old_error_logs()
                     cleanup_old_alarm_history()
 
             except Exception as e:
-                print(f"❌ スケジューラーエラー: {e}")
+                logger.error(f"スケジューラーエラー: {e}", exc_info=True)
 
     # バックグラウンドスレッドで実行
     cleanup_thread = threading.Thread(target=cleanup_job, daemon=True)
     cleanup_thread.start()
-    print("✅ クリーンアップスケジューラーを開始しました")
+    logger.info("クリーンアップスケジューラーを開始しました")

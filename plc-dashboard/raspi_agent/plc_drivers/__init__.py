@@ -6,6 +6,8 @@ PLCドライバーモジュール
 - Omron: オムロンPLC（FINS Protocol）
 - Keyence: キーエンスPLC（Modbus TCP）
 - Siemens: シーメンスPLC（S7 Protocol）
+
+Phase 11: converters.pyとbatch_reader.pyに分割
 """
 from .base import (
     update_error_stats,
@@ -22,6 +24,17 @@ from .base import (
     READ_TIMEOUT,
 )
 
+# Phase 11: 分割されたモジュールからも直接インポート可能
+from .converters import (
+    convert_words_to_float32,
+    convert_words_to_dword,
+    convert_words_to_value,
+)
+from .batch_reader import (
+    extract_address_number,
+    group_continuous_word_addresses,
+)
+
 from .mitsubishi import connect_mitsubishi_plc, read_mitsubishi_plc
 from .omron import connect_omron_plc, read_omron_plc
 from .keyence import connect_keyence_plc, read_keyence_plc
@@ -35,12 +48,17 @@ __all__ = [
     'check_write_permission',
     'retry_on_failure',
     'safe_plc_read',
-    'extract_address_number',
-    'group_continuous_word_addresses',
     'generate_dummy_data',
     'MAX_RETRY_ATTEMPTS',
     'CONNECTION_TIMEOUT',
     'READ_TIMEOUT',
+    # converters（Phase 11）
+    'convert_words_to_float32',
+    'convert_words_to_dword',
+    'convert_words_to_value',
+    # batch_reader（Phase 11）
+    'extract_address_number',
+    'group_continuous_word_addresses',
     # mitsubishi
     'connect_mitsubishi_plc',
     'read_mitsubishi_plc',

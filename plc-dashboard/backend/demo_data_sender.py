@@ -12,6 +12,14 @@ import json
 from datetime import datetime, timezone
 import threading
 import argparse
+import logging
+
+# Phase 14: ロギング設定
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 class PLCDataSender:
     def __init__(self, server_url="http://localhost:5000", equipment_id="DEMO_001"):
@@ -89,34 +97,34 @@ class PLCDataSender:
             response = requests.post(url, json=data, headers=headers, timeout=5)
             
             if response.status_code == 200:
-                print(f" データ送信成功: {data['timestamp']} - 生産数: {data['production_count']}, 電流: {data['current']}A, 温度: {data['temperature']}℃")
+                logger.info(f"データ送信成功: {data['timestamp']} - 生産数: {data['production_count']}, 電流: {data['current']}A, 温度: {data['temperature']}℃")
                 return True
             else:
-                print(f" データ送信失敗: {response.status_code} - {response.text}")
+                logger.error(f"データ送信失敗: {response.status_code} - {response.text}")
                 return False
-                
+
         except requests.exceptions.RequestException as e:
-            print(f" 通信エラー: {e}")
+            logger.error(f"通信エラー: {e}")
             return False
     
     def start_continuous_sending(self, interval=2.0):
         """連続データ送信を開始"""
         self.running = True
-        print(f"連続データ送信開始: 設備ID={self.equipment_id}, 送信間隔={interval}秒")
-        print("停止するには Ctrl+C を押してください")
-        
+        logger.info(f"連続データ送信開始: 設備ID={self.equipment_id}, 送信間隔={interval}秒")
+        logger.info("停止するには Ctrl+C を押してください")
+
         try:
             while self.running:
                 data = self.generate_demo_data()
                 self.send_data(data)
                 time.sleep(interval)
         except KeyboardInterrupt:
-            print("\n⏹️ ユーザーによる停止")
+            logger.info("ユーザーによる停止")
         except Exception as e:
-            print(f" エラー発生: {e}")
+            logger.error(f"エラー発生: {e}")
         finally:
             self.running = False
-            print("データ送信終了")
+            logger.info("データ送信終了")
     
     def stop(self):
         """送信停止"""
@@ -125,8 +133,8 @@ class PLCDataSender:
     def send_single_data(self):
         """単発データ送信"""
         data = self.generate_demo_data()
-        print(f"単発データ送信:")
-        print(json.dumps(data, indent=2, ensure_ascii=False))
+        logger.info("単発データ送信:")
+        logger.info(json.dumps(data, indent=2, ensure_ascii=False))
         return self.send_data(data)
     
     def register_equipment(self):
@@ -147,18 +155,18 @@ class PLCDataSender:
             response = requests.post(url, json=registration_data, timeout=5)
 
             if response.status_code == 200:
-                print(f" 設備登録成功: {self.equipment_id}")
+                logger.info(f"設備登録成功: {self.equipment_id}")
 
                 # PLC設定を登録
                 self.register_plc_configs()
 
                 return True
             else:
-                print(f" 設備登録失敗: {response.status_code} - {response.text}")
+                logger.error(f"設備登録失敗: {response.status_code} - {response.text}")
                 return False
 
         except requests.exceptions.RequestException as e:
-            print(f" 設備登録エラー: {e}")
+            logger.error(f"設備登録エラー: {e}")
             return False
 
     def register_plc_configs(self):
@@ -221,14 +229,14 @@ class PLCDataSender:
             response = requests.put(url, json=plc_configs, timeout=5)
 
             if response.status_code == 200:
-                print(f" PLC設定登録成功: {len(plc_configs)}個の設定を登録しました")
+                logger.info(f"PLC設定登録成功: {len(plc_configs)}個の設定を登録しました")
                 return True
             else:
-                print(f" PLC設定登録失敗: {response.status_code} - {response.text}")
+                logger.error(f"PLC設定登録失敗: {response.status_code} - {response.text}")
                 return False
 
         except requests.exceptions.RequestException as e:
-            print(f" PLC設定登録エラー: {e}")
+            logger.error(f"PLC設定登録エラー: {e}")
             return False
 
 def main():
@@ -247,21 +255,21 @@ def main():
     
     sender = PLCDataSender(args.server, args.equipment_id)
     
-    print("=" * 60)
-    print("PLCデータ送信デモツール")
-    print("=" * 60)
-    print(f"サーバー: {args.server}")
-    print(f"設備ID: {args.equipment_id}")
-    print(f"モード: {args.mode}")
-    print("=" * 60)
-    
+    logger.info("=" * 60)
+    logger.info("PLCデータ送信デモツール")
+    logger.info("=" * 60)
+    logger.info(f"サーバー: {args.server}")
+    logger.info(f"設備ID: {args.equipment_id}")
+    logger.info(f"モード: {args.mode}")
+    logger.info("=" * 60)
+
     if args.mode == 'register':
         sender.register_equipment()
     elif args.mode == 'single':
         sender.send_single_data()
     elif args.mode == 'continuous':
         # 設備登録も実行
-        print("設備登録中...")
+        logger.info("設備登録中...")
         sender.register_equipment()
         time.sleep(1)
         
