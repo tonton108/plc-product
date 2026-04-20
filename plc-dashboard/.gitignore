@@ -46,3 +46,6 @@ fix_*.py
 scripts/*.png
 # Claude Code settings
 .claude/
+
+# MCP Server設定（ローカルDB認証情報を含むため）
+.mcp.json

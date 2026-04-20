@@ -5,7 +5,7 @@
       "args": [
         "-y",
         "@modelcontextprotocol/server-postgres",
-        "postgresql://plc_user:plc_pass@localhost:5432/plc_monitor"
+        "postgresql://plc_user:plc_pass@localhost:5433/plc_monitor"
       ],
       "env": {},
       "description": "PLC監視システムのPostgreSQLデータベースへの読み取り専用アクセス"
