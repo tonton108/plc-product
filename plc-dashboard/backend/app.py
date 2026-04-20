@@ -84,7 +84,7 @@ def create_app():
     from error_handlers import register_error_handlers
 
     register_routes(app, socketio)  # socketioを渡す
-    # register_error_handlers(app)  # エラーハンドラーを一時的に無効化してエラー詳細を確認
+    register_error_handlers(app)
 
     logger.debug(f"Registered tables: {db.Model.metadata.tables.keys()}")
     logger.debug(f"URL Map:\n{app.url_map}")

@@ -67,11 +67,9 @@
 
                 <div class="text-center text-caption">
                   <v-chip size="small" variant="text" class="mb-2">
-                    <v-icon size="small" class="mr-1">mdi-account-circle</v-icon>
-                    {{ $t('login.defaultUsers') }}
+                    <v-icon size="small" class="mr-1">mdi-information-outline</v-icon>
+                    {{ $t('login.intranetInfo') }}
                   </v-chip>
-                  <div class="text-body-2 mb-1"><strong>{{ $t('login.admin') }}:</strong> admin / plc-monitor-2025</div>
-                  <div class="text-body-2"><strong>{{ $t('login.operator') }}:</strong> operator / operator-2025</div>
                 </div>
               </v-card-text>
             </v-card>
