@@ -152,7 +152,7 @@ def get_history_data(equipment_id):
     """履歴データ取得（グラフ表示用）- Phase 6: 共通Helper使用"""
     equipment = get_equipment_or_404(equipment_id)
 
-    limit = request.args.get('limit', 100, type=int)
+    limit = min(request.args.get('limit', 100, type=int), 10000)
 
     logs = Log.query.filter_by(equipment_id=equipment.id)\
                    .order_by(Log.id.desc())\
@@ -172,8 +172,12 @@ def get_history_data_optimized(equipment_id):
     """最適化された履歴データ取得 - Phase 6: 共通Helper使用"""
     equipment = get_equipment_or_404(equipment_id)
 
-    limit = request.args.get('limit', 100, type=int)
-    period = request.args.get('period', '1h')  # 1h, 6h, 24h, 7d, 30d
+    limit = min(request.args.get('limit', 100, type=int), 10000)
+    period = request.args.get('period', '1h')
+
+    VALID_PERIODS = {'1h', '6h', '24h', '7d', '30d'}
+    if period not in VALID_PERIODS:
+        return jsonify({"error": f"Invalid period. Must be one of: {', '.join(sorted(VALID_PERIODS))}"}), 400
 
     if period in ['1h', '6h', '24h']:
         # 短期間は詳細データ
@@ -201,9 +205,6 @@ def get_history_data_optimized(equipment_id):
 
         data = DailyLogSummarySerializer.to_list(summaries)
         data_source = "daily_summaries"
-
-    else:
-        return jsonify({"error": "Invalid period"}), 400
 
     return jsonify({
         "equipment_id": equipment_id,
