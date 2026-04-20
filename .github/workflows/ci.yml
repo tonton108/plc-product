@@ -76,12 +76,12 @@ jobs:
       - name: Run Black (code formatter check)
         run: |
           cd plc-dashboard/raspi_agent
-          black --check --diff plc_drivers/ tests/ || true
+          black --check --diff plc_drivers/ tests/
 
       - name: Run Pylint
         run: |
           cd plc-dashboard/raspi_agent
-          pylint plc_drivers/ --fail-under=7.0 || true
+          pylint plc_drivers/ --fail-under=7.0
 
   test-frontend:
     name: Frontend Tests (Nuxt.js)
