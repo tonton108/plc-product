@@ -15,6 +15,7 @@
 import sqlite3
 import json
 import logging
+import threading
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional
@@ -37,11 +38,12 @@ class LocalBuffer:
         """
         self.db_path = db_path
         self.max_retry = max_retry
+        self._lock = threading.RLock()
 
         # データベースディレクトリが存在しない場合は作成
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
-        # データベース接続（スレッドセーフにするため check_same_thread=False）
+        # データベース接続（スレッドセーフにするため check_same_thread=False + ロックで保護）
         self.conn = sqlite3.connect(db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row  # カラム名でアクセス可能にする
 
@@ -86,19 +88,20 @@ class LocalBuffer:
         Returns:
             挿入されたレコードのID
         """
-        try:
-            cursor = self.conn.execute(
-                '''INSERT INTO pending_data (equipment_id, data, created_at)
-                   VALUES (?, ?, ?)''',
-                (equipment_id, json.dumps(data, ensure_ascii=False), datetime.now())
-            )
-            self.conn.commit()
-            record_id = cursor.lastrowid
-            logger.debug(f"💾 バッファ保存: ID={record_id}, 設備={equipment_id}")
-            return record_id
-        except Exception as e:
-            logger.error(f"[ERROR] バッファ保存エラー: {e}")
-            return -1
+        with self._lock:
+            try:
+                cursor = self.conn.execute(
+                    '''INSERT INTO pending_data (equipment_id, data, created_at)
+                       VALUES (?, ?, ?)''',
+                    (equipment_id, json.dumps(data, ensure_ascii=False), datetime.now())
+                )
+                self.conn.commit()
+                record_id = cursor.lastrowid
+                logger.debug(f"💾 バッファ保存: ID={record_id}, 設備={equipment_id}")
+                return record_id
+            except Exception as e:
+                logger.error(f"[ERROR] バッファ保存エラー: {e}")
+                return -1
 
     def get_pending(self, limit: int = 100) -> List[Tuple[int, str, Dict]]:
         """未送信データを取得
@@ -140,12 +143,13 @@ class LocalBuffer:
         Args:
             record_id: 削除するレコードのID
         """
-        try:
-            self.conn.execute('DELETE FROM pending_data WHERE id = ?', (record_id,))
-            self.conn.commit()
-            logger.debug(f"[SUCCESS] バッファから削除: ID={record_id}")
-        except Exception as e:
-            logger.error(f"[ERROR] バッファ削除エラー（ID={record_id}）: {e}")
+        with self._lock:
+            try:
+                self.conn.execute('DELETE FROM pending_data WHERE id = ?', (record_id,))
+                self.conn.commit()
+                logger.debug(f"[SUCCESS] バッファから削除: ID={record_id}")
+            except Exception as e:
+                logger.error(f"[ERROR] バッファ削除エラー（ID={record_id}）: {e}")
 
     def delete(self, record_id: int):
         """データを削除（エイリアス）"""
@@ -158,19 +162,20 @@ class LocalBuffer:
             record_id: レコードID
             error_message: エラーメッセージ（オプション）
         """
-        try:
-            self.conn.execute(
-                '''UPDATE pending_data
-                   SET retry_count = retry_count + 1,
-                       last_retry_at = ?,
-                       error_message = ?
-                   WHERE id = ?''',
-                (datetime.now(), error_message, record_id)
-            )
-            self.conn.commit()
-            logger.debug(f"🔄 再試行カウント更新: ID={record_id}")
-        except Exception as e:
-            logger.error(f"[ERROR] 再試行カウント更新エラー（ID={record_id}）: {e}")
+        with self._lock:
+            try:
+                self.conn.execute(
+                    '''UPDATE pending_data
+                       SET retry_count = retry_count + 1,
+                           last_retry_at = ?,
+                           error_message = ?
+                       WHERE id = ?''',
+                    (datetime.now(), error_message, record_id)
+                )
+                self.conn.commit()
+                logger.debug(f"🔄 再試行カウント更新: ID={record_id}")
+            except Exception as e:
+                logger.error(f"[ERROR] 再試行カウント更新エラー（ID={record_id}）: {e}")
 
     def cleanup_old_data(self, days: int = 7) -> int:
         """古いデータを削除
@@ -181,22 +186,23 @@ class LocalBuffer:
         Returns:
             削除されたレコード数
         """
-        try:
-            cutoff = datetime.now() - timedelta(days=days)
-            cursor = self.conn.execute(
-                'DELETE FROM pending_data WHERE created_at < ?',
-                (cutoff,)
-            )
-            self.conn.commit()
-            deleted_count = cursor.rowcount
+        with self._lock:
+            try:
+                cutoff = datetime.now() - timedelta(days=days)
+                cursor = self.conn.execute(
+                    'DELETE FROM pending_data WHERE created_at < ?',
+                    (cutoff,)
+                )
+                self.conn.commit()
+                deleted_count = cursor.rowcount
 
-            if deleted_count > 0:
-                logger.info(f"🗑️ 古いバッファデータを削除: {deleted_count}件（{days}日以上前）")
+                if deleted_count > 0:
+                    logger.info(f"🗑️ 古いバッファデータを削除: {deleted_count}件（{days}日以上前）")
 
-            return deleted_count
-        except Exception as e:
-            logger.error(f"[ERROR] クリーンアップエラー: {e}")
-            return 0
+                return deleted_count
+            except Exception as e:
+                logger.error(f"[ERROR] クリーンアップエラー: {e}")
+                return 0
 
     def cleanup_max_retry_exceeded(self) -> int:
         """最大再試行回数を超えたデータを削除
@@ -204,21 +210,22 @@ class LocalBuffer:
         Returns:
             削除されたレコード数
         """
-        try:
-            cursor = self.conn.execute(
-                'DELETE FROM pending_data WHERE retry_count >= ?',
-                (self.max_retry,)
-            )
-            self.conn.commit()
-            deleted_count = cursor.rowcount
+        with self._lock:
+            try:
+                cursor = self.conn.execute(
+                    'DELETE FROM pending_data WHERE retry_count >= ?',
+                    (self.max_retry,)
+                )
+                self.conn.commit()
+                deleted_count = cursor.rowcount
 
-            if deleted_count > 0:
-                logger.warning(f"[WARNING] 再試行上限を超えたデータを削除: {deleted_count}件")
+                if deleted_count > 0:
+                    logger.warning(f"[WARNING] 再試行上限を超えたデータを削除: {deleted_count}件")
 
-            return deleted_count
-        except Exception as e:
-            logger.error(f"[ERROR] 再試行上限超過データ削除エラー: {e}")
-            return 0
+                return deleted_count
+            except Exception as e:
+                logger.error(f"[ERROR] 再試行上限超過データ削除エラー: {e}")
+                return 0
 
     def get_stats(self) -> Dict:
         """バッファの統計情報を取得

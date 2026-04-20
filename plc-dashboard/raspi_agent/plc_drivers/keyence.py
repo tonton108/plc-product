@@ -249,7 +249,7 @@ def read_keyence_plc(client, data_points, modbus_port=DEFAULT_MODBUS_PORT):
                         raw_value = result.registers[0]
                         scale = setting.get("scale", 1)
                         data[key] = raw_value / scale if scale > 1 else raw_value
-                except:
+                except Exception:
                     logger.warning(f"⚠️ {key}(DM{addr_num})の個別再試行も失敗")
 
     # bit, dword, float32は個別処理（従来通り）
@@ -279,7 +279,7 @@ def read_keyence_plc(client, data_points, modbus_port=DEFAULT_MODBUS_PORT):
     # 接続を閉じる
     try:
         client.close()
-    except:
+    except Exception:
         pass
 
     if data:

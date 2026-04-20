@@ -122,7 +122,7 @@ def read_omron_plc(fins_client, data_points):
                         raw_value = int.from_bytes(mem_area[0:2], byteorder='big')
                         scale = setting.get("scale", 1)
                         data[key] = raw_value / scale if scale > 1 else raw_value
-                except:
+                except Exception:
                     logger.warning(f"⚠️ {key}(DM{addr_num})の個別再試行も失敗")
 
     # bit, dword, float32は個別処理（従来通り）

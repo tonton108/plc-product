@@ -869,11 +869,12 @@ def stop_plc_agent():
 
 def plc_agent_wrapper():
     """PLCエージェントのラッパー関数（停止イベント監視付き）"""
+    from plc_agent import read_from_plc
+    from db_utils import DatabaseAPI
     try:
         # plc_agent.pyのmain_loop関数を停止イベント付きで実行
         while not plc_agent_stop_event.is_set():
             # 設定をDB優先で読み込み（設定変更に対応）
-            from db_utils import ConfigManager
             config_manager = ConfigManager()
             config = config_manager.load_plc_config()
             equipment_id = config.get("equipment_id")
@@ -884,9 +885,6 @@ def plc_agent_wrapper():
                 continue
             
             # 設定に基づいてPLCからデータを取得
-            from plc_agent import read_from_plc
-            from db_utils import DatabaseAPI
-            
             db_api = DatabaseAPI()
             values = read_from_plc(config)
 

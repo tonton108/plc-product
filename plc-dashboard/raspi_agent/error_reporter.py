@@ -150,6 +150,11 @@ class ErrorReporter:
             logger.error(f"❌ アラーム送信失敗（予期しないエラー）: {e}")
             return False
 
+    def close(self):
+        """HTTPセッションを閉じてリソースを解放"""
+        if self.session:
+            self.session.close()
+
     def update_plc_status(self, is_online: bool, last_error_type: str = None) -> bool:
         """
         PLC通信状態を更新（内部使用）
@@ -183,6 +188,8 @@ def initialize_error_reporter(equipment_id: str, server_url: str = None):
         server_url: 中央サーバーのURL（オプション）
     """
     global _global_reporter
+    if _global_reporter is not None:
+        _global_reporter.close()
     _global_reporter = ErrorReporter(equipment_id, server_url)
     logger.info(f"📡 エラーレポーター初期化完了: {equipment_id} -> {server_url or CENTRAL_SERVER_URL}")
 
