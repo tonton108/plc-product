@@ -56,5 +56,5 @@ if __name__ == "__main__":
         use_reloader=False,  # 自動リローダーを完全に無効化
         host="0.0.0.0",
         port=port,
-        allow_unsafe_werkzeug=True  # 開発環境用
+        allow_unsafe_werkzeug=debug_mode  # 開発環境のみ許可
     )
