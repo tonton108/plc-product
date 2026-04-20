@@ -4,8 +4,5 @@
   "compilerOptions": {
     "types": ["vuetify"],
     "skipLibCheck": true
-  },
-  "exclude": [
-    "**/errors-alarms.vue"
-  ]
+  }
 }

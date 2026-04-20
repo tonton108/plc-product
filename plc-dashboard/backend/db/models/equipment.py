@@ -6,7 +6,7 @@ Equipment（設備）とPLCDataConfig（PLCデータ設定）を定義します�
 Phase 17: models.pyから分割
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from db import db
 
 
@@ -37,7 +37,7 @@ class Equipment(db.Model):
     retry_count = db.Column(db.Integer, nullable=False, default=3)
     retry_interval = db.Column(db.Integer, nullable=False, default=1000)  # ミリ秒
 
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     # リレーション
     plc_configs = db.relationship('PLCDataConfig', backref='equipment', lazy=True, cascade='all, delete-orphan')
@@ -98,11 +98,11 @@ class PLCDataConfig(db.Model):
     data_type = db.Column(db.String(50), nullable=False)  # 内部キー（後方互換性のため残す）
     enabled = db.Column(db.Boolean, default=True)
     address = db.Column(db.String(20), nullable=False)    # D100, D101など
-    scale_factor = db.Column(db.Integer, default=1)       # 倍率
+    scale_factor = db.Column(db.Float, default=1)          # 倍率
     plc_data_type = db.Column(db.String(20), default='word')  # bit, word, dword, float32
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     def __init__(
         self,
@@ -111,7 +111,7 @@ class PLCDataConfig(db.Model):
         name: str = "",
         enabled: bool = True,
         address: str = "",
-        scale_factor: int = 1,
+        scale_factor: float = 1,
         plc_data_type: str = "word",
         icon: str = "",
         unit: str = ""

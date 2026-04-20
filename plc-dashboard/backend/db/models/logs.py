@@ -6,7 +6,7 @@ Log（ログ）、DailyLogSummary（日次集計）、MonthlyLogSummary（月次
 Phase 17: models.pyから分割
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from db import db
 
@@ -31,7 +31,7 @@ class Log(db.Model):
     # 例: {"temp_a": 25.5, "pressure_b": 100.2, "custom_sensor": 42}
     data = db.Column(db.JSON, nullable=True)
 
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class DailyLogSummary(db.Model):
@@ -60,7 +60,7 @@ class DailyLogSummary(db.Model):
     # 例: {"temp_a_avg": 25.5, "temp_a_max": 30.0, "pressure_b_avg": 100.2}
     data_summary = db.Column(db.JSON, nullable=True)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     # ユニーク制約
     __table_args__ = (db.UniqueConstraint('equipment_id', 'date', name='uq_equipment_date'),)
@@ -128,7 +128,7 @@ class MonthlyLogSummary(db.Model):
     # 例: {"temp_a_avg": 25.5, "temp_a_max": 30.0, "pressure_b_avg": 100.2}
     data_summary = db.Column(db.JSON, nullable=True)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     # ユニーク制約
     __table_args__ = (db.UniqueConstraint('equipment_id', 'year', 'month', name='uq_equipment_year_month'),)

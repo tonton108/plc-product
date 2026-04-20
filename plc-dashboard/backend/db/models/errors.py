@@ -7,7 +7,7 @@ PLCStatus（PLC状態）を定義します。
 Phase 17: models.pyから分割
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from db import db
 
@@ -23,7 +23,7 @@ class CommunicationErrorLog(db.Model):
     retry_count = db.Column(db.Integer())
     plc_ip = db.Column(db.String(100))
     protocol = db.Column(db.String(20))
-    occurred_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    occurred_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     resolved_at = db.Column(db.DateTime())
     resolution_method = db.Column(db.String(50))
 
@@ -45,7 +45,7 @@ class CommunicationErrorLog(db.Model):
         self.retry_count = retry_count
         self.plc_ip = plc_ip
         self.protocol = protocol
-        self.occurred_at = occurred_at or datetime.utcnow()
+        self.occurred_at = occurred_at or datetime.now(timezone.utc)
 
 
 class AlarmHistory(db.Model):
@@ -57,7 +57,7 @@ class AlarmHistory(db.Model):
     alarm_level = db.Column(db.String(20), nullable=False)  # WARNING, ERROR, CRITICAL
     alarm_message = db.Column(db.Text())
     alarm_data = db.Column(db.JSON)
-    occurred_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    occurred_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     cleared_at = db.Column(db.DateTime())
     acknowledged = db.Column(db.Boolean, default=False, nullable=False)
     acknowledged_by = db.Column(db.String(50))
@@ -77,7 +77,7 @@ class AlarmHistory(db.Model):
         self.alarm_level = alarm_level
         self.alarm_message = alarm_message
         self.alarm_data = alarm_data
-        self.occurred_at = occurred_at or datetime.utcnow()
+        self.occurred_at = occurred_at or datetime.now(timezone.utc)
 
 
 class PLCStatus(db.Model):

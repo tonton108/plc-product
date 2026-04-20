@@ -58,7 +58,7 @@ def save_error_log(equipment_id):
             plc_status.last_error_type = error_log.error_type
             plc_status.last_error_message = error_log.error_message
             plc_status.is_online = False
-            plc_status.last_status_change_at = datetime.utcnow()
+            plc_status.last_status_change_at = datetime.now(timezone.utc)
 
         db.session.commit()
 
@@ -79,10 +79,12 @@ def get_error_logs(equipment_id):
         if not equipment:
             return jsonify({"error": "Equipment not found"}), 404
 
-        # 直近100件を取得
+        limit = min(request.args.get('limit', 100, type=int), 1000)
+        offset = request.args.get('offset', 0, type=int)
+
         error_logs = CommunicationErrorLog.query.filter_by(
             equipment_id=equipment.id
-        ).order_by(CommunicationErrorLog.occurred_at.desc()).limit(100).all()
+        ).order_by(CommunicationErrorLog.occurred_at.desc()).limit(limit).offset(offset).all()
 
         return jsonify(CommunicationErrorLogSerializer.to_list(error_logs)), 200
 
@@ -165,10 +167,12 @@ def get_alarms(equipment_id):
         if not equipment:
             return jsonify({"error": "Equipment not found"}), 404
 
-        # 直近100件を取得
+        limit = min(request.args.get('limit', 100, type=int), 1000)
+        offset = request.args.get('offset', 0, type=int)
+
         alarms = AlarmHistory.query.filter_by(
             equipment_id=equipment.id
-        ).order_by(AlarmHistory.occurred_at.desc()).limit(100).all()
+        ).order_by(AlarmHistory.occurred_at.desc()).limit(limit).offset(offset).all()
 
         return jsonify(AlarmHistorySerializer.to_list(alarms)), 200
 
