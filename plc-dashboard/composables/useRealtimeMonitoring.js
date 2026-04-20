@@ -151,6 +151,12 @@ export const useRealtimeMonitoring = (equipmentId, options = {}) => {
     return () => {
       clearInterval(intervalId)
       if ($socket) {
+        // 個別イベントリスナーを解除してメモリリークを防止
+        $socket.off('connect')
+        $socket.off('disconnect')
+        $socket.off('status')
+        $socket.off('connect_error')
+        $socket.off('plc_data_update')
         $socket.emit('leave_monitoring', { equipment_id: equipmentId })
         $socket.disconnect()
       }

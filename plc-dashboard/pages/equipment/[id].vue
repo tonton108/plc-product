@@ -383,6 +383,7 @@ onMounted(async () => {
   await fetchLogs()
 
   // 4. 定期的なログ更新を開始
+  if (intervalId) clearInterval(intervalId)
   intervalId = setInterval(fetchLogs, 10000)
 
   // 5. エラー・アラームデータを読み込み（初回のみ）

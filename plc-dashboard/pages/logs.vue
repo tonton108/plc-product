@@ -232,6 +232,7 @@
 
     await fetchEquipment()
     await fetchLogs()
+    if (intervalId) clearInterval(intervalId)
     intervalId = setInterval(fetchLogs, 5000)
   })
 
