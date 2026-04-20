@@ -59,7 +59,8 @@ def sample_equipment(session):
         port=5000,
         modbus_port=502,
         interval=5000,
-        status="登録済み"
+        setup_status="基本情報登録済み",
+        operational_status="未稼働"
     )
     session.add(equipment)
     session.commit()

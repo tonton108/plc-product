@@ -3,7 +3,7 @@ API エンドポイントのテスト
 """
 import pytest
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class TestEquipmentAPI:
@@ -133,7 +133,7 @@ class TestLogAPI:
         """ログデータ保存"""
         data = {
             "equipment_id": sample_equipment.equipment_id,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "production_count": 100,
             "current": 15.5,
             "temperature": 45.2,
@@ -150,7 +150,7 @@ class TestLogAPI:
     def test_save_log_data_missing_equipment_id(self, client):
         """ログデータ保存（equipment_id不足）"""
         data = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "production_count": 100
         }
         response = client.post('/api/logs',
@@ -163,7 +163,7 @@ class TestLogAPI:
         # まずデータを投入
         data = {
             "equipment_id": sample_equipment.equipment_id,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "production_count": 50,
             "current": 12.5
         }
@@ -182,7 +182,7 @@ class TestLogAPI:
         for i in range(5):
             data = {
                 "equipment_id": sample_equipment.equipment_id,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "production_count": 100 + i,
                 "current": 15.0 + i
             }
