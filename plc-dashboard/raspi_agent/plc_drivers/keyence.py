@@ -20,7 +20,7 @@ from .base import (
     convert_words_to_value,
     CONNECTION_TIMEOUT
 )
-from ..config.constants import DEFAULT_MODBUS_PORT
+from config.constants import DEFAULT_MODBUS_PORT
 
 logger = logging.getLogger(__name__)
 
