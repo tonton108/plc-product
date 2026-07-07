@@ -6,16 +6,22 @@
 
 ---
 
-## 🆕 追記: 本セッションでの対応状況（2026-07-06）
+## 🆕 追記: CI完全グリーン化（2026-07-07）
 
-CI赤化の根本原因だった **P0を2件修正済み**（コミット未実施・作業ツリーのみ）。
+**2025-10-30以降ずっと赤だったCIを、両ワークフローとも緑にした**（PR #7 / ブランチ `fix/ci-migration-dup-index-and-test-import`）。CIジョブ結果: Backend Linting ✓ / Backend Tests ✓ / Frontend Tests ✓ / Security ✓ / Docker Build ✓ / Playwright `test` ✓。
 
 | 項目 | 状態 | 内容 | 検証 |
 |---|---|---|---|
-| P0-1 マイグレーション重複インデックス | ✅ 修正済 | `g1h2i3j4k5l6_add_performance_indexes.py` から `idx_logs_equipment_timestamp`/`idx_logs_timestamp` の再作成を除去（`a1b2c3d4e5f6` が作成済みのため）。新規4本のみ作成、downgradeも対称化。 | 静的重複チェック＋upgrade/downgrade挙動をモックで実行し確認。**実Postgresでの `db upgrade` は本環境にDockerが無く未実行→push後のPlaywright CIで最終確認**。 |
-| P0-2 テストのimportエラー | ✅ 修正済 | `plc_drivers/keyence.py:23` の `from ..config.constants` → `from config.constants`（他6モジュールと同じ絶対import規約に統一）。**実行時もこの越境importで壊れていた可能性が高い**。 | ローカルで修正前の失敗を再現→修正後 `tests/test_plc_drivers_base.py` が **14 passed**。残りのドライバテストはベンダーlibを要するためCIで確認。 |
+| P0-1 マイグレーション重複インデックス | ✅ 修正・CI緑 | `g1h2i3j4k5l6_add_performance_indexes.py` から `idx_logs_equipment_timestamp`/`idx_logs_timestamp` の再作成を除去（`a1b2c3d4e5f6` が作成済みのため）。新規4本のみ作成、downgradeも対称化。コミット `d4260d0`。 | 実PostgresでのマイグレーションがPlaywright CIで通過（緑）。 |
+| P0-2 テストのimportエラー | ✅ 修正・CI緑 | `plc_drivers/keyence.py:23` の `from ..config.constants` → `from config.constants`（絶対import規約に統一）。コミット `d4260d0`。 | CI Backend Tests が収集エラーなく **68 passed / 1 skipped**。 |
+| ① black整形 | ✅ 修正・CI緑 | `plc_drivers/` と `tests/` を black 整形（17ファイル）。コミット `0f1654a`。 | ローカル `black --check` 19ファイルOK。 |
+| ② pylint誤検知 | ✅ 修正・CI緑 | `.pylintrc` で任意ベンダーlib（pymodbus/pymcprotocol/fins/snap7）の import-error を無視。コミット `9f23fd5`。 | pylint **7.20/10**（閾値7.0）。 |
+| ③ カバレッジ44%割れ | ✅ 修正・CI緑 | 何もテストしていなかった `tests/test_load_simulation.py`（`test_`関数ゼロ）に純粋関数の実テスト4本を追加。**閾値44%は下げずに** 42%→45% へ改善。コミット `f836716`。 | ローカル実測 44.51%→表示45%。 |
+| ④ Playwrightログインタイムアウト | ✅ 修正・CI緑 | `scripts/test_monitoring_chart.py` のログインボタン特定を日本語テキスト `button:has-text("ログイン")` → 言語非依存の `button[type="submit"]` に変更。原因は `nuxt.config.ts` の `detectBrowserLanguage` 有効＋CI英語ロケールでボタンが "Login" 表示になっていたこと。コミット `831789f`。 | Playwright `test` ジョブ緑（2m47s）。 |
 
-**未確認の残課題**: 実Postgresでのマイグレーション通し・全テストスイートのカバレッジ44%閾値。→ 次push時のCIで確認する。
+**次にやると良い（今回未対応・別スコープ）**:
+- **demo_data_sender の設備登録が壊れている**: CIログで `null value in column "plc_ip" ... violates not-null constraint`（500）→ DBに設備/データが1件も入らない。さらにPlaywrightテストは `LINE_A_001` を見に行くのに sender は `DEMO_001` を登録しようとしており**ID不一致**。現状テストは `chart_cards==0` をWARNING（成功扱い）＋`.glass-card` はヘッダーが無条件描画のため緑になるが、**グラフ描画の実検証にはなっていない**。データ投入を直せばE2Eが実効化する。
+- カバレッジの段階引き上げ（45%→60%→…、`ci.yml` のTODO）。`plc_agent.py`/`error_reporter.py`/`log_rotator.py` 等が0%。
 補足: マイグレーション内の `print("✅ …")` は Windowsの非UTF-8コンソールで直接 `flask db upgrade` するとUnicodeEncodeErrorになり得る（Docker/CI/Linuxでは無問題・既存挙動）。
 
 ---
@@ -91,7 +97,9 @@ CI赤化の根本原因だった **P0を2件修正済み**（コミット未実�
 
 ## 3. 現在地（動くもの / 未完・壊れているもの）
 
-### ⚠️ 最重要: CI は両ワークフローとも「赤」が継続中
+### ⚠️ 最重要: CI は両ワークフローとも「赤」が継続中（※2026-07-07に解消済み → 冒頭の「追記」参照）
+
+> **更新（2026-07-07）**: 以下は修正前の状況記録。下記の根本原因はすべて修正し、CIは両ワークフローとも緑化済み（PR #7）。詳細はファイル冒頭の「🆕 追記」を参照。
 
 `gh run list` の結果、**最後にPlaywrightが緑だったのは 2025-10-30**。それ以降 `CI - PLC Monitoring System` と `Playwright Tests` は連続失敗している。根本原因を失敗ログで特定済み:
 
