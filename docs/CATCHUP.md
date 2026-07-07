@@ -19,9 +19,14 @@
 | ③ カバレッジ44%割れ | ✅ 修正・CI緑 | 何もテストしていなかった `tests/test_load_simulation.py`（`test_`関数ゼロ）に純粋関数の実テスト4本を追加。**閾値44%は下げずに** 42%→45% へ改善。コミット `f836716`。 | ローカル実測 44.51%→表示45%。 |
 | ④ Playwrightログインタイムアウト | ✅ 修正・CI緑 | `scripts/test_monitoring_chart.py` のログインボタン特定を日本語テキスト `button:has-text("ログイン")` → 言語非依存の `button[type="submit"]` に変更。原因は `nuxt.config.ts` の `detectBrowserLanguage` 有効＋CI英語ロケールでボタンが "Login" 表示になっていたこと。コミット `831789f`。 | Playwright `test` ジョブ緑（2m47s）。 |
 
-**次にやると良い（今回未対応・別スコープ）**:
-- **demo_data_sender の設備登録が壊れている**: CIログで `null value in column "plc_ip" ... violates not-null constraint`（500）→ DBに設備/データが1件も入らない。さらにPlaywrightテストは `LINE_A_001` を見に行くのに sender は `DEMO_001` を登録しようとしており**ID不一致**。現状テストは `chart_cards==0` をWARNING（成功扱い）＋`.glass-card` はヘッダーが無条件描画のため緑になるが、**グラフ描画の実検証にはなっていない**。データ投入を直せばE2Eが実効化する。
+**E2E実効化（2026-07-07・解決済み）**: 以前は demo_data_sender の設備登録が `plc_ip`/`cpu_serial_number` 未送出でNOT NULL違反（500）→DBに設備/データが入らず、テストは `chart_cards==0` をWARNING（成功扱い）で骨抜きだった。以下を修正し、Playwrightが**実際にグラフ5枚（canvas）の描画を検証**するようにした（CIログ `Chart cards found: 5`）。コミット `07cb4b9` / `a6d539a`。
+- demo_data_sender の登録に `plc_ip`・`cpu_serial_number`（設備ID由来で一意）を追加。PLC設定の `rotation`/`vibration`（`validate_data_type` 非対応）を有効データ型（temperature/current/pressure/cycle_time/production_count）に変更。
+- ワークフローを単一設備 `LINE_A_001` に一本化（従来の `LINE_A_001` 登録と `DEMO_001` 登録の mac_address 食い合いを解消）＋ backend 起動待ちでレース解消。
+- テストに `wait_for_selector('.glass-card:has(canvas)')` を追加し、グラフ未描画なら失敗するようにした。
+
+**次にやると良い**:
 - カバレッジの段階引き上げ（45%→60%→…、`ci.yml` のTODO）。`plc_agent.py`/`error_reporter.py`/`log_rotator.py` 等が0%。
+- モデルとDBの乖離: `Equipment.ip`/`plc_ip` はモデル上 nullable だが、DBは migration で `plc_ip` NOT NULL。モデル定義に `nullable=False` を反映するか要検討。
 補足: マイグレーション内の `print("✅ …")` は Windowsの非UTF-8コンソールで直接 `flask db upgrade` するとUnicodeEncodeErrorになり得る（Docker/CI/Linuxでは無問題・既存挙動）。
 
 ---
