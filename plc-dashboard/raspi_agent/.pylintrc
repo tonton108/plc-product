@@ -1,0 +1,5 @@
+[TYPECHECK]
+# ハードウェア依存の任意PLCベンダーライブラリ（pymodbus/pymcprotocol/fins/snap7）は
+# CIのlint環境（pylint/black/mypyのみ導入）に存在しないため、import-error(E0401)を誤検知する。
+# これらは実行時のみ必要な任意依存なので、lintでは無視する。
+ignored-modules=pymodbus,pymcprotocol,fins,snap7
