@@ -51,7 +51,7 @@ jobs:
       - name: Check test coverage threshold
         run: |
           cd plc-dashboard/raspi_agent
-          # TODO: カバレッジを85%に向上させる（現在44%）
+          # TODO: カバレッジを85%に向上させる（現在45%）
           # - agent_app.py, plc_agent.pyのテストを追加
           # - 段階的に閾値を引き上げ: 44% → 60% → 75% → 85%
           coverage report --fail-under=44
