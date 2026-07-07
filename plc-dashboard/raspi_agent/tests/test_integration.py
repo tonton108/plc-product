@@ -8,10 +8,11 @@ import time
 from datetime import datetime
 
 # 環境変数を設定（存在しない中央サーバーIPを指定）
-os.environ['CENTRAL_SERVER_IP'] = '192.168.255.254'  # 存在しないIP
-os.environ['CENTRAL_SERVER_PORT'] = '5000'
+os.environ["CENTRAL_SERVER_IP"] = "192.168.255.254"  # 存在しないIP
+os.environ["CENTRAL_SERVER_PORT"] = "5000"
 
 from db_utils import DatabaseAPI
+
 
 def test_server_down_buffering():
     """サーバーダウン時のバッファリング機能テスト"""
@@ -38,13 +39,13 @@ def test_server_down_buffering():
     test_results = []
     for i in range(3):
         test_data = {
-            'temperature': 20.0 + i,
-            'pressure': 1000.0 + i * 5,
-            'humidity': 50.0 + i * 2,
-            'count': i
+            "temperature": 20.0 + i,
+            "pressure": 1000.0 + i * 5,
+            "humidity": 50.0 + i * 2,
+            "count": i,
         }
 
-        equipment_id = f'TEST_{i+1:03d}'
+        equipment_id = f"TEST_{i+1:03d}"
 
         print(f"\n  データ{i+1}: {equipment_id}")
 
@@ -79,12 +80,14 @@ def test_server_down_buffering():
         print("\n  詳細:")
         for rec_id, equipment_id, data in pending:
             print(f"    - ID={rec_id}, 設備={equipment_id}")
-            print(f"      温度={data.get('temperature', 'N/A')}度, "
-                  f"圧力={data.get('pressure', 'N/A')}hPa")
+            print(
+                f"      温度={data.get('temperature', 'N/A')}度, "
+                f"圧力={data.get('pressure', 'N/A')}hPa"
+            )
 
     # バッファ件数の検証
-    expected_count = initial_stats['total_count'] + 3
-    actual_count = current_stats['total_count']
+    expected_count = initial_stats["total_count"] + 3
+    actual_count = current_stats["total_count"]
 
     print("\n[STEP 5] バッファ件数の検証")
     print(f"  期待値: {expected_count}件")
@@ -119,6 +122,7 @@ def test_server_down_buffering():
 
     return test_passed
 
+
 def test_retry_logic():
     """再送信ロジックのテスト"""
     print("\n" + "=" * 70)
@@ -129,8 +133,8 @@ def test_retry_logic():
 
     # テストデータを1件保存
     print("\n[STEP 1] テストデータをバッファに保存")
-    test_data = {'value': 100, 'description': 'retry test'}
-    db_api.buffer.save('RETRY_TEST', test_data)
+    test_data = {"value": 100, "description": "retry test"}
+    db_api.buffer.save("RETRY_TEST", test_data)
     print("  OK: 保存完了")
 
     # 再送信試行（サーバーが存在しないため失敗）
@@ -152,14 +156,17 @@ def test_retry_logic():
     pending = db_api.buffer.get_pending(limit=10)
 
     # RETRY_TESTのデータを探す
-    retry_test_data = [p for p in pending if p[1] == 'RETRY_TEST']
+    retry_test_data = [p for p in pending if p[1] == "RETRY_TEST"]
 
     if retry_test_data:
         rec_id, equipment_id, data = retry_test_data[0]
         # 直接データベースから再試行カウントを取得
         import sqlite3
+
         conn = sqlite3.connect(db_api.buffer.db_path)
-        cursor = conn.execute('SELECT retry_count FROM pending_data WHERE id = ?', (rec_id,))
+        cursor = conn.execute(
+            "SELECT retry_count FROM pending_data WHERE id = ?", (rec_id,)
+        )
         row = cursor.fetchone()
         conn.close()
 
@@ -186,9 +193,10 @@ def test_retry_logic():
 
     return test_passed
 
+
 def main():
     """メイン関数"""
-    print("\n統合テスト開始: {}\n".format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+    print("\n統合テスト開始: {}\n".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
 
     try:
         # テスト1: サーバーダウン時のバッファリング
@@ -217,11 +225,13 @@ def main():
     except Exception as e:
         print(f"\n[ERROR] エラーが発生しました: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
     finally:
         print(f"\n統合テスト終了: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

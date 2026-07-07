@@ -6,6 +6,7 @@
 - pymodbusライブラリの正しい使用法
 - 実装例との適合性確認
 """
+
 import pytest
 import sys
 import os
@@ -42,20 +43,22 @@ class TestKeyenceAddressConversion:
         from plc_drivers.keyence import keyence_address_to_modbus
 
         test_cases = [
-            ("DM0", 0),          # DM0
-            ("DM1", 1),          # DM1
-            ("DM100", 100),      # DM100
-            ("DM1000", 1000),    # DM1000
-            ("DM4500", 4500),    # DM4500 (実装例と同じ)
+            ("DM0", 0),  # DM0
+            ("DM1", 1),  # DM1
+            ("DM100", 100),  # DM100
+            ("DM1000", 1000),  # DM1000
+            ("DM4500", 4500),  # DM4500 (実装例と同じ)
             ("DM32767", 32767),  # DM32767
         ]
 
         for address_str, expected_addr in test_cases:
             register_type, modbus_addr = keyence_address_to_modbus(address_str, "word")
-            assert register_type == "holding", \
-                f"{address_str}: Expected 'holding', got '{register_type}'"
-            assert modbus_addr == expected_addr, \
-                f"{address_str}: Expected {expected_addr}, got {modbus_addr}"
+            assert (
+                register_type == "holding"
+            ), f"{address_str}: Expected 'holding', got '{register_type}'"
+            assert (
+                modbus_addr == expected_addr
+            ), f"{address_str}: Expected {expected_addr}, got {modbus_addr}"
 
     @pytest.mark.unit
     def test_dm_bit_type_raises_error(self):
@@ -130,7 +133,7 @@ class TestKeyencePLCReadWithMock:
                 "enabled": True,
                 "data_type": "word",
                 "address": "DM100",
-                "scale": 1
+                "scale": 1,
             }
         }
 
@@ -145,16 +148,15 @@ class TestKeyencePLCReadWithMock:
             kwargs = call_args[1]
 
             # アドレスパラメータの確認
-            address = kwargs.get('address')
-            assert address == 100, \
-                f"アドレスが不正: expected 100, got {address}"
+            address = kwargs.get("address")
+            assert address == 100, f"アドレスが不正: expected 100, got {address}"
 
             # countパラメータの確認
-            count = kwargs.get('count')
+            count = kwargs.get("count")
             assert count == 1, f"読み取りサイズが不正: {count}"
 
             # unitパラメータの確認（Modbusスレーブ ID）
-            unit = kwargs.get('unit')
+            unit = kwargs.get("unit")
             assert unit == 1, f"unitパラメータが不正: {unit}"
 
         except Exception as e:
@@ -171,9 +173,24 @@ class TestKeyencePLCReadWithMock:
         mock_client.close.return_value = None
 
         data_points = {
-            "temp1": {"enabled": True, "data_type": "word", "address": "DM100", "scale": 1},
-            "temp2": {"enabled": True, "data_type": "word", "address": "DM101", "scale": 1},
-            "temp3": {"enabled": True, "data_type": "word", "address": "DM102", "scale": 1},
+            "temp1": {
+                "enabled": True,
+                "data_type": "word",
+                "address": "DM100",
+                "scale": 1,
+            },
+            "temp2": {
+                "enabled": True,
+                "data_type": "word",
+                "address": "DM101",
+                "scale": 1,
+            },
+            "temp3": {
+                "enabled": True,
+                "data_type": "word",
+                "address": "DM102",
+                "scale": 1,
+            },
         }
 
         from plc_drivers.keyence import read_keyence_plc
@@ -186,12 +203,11 @@ class TestKeyencePLCReadWithMock:
             kwargs = call_args[1]
 
             # 開始アドレスがDM100（address=100）
-            address = kwargs.get('address')
-            assert address == 100, \
-                f"バッチ読み取り開始アドレスが不正: {address}"
+            address = kwargs.get("address")
+            assert address == 100, f"バッチ読み取り開始アドレスが不正: {address}"
 
             # 読み取りサイズが3ワード
-            count = kwargs.get('count')
+            count = kwargs.get("count")
             assert count == 3, f"バッチ読み取りサイズが不正: {count}"
 
         except Exception as e:
@@ -218,8 +234,9 @@ class TestKeyencePLCReadWithMock:
 
             # 3.14に近い値であることを確認
             assert value is not None, "float32値がNone"
-            assert abs(value - 3.14) < 0.01, \
-                f"float32値が不正: expected ~3.14, got {value}"
+            assert (
+                abs(value - 3.14) < 0.01
+            ), f"float32値が不正: expected ~3.14, got {value}"
 
         except Exception as e:
             pytest.skip(f"テスト実行エラー（実環境依存）: {e}")
@@ -247,7 +264,12 @@ class TestKeyenceModbusStandardCompliance:
         mock_client.close.return_value = None
 
         data_points = {
-            "test": {"enabled": True, "data_type": "word", "address": "DM100", "scale": 1}
+            "test": {
+                "enabled": True,
+                "data_type": "word",
+                "address": "DM100",
+                "scale": 1,
+            }
         }
 
         try:
@@ -255,7 +277,7 @@ class TestKeyenceModbusStandardCompliance:
 
             # unit=1が指定されていることを確認
             call_kwargs = mock_client.read_holding_registers.call_args_list[0][1]
-            assert call_kwargs.get('unit') == 1, "unitパラメータは1であるべき"
+            assert call_kwargs.get("unit") == 1, "unitパラメータは1であるべき"
 
         except Exception as e:
             pytest.skip(f"テスト実行エラー: {e}")
@@ -275,8 +297,9 @@ class TestKeyenceModbusStandardCompliance:
 
         for address_str, expected in valid_addresses:
             register_type, modbus_addr = keyence_address_to_modbus(address_str, "word")
-            assert 0 <= modbus_addr <= 65535, \
-                f"{address_str}: アドレスが範囲外 ({modbus_addr})"
+            assert (
+                0 <= modbus_addr <= 65535
+            ), f"{address_str}: アドレスが範囲外 ({modbus_addr})"
             assert modbus_addr == expected
 
 
@@ -316,8 +339,7 @@ class TestKeyenceImplementationExampleCompliance:
         # DM100 → pymodbusのaddress=100（論理アドレス40101に相当）
         register_type, modbus_addr = keyence_address_to_modbus("DM100", "word")
 
-        assert modbus_addr == 100, \
-            "キーエンスDM番号がpymodbusアドレスと直接一致"
+        assert modbus_addr == 100, "キーエンスDM番号がpymodbusアドレスと直接一致"
 
     @pytest.mark.unit
     def test_no_offset_correction_needed(self):
@@ -330,15 +352,18 @@ class TestKeyenceImplementationExampleCompliance:
         from plc_drivers.keyence import keyence_address_to_modbus
 
         test_cases = [
-            (100, 100),    # DM100 → address 100（補正なし）
+            (100, 100),  # DM100 → address 100（補正なし）
             (1000, 1000),  # DM1000 → address 1000（補正なし）
             (4500, 4500),  # DM4500 → address 4500（補正なし、実装例と同じ）
         ]
 
         for dm_num, expected_addr in test_cases:
-            register_type, modbus_addr = keyence_address_to_modbus(f"DM{dm_num}", "word")
-            assert modbus_addr == expected_addr, \
-                f"DM{dm_num}: オフセット補正なしで{expected_addr}と一致すべき"
+            register_type, modbus_addr = keyence_address_to_modbus(
+                f"DM{dm_num}", "word"
+            )
+            assert (
+                modbus_addr == expected_addr
+            ), f"DM{dm_num}: オフセット補正なしで{expected_addr}と一致すべき"
 
 
 class TestKeyenceDwordFloat32Handling:
@@ -390,8 +415,9 @@ class TestKeyenceDwordFloat32Handling:
 
             # 100.5に近い値であることを確認
             assert value is not None
-            assert abs(value - 100.5) < 0.01, \
-                f"ビッグエンディアンfloat32変換が不正: expected ~100.5, got {value}"
+            assert (
+                abs(value - 100.5) < 0.01
+            ), f"ビッグエンディアンfloat32変換が不正: expected ~100.5, got {value}"
 
         except Exception as e:
             pytest.skip(f"テスト実行エラー: {e}")

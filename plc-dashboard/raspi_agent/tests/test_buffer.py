@@ -11,11 +11,12 @@ import time
 from datetime import datetime
 
 # 環境変数を設定（テスト用）
-os.environ['CENTRAL_SERVER_IP'] = '192.168.1.10'
-os.environ['CENTRAL_SERVER_PORT'] = '5000'
+os.environ["CENTRAL_SERVER_IP"] = "192.168.1.10"
+os.environ["CENTRAL_SERVER_PORT"] = "5000"
 
 from local_buffer import LocalBuffer
 from db_utils import DatabaseAPI
+
 
 def print_separator(title=""):
     """セパレータを表示"""
@@ -26,25 +27,22 @@ def print_separator(title=""):
     else:
         print("=" * 70)
 
+
 def test_basic_operations():
     """基本操作のテスト"""
     print_separator("テスト1: 基本操作（保存・取得・削除）")
 
     # テスト用バッファを作成
-    buffer = LocalBuffer(db_path='test_buffer.db', max_retry=3)
+    buffer = LocalBuffer(db_path="test_buffer.db", max_retry=3)
 
     # 1. データ保存
     print("\n📝 ステップ1: データをバッファに保存")
     test_data = {
-        'timestamp': datetime.now().isoformat(),
-        'data_points': {
-            'temperature': 25.5,
-            'pressure': 1013.25,
-            'humidity': 60.0
-        }
+        "timestamp": datetime.now().isoformat(),
+        "data_points": {"temperature": 25.5, "pressure": 1013.25, "humidity": 60.0},
     }
 
-    record_id = buffer.save('TEST_001', test_data)
+    record_id = buffer.save("TEST_001", test_data)
     print(f"  ✅ 保存完了: レコードID={record_id}")
 
     # 2. 未送信データ取得
@@ -73,6 +71,7 @@ def test_basic_operations():
     buffer.close()
     print("\n✅ 基本操作テスト完了")
 
+
 def test_server_down_simulation():
     """サーバーダウンのシミュレーション"""
     print_separator("テスト2: サーバーダウン時のシミュレーション")
@@ -90,13 +89,9 @@ def test_server_down_simulation():
     print("  ※実際にはサーバーに接続できないため、すべてバッファに保存されます")
 
     for i in range(5):
-        test_data = {
-            'temperature': 20.0 + i,
-            'pressure': 1000.0 + i * 5,
-            'count': i
-        }
+        test_data = {"temperature": 20.0 + i, "pressure": 1000.0 + i * 5, "count": i}
 
-        equipment_id = f'TEST_{i+1:03d}'
+        equipment_id = f"TEST_{i+1:03d}"
 
         # 送信試行（失敗してバッファに保存される）
         success = db_api.send_log_data(equipment_id, test_data)
@@ -134,15 +129,16 @@ def test_server_down_simulation():
 
     print("\n✅ サーバーダウンシミュレーション完了")
 
+
 def test_retry_logic():
     """再試行ロジックのテスト"""
     print_separator("テスト3: 再試行ロジック")
 
-    buffer = LocalBuffer(db_path='test_buffer_retry.db', max_retry=3)
+    buffer = LocalBuffer(db_path="test_buffer_retry.db", max_retry=3)
 
     print("\n📝 ステップ1: テストデータを保存")
-    test_data = {'value': 100}
-    record_id = buffer.save('RETRY_TEST', test_data)
+    test_data = {"value": 100}
+    record_id = buffer.save("RETRY_TEST", test_data)
     print(f"  ✅ 保存完了: ID={record_id}")
 
     print("\n🔄 ステップ2: 再試行カウントを増やす（失敗をシミュレート）")
@@ -164,16 +160,19 @@ def test_retry_logic():
     buffer.close()
     print("\n✅ 再試行ロジックテスト完了")
 
+
 def cleanup_test_files():
     """テストファイルを削除"""
     import os
-    test_files = ['test_buffer.db', 'test_buffer_retry.db']
+
+    test_files = ["test_buffer.db", "test_buffer_retry.db"]
 
     print("\n🧹 テストファイルをクリーンアップ中...")
     for file in test_files:
         if os.path.exists(file):
             os.remove(file)
             print(f"  削除: {file}")
+
 
 def main():
     """メイン関数"""
@@ -198,6 +197,7 @@ def main():
     except Exception as e:
         print(f"\n❌ エラーが発生しました: {e}")
         import traceback
+
         traceback.print_exc()
 
     finally:
@@ -205,5 +205,6 @@ def main():
         cleanup_test_files()
         print(f"\n終了時刻: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

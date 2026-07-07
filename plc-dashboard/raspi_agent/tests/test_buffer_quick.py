@@ -7,10 +7,11 @@ import sys
 from datetime import datetime
 
 # 環境変数を設定（テスト用）
-os.environ['CENTRAL_SERVER_IP'] = '192.168.1.10'
-os.environ['CENTRAL_SERVER_PORT'] = '5000'
+os.environ["CENTRAL_SERVER_IP"] = "192.168.1.10"
+os.environ["CENTRAL_SERVER_PORT"] = "5000"
 
 from local_buffer import LocalBuffer
+
 
 def test_buffer_basic():
     """基本機能のテスト"""
@@ -19,17 +20,17 @@ def test_buffer_basic():
     print("=" * 70)
 
     # テスト用バッファを作成
-    buffer = LocalBuffer(db_path='test_quick.db', max_retry=3)
+    buffer = LocalBuffer(db_path="test_quick.db", max_retry=3)
 
     # 1. データ保存
     print("\n[TEST 1] データ保存")
     test_data = {
-        'timestamp': datetime.now().isoformat(),
-        'temperature': 25.5,
-        'pressure': 1013.25
+        "timestamp": datetime.now().isoformat(),
+        "temperature": 25.5,
+        "pressure": 1013.25,
     }
 
-    record_id = buffer.save('TEST_001', test_data)
+    record_id = buffer.save("TEST_001", test_data)
     print(f"  OK: 保存成功 - レコードID={record_id}")
 
     # 2. 未送信データ取得
@@ -70,19 +71,22 @@ def test_buffer_basic():
 
     # クリーンアップ
     import os
-    if os.path.exists('test_quick.db'):
-        os.remove('test_quick.db')
+
+    if os.path.exists("test_quick.db"):
+        os.remove("test_quick.db")
         print("\n[CLEANUP] テストファイルを削除しました")
 
     print("\n" + "=" * 70)
     print("  [SUCCESS] すべてのテストが正常に完了しました")
     print("=" * 70)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     try:
         test_buffer_basic()
     except Exception as e:
         print(f"\n[ERROR] エラーが発生しました: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)

@@ -1,6 +1,7 @@
 """
 plc_drivers.baseモジュールのユニットテスト
 """
+
 import pytest
 import sys
 import os
@@ -50,12 +51,12 @@ class TestGroupContinuousWordAddresses:
             "temp2": {"enabled": True, "data_type": "word", "address": "D101"},
             "temp3": {"enabled": True, "data_type": "word", "address": "D102"},
         }
-        groups = group_continuous_word_addresses(data_points, device_type='D')
+        groups = group_continuous_word_addresses(data_points, device_type="D")
 
         assert len(groups) == 1
-        assert groups[0]['start_address'] == 100
-        assert groups[0]['count'] == 3
-        assert groups[0]['keys'] == ['temp1', 'temp2', 'temp3']
+        assert groups[0]["start_address"] == 100
+        assert groups[0]["count"] == 3
+        assert groups[0]["keys"] == ["temp1", "temp2", "temp3"]
 
     def test_non_continuous_addresses(self):
         """非連続アドレスのグループ化"""
@@ -64,13 +65,13 @@ class TestGroupContinuousWordAddresses:
             "temp2": {"enabled": True, "data_type": "word", "address": "D105"},
             "temp3": {"enabled": True, "data_type": "word", "address": "D110"},
         }
-        groups = group_continuous_word_addresses(data_points, device_type='D')
+        groups = group_continuous_word_addresses(data_points, device_type="D")
 
         assert len(groups) == 3
-        assert groups[0]['start_address'] == 100
-        assert groups[0]['count'] == 1
-        assert groups[1]['start_address'] == 105
-        assert groups[1]['count'] == 1
+        assert groups[0]["start_address"] == 100
+        assert groups[0]["count"] == 1
+        assert groups[1]["start_address"] == 105
+        assert groups[1]["count"] == 1
 
     def test_mixed_data_types(self):
         """異なるデータ型の混在（wordのみ抽出）"""
@@ -79,14 +80,14 @@ class TestGroupContinuousWordAddresses:
             "temp2": {"enabled": True, "data_type": "float32", "address": "D101"},
             "temp3": {"enabled": True, "data_type": "word", "address": "D103"},
         }
-        groups = group_continuous_word_addresses(data_points, device_type='D')
+        groups = group_continuous_word_addresses(data_points, device_type="D")
 
         # float32は除外されるため、D100とD103の2グループ
         assert len(groups) == 2
-        assert groups[0]['start_address'] == 100
-        assert groups[0]['count'] == 1
-        assert groups[1]['start_address'] == 103
-        assert groups[1]['count'] == 1
+        assert groups[0]["start_address"] == 100
+        assert groups[0]["count"] == 1
+        assert groups[1]["start_address"] == 103
+        assert groups[1]["count"] == 1
 
     def test_disabled_items(self):
         """無効な項目の除外"""
@@ -95,7 +96,7 @@ class TestGroupContinuousWordAddresses:
             "temp2": {"enabled": False, "data_type": "word", "address": "D101"},
             "temp3": {"enabled": True, "data_type": "word", "address": "D102"},
         }
-        groups = group_continuous_word_addresses(data_points, device_type='D')
+        groups = group_continuous_word_addresses(data_points, device_type="D")
 
         # D101（無効）は除外されるため、D100とD102の2グループ
         assert len(groups) == 2
@@ -106,9 +107,7 @@ class TestGenerateDummyData:
 
     def test_word_type(self):
         """wordデータ型のダミー生成"""
-        data_points = {
-            "test_value": {"enabled": True, "data_type": "word"}
-        }
+        data_points = {"test_value": {"enabled": True, "data_type": "word"}}
         dummy = generate_dummy_data(data_points)
 
         assert "test_value" in dummy
@@ -116,9 +115,7 @@ class TestGenerateDummyData:
 
     def test_bit_type(self):
         """bitデータ型のダミー生成"""
-        data_points = {
-            "test_flag": {"enabled": True, "data_type": "bit"}
-        }
+        data_points = {"test_flag": {"enabled": True, "data_type": "bit"}}
         dummy = generate_dummy_data(data_points)
 
         assert "test_flag" in dummy
@@ -126,9 +123,7 @@ class TestGenerateDummyData:
 
     def test_float32_type(self):
         """float32データ型のダミー生成"""
-        data_points = {
-            "test_float": {"enabled": True, "data_type": "float32"}
-        }
+        data_points = {"test_float": {"enabled": True, "data_type": "float32"}}
         dummy = generate_dummy_data(data_points)
 
         assert "test_float" in dummy
@@ -136,9 +131,7 @@ class TestGenerateDummyData:
 
     def test_dword_type(self):
         """dwordデータ型のダミー生成"""
-        data_points = {
-            "test_dword": {"enabled": True, "data_type": "dword"}
-        }
+        data_points = {"test_dword": {"enabled": True, "data_type": "dword"}}
         dummy = generate_dummy_data(data_points)
 
         assert "test_dword" in dummy
@@ -149,7 +142,7 @@ class TestGenerateDummyData:
         """無効な項目は生成されない"""
         data_points = {
             "enabled_item": {"enabled": True, "data_type": "word"},
-            "disabled_item": {"enabled": False, "data_type": "word"}
+            "disabled_item": {"enabled": False, "data_type": "word"},
         }
         dummy = generate_dummy_data(data_points)
 
