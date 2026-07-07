@@ -38,7 +38,9 @@ def test_monitoring_chart():
             print("\n[3/7] Logging in...")
             page.fill('input[type="text"]', 'admin')
             page.fill('input[type="password"]', 'plc-monitor-2025')
-            page.click('button:has-text("ログイン")')
+            # i18nでボタン文言が言語により変わる（CIは英語ロケール→"Login"）ため、
+            # 日本語テキストではなく type="submit"（ログインフォーム唯一の送信ボタン）で特定する
+            page.click('button[type="submit"]')
 
             # ログイン後のページ遷移を待つ（URLがログインページから変わるまで）
             page.wait_for_function('window.location.pathname !== "/login"', timeout=10000)
