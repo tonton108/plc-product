@@ -58,6 +58,13 @@ def test_monitoring_chart():
             page.wait_for_selector('.glass-card', timeout=10000)
             print("  [OK] Monitoring page loaded")
 
+            # グラフ（canvas付きカード）が実際に描画されるまで待機。
+            # PLC設定が登録済みなら onMounted の fetchPLCConfigs 完了後にチャートが生成される。
+            # 描画されない場合はここでタイムアウト→テスト失敗（E2Eの実効性を担保）。
+            print("  Waiting for chart cards (canvas) to render...")
+            page.wait_for_selector('.glass-card:has(canvas)', timeout=15000)
+            print("  [OK] Chart cards rendered")
+
             # スクリーンショット1: 初期状態
             screenshot_path_1 = Path(__file__).parent / 'monitoring_chart_before.png'
             page.screenshot(path=str(screenshot_path_1), full_page=True)
