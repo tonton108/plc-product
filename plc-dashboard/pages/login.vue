@@ -106,12 +106,9 @@ const rules = {
   required: (value: string) => !!value || t('login.required')
 }
 
-// デフォルトユーザー（開発・テスト用）
-// 本番環境では環境変数またはバックエンド認証を使用してください
-const DEFAULT_USERS = [
-  { username: 'admin', password: 'plc-monitor-2025' },
-  { username: 'operator', password: 'operator-2025' }
-]
+// Phase 1: バックエンド認証（/api/auth/login）に移行。
+// 旧実装のフロント埋め込み資格情報（DEFAULT_USERS）は全廃した。
+const auth = useAuth()
 
 const login = async () => {
   // バリデーション
@@ -123,34 +120,20 @@ const login = async () => {
   loading.value = true
   errorMessage.value = ''
 
-  // 認証チェック（シンプル実装）
-  // 本番環境ではバックエンドAPIで認証を行うことを推奨
-  const user = DEFAULT_USERS.find(
-    u => u.username === username.value && u.password === password.value
-  )
-
-  // 認証遅延（ブルートフォース対策）
-  await new Promise(resolve => setTimeout(resolve, 500))
-
-  if (user) {
-    // 認証成功 - セッション情報を保存
-    const authToken = btoa(`${username.value}:${Date.now()}`)
-    localStorage.setItem('plc_auth_token', authToken)
-    localStorage.setItem('plc_auth_user', username.value)
-
+  try {
+    await auth.login(username.value, password.value)
     // ダッシュボードにリダイレクト
     router.push('/')
-  } else {
+  } catch (error) {
     errorMessage.value = t('login.error')
+  } finally {
+    loading.value = false
   }
-
-  loading.value = false
 }
 
 // すでにログイン済みの場合はリダイレクト
 onMounted(() => {
-  const authToken = localStorage.getItem('plc_auth_token')
-  if (authToken) {
+  if (auth.isAuthenticated()) {
     router.push('/')
   }
 })

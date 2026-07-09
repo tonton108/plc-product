@@ -14,6 +14,10 @@ logger = logging.getLogger(__name__)
 # 中央サーバーのURL（環境変数から取得）
 CENTRAL_SERVER_URL = os.getenv("CENTRAL_SERVER_URL", "http://localhost:5000")
 
+# Phase 1: エージェントAPIキー認証はapi_clientの共通ヘルパーに一元化
+# （独自実装するとヘッダ仕様変更時にここだけ追随漏れするため）
+from api_client import agent_api_headers
+
 
 class ErrorReporter:
     """PLC通信エラーとアラームを中央サーバーに報告するクラス"""
@@ -28,6 +32,8 @@ class ErrorReporter:
         self.server_url = server_url or CENTRAL_SERVER_URL
         self.session = requests.Session()
         self.session.headers.update({"Content-Type": "application/json"})
+        # Phase 1: エージェントAPIキー認証（未設定時は空dict＝ローカル開発向け）
+        self.session.headers.update(agent_api_headers())
 
     def send_communication_error(
         self,

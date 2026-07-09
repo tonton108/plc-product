@@ -24,7 +24,7 @@ import random
 import requests
 from datetime import datetime
 from dotenv import load_dotenv
-from db_utils import ConfigManager
+from db_utils import ConfigManager, agent_api_headers
 from functools import wraps
 import logging
 
@@ -336,8 +336,8 @@ def initial_setup():
             safe_print(f"[INFO] API サーバーに設備登録中: {api_url}")
             safe_print(f"[INFO] 送信データ: {api_data}")
             
-            response = requests.post(api_url, json=api_data, timeout=LONG_OPERATION_TIMEOUT)
-            
+            response = requests.post(api_url, json=api_data, headers=agent_api_headers(), timeout=LONG_OPERATION_TIMEOUT)
+
             if response.status_code == 200:
                 safe_print("✅ API サーバーへの設備登録成功")
                 
@@ -358,7 +358,7 @@ def initial_setup():
 
                     plc_config_url = f"http://{plc_data['central_server_ip']}:{plc_data['central_server_port']}/api/equipment/{plc_data['equipment_id']}/plc_configs"
                     safe_print(f"[INFO] 送信するPLC設定: {plc_configs}")  # デバッグ用
-                    plc_response = requests.put(plc_config_url, json=plc_configs, timeout=LONG_OPERATION_TIMEOUT)
+                    plc_response = requests.put(plc_config_url, json=plc_configs, headers=agent_api_headers(), timeout=LONG_OPERATION_TIMEOUT)
                     
                     if plc_response.status_code == 200:
                         safe_print("✅ PLCデータ設定も送信成功")
@@ -629,7 +629,7 @@ def api_update_equipment(equipment_id):
             api_url = f"http://{updated_config['central_server_ip']}:{updated_config['central_server_port']}/api/register"
             safe_print(f"📡 中央サーバーに設備更新を送信: {api_url}")
 
-            response = requests.post(api_url, json=api_data, timeout=LONG_OPERATION_TIMEOUT)
+            response = requests.post(api_url, json=api_data, headers=agent_api_headers(), timeout=LONG_OPERATION_TIMEOUT)
 
             if response.status_code == 200:
                 safe_print(f"✅ 中央サーバーへの設備更新成功")
@@ -687,7 +687,7 @@ def api_update_plc_configs(equipment_id):
             plc_config_url = f"http://{current_config.get('central_server_ip', config.central_server_ip)}:{current_config.get('central_server_port', config.central_server_port)}/api/equipment/{equipment_id}/plc_configs"
             safe_print(f"📡 中央サーバーにPLCデータ設定を送信: {plc_config_url}")
 
-            response = requests.put(plc_config_url, json=plc_configs, timeout=LONG_OPERATION_TIMEOUT)
+            response = requests.put(plc_config_url, json=plc_configs, headers=agent_api_headers(), timeout=LONG_OPERATION_TIMEOUT)
 
             if response.status_code == 200:
                 safe_print(f"✅ 中央サーバーへのPLCデータ設定送信成功")

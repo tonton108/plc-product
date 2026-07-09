@@ -12,8 +12,7 @@ import { ref } from 'vue'
  * } = useErrorsAlarms(equipmentId)
  */
 export const useErrorsAlarms = (equipmentIdRef) => {
-  const config = useRuntimeConfig()
-  const apiBase = config.public.apiBase
+  const { apiFetch } = useApi()
   const toast = useToast()
   const { t } = useI18n()
 
@@ -47,21 +46,22 @@ export const useErrorsAlarms = (equipmentIdRef) => {
 
     loading.value = true
     try {
-      // 並列でデータ取得
-      const [plcStatusRes, alarmsRes, errorLogsRes] = await Promise.all([
-        fetch(`${apiBase}/api/equipment/${equipmentId}/plc_status`),
-        fetch(`${apiBase}/api/equipment/${equipmentId}/alarms`),
-        fetch(`${apiBase}/api/equipment/${equipmentId}/error_logs`)
+      // 並列でデータ取得（個別のエラーは無視し、成功した項目のみ反映する）
+      // 例: PLCステータス未登録時は404が返るが、これは正常系（データ未登録）として扱う
+      const [plcStatusResult, alarmsResult, errorLogsResult] = await Promise.allSettled([
+        apiFetch(`/api/equipment/${equipmentId}/plc_status`),
+        apiFetch(`/api/equipment/${equipmentId}/alarms`),
+        apiFetch(`/api/equipment/${equipmentId}/error_logs`)
       ])
 
-      if (plcStatusRes.ok) {
-        plcStatus.value = await plcStatusRes.json()
+      if (plcStatusResult.status === 'fulfilled') {
+        plcStatus.value = plcStatusResult.value
       }
-      if (alarmsRes.ok) {
-        alarms.value = await alarmsRes.json()
+      if (alarmsResult.status === 'fulfilled') {
+        alarms.value = alarmsResult.value
       }
-      if (errorLogsRes.ok) {
-        errorLogs.value = await errorLogsRes.json()
+      if (errorLogsResult.status === 'fulfilled') {
+        errorLogs.value = errorLogsResult.value
       }
     } catch (error) {
       console.error('エラー・アラームデータ読み込みエラー:', error)
@@ -80,27 +80,14 @@ export const useErrorsAlarms = (equipmentIdRef) => {
     if (!equipmentId) return false
 
     try {
-      const response = await fetch(
-        `${apiBase}/api/equipment/${equipmentId}/alarms/${alarmId}/acknowledge`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            acknowledged_by: acknowledgedBy
-          })
-        }
-      )
+      await apiFetch(`/api/equipment/${equipmentId}/alarms/${alarmId}/acknowledge`, {
+        method: 'PATCH',
+        body: { acknowledged_by: acknowledgedBy }
+      })
 
-      if (response.ok) {
-        toast.success(t('alarms.acknowledgeSuccess'))
-        await loadErrorsAndAlarms()
-        return true
-      } else {
-        toast.error(t('alarms.acknowledgeFailed'))
-        return false
-      }
+      toast.success(t('alarms.acknowledgeSuccess'))
+      await loadErrorsAndAlarms()
+      return true
     } catch (error) {
       console.error('アラーム確認エラー:', error)
       toast.error(t('alarms.acknowledgeFailed'))
@@ -117,24 +104,13 @@ export const useErrorsAlarms = (equipmentIdRef) => {
     if (!equipmentId) return false
 
     try {
-      const response = await fetch(
-        `${apiBase}/api/equipment/${equipmentId}/alarms/${alarmId}/clear`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      )
+      await apiFetch(`/api/equipment/${equipmentId}/alarms/${alarmId}/clear`, {
+        method: 'PATCH'
+      })
 
-      if (response.ok) {
-        toast.success(t('alarms.clearSuccess'))
-        await loadErrorsAndAlarms()
-        return true
-      } else {
-        toast.error(t('alarms.clearFailed'))
-        return false
-      }
+      toast.success(t('alarms.clearSuccess'))
+      await loadErrorsAndAlarms()
+      return true
     } catch (error) {
       console.error('アラーム解除エラー:', error)
       toast.error(t('alarms.clearFailed'))
@@ -151,24 +127,13 @@ export const useErrorsAlarms = (equipmentIdRef) => {
     if (!equipmentId) return false
 
     try {
-      const response = await fetch(
-        `${apiBase}/api/equipment/${equipmentId}/error_logs/${errorLogId}/resolve`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      )
+      await apiFetch(`/api/equipment/${equipmentId}/error_logs/${errorLogId}/resolve`, {
+        method: 'PATCH'
+      })
 
-      if (response.ok) {
-        toast.success(t('errorLogs.resolveSuccess'))
-        await loadErrorsAndAlarms()
-        return true
-      } else {
-        toast.error(t('errorLogs.resolveFailed'))
-        return false
-      }
+      toast.success(t('errorLogs.resolveSuccess'))
+      await loadErrorsAndAlarms()
+      return true
     } catch (error) {
       console.error('エラーログ解決エラー:', error)
       toast.error(t('errorLogs.resolveFailed'))

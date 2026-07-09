@@ -29,10 +29,13 @@ def test_tooltip():
             print("  [OK] ページ表示")
 
             # ログイン
+            # Phase 1認証対応: 資格情報はバックエンドのシードユーザー
+            # （flask auth seed --admin-password plc-monitor-2025 で作成）と一致させる。
+            # ボタンは言語非依存のtype=submitで特定（CI英語ロケール対策、test_monitoring_chart.pyと同じ方式）
             print("\n[3/8] ログイン中...")
             page.fill('input[type="text"]', 'admin')
             page.fill('input[type="password"]', 'plc-monitor-2025')
-            page.click('button:has-text("ログイン")')
+            page.click('button[type="submit"]')
             page.wait_for_function('window.location.pathname !== "/login"', timeout=10000)
             time.sleep(2)
             print(f"  [OK] ログイン成功: {page.url}")

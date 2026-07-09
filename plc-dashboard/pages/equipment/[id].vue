@@ -167,8 +167,7 @@ ChartJS.register(
 
 const route = useRoute()
 const router = useRouter()
-const config = useRuntimeConfig()
-const apiBase = config.public.apiBase
+const { apiFetch } = useApi()
 const equipmentId = route.params.id
 const toast = useToast()
 const { t } = useI18n()
@@ -212,10 +211,7 @@ const headers = ref([
 // 設備情報を取得
 const fetchEquipmentInfo = async () => {
   try {
-    const response = await fetch(`${apiBase}/api/equipment/${equipmentId}`)
-    if (response.ok) {
-      equipment.value = await response.json()
-    }
+    equipment.value = await apiFetch(`/api/equipment/${equipmentId}`)
   } catch (error) {
     console.error('設備情報取得エラー:', error)
   }
@@ -224,14 +220,9 @@ const fetchEquipmentInfo = async () => {
 // PLC設定を取得
 const fetchPLCConfigs = async () => {
   try {
-    const response = await fetch(`${apiBase}/api/equipment/${equipmentId}/plc_configs`)
-    if (response.ok) {
-      plcConfigs.value = await response.json()
-      console.log('📋 PLC設定取得成功:', plcConfigs.value)
-      initializeDynamicHeaders()
-    } else {
-      console.error('PLC設定取得失敗:', response.status)
-    }
+    plcConfigs.value = await apiFetch(`/api/equipment/${equipmentId}/plc_configs`)
+    console.log('📋 PLC設定取得成功:', plcConfigs.value)
+    initializeDynamicHeaders()
   } catch (error) {
     console.error('PLC設定取得エラー:', error)
   }
@@ -342,12 +333,9 @@ let intervalId = null
 
 const fetchLogs = async () => {
   try {
-    const res = await fetch(`${apiBase}/api/logs/${equipmentId}/history_optimized?period=${selectedPeriod.value}`)
-    if (res.ok) {
-      const data = await res.json()
-      logsRaw.value = data.logs || []
-      updateChart()
-    }
+    const data = await apiFetch(`/api/logs/${equipmentId}/history_optimized?period=${selectedPeriod.value}`)
+    logsRaw.value = data.logs || []
+    updateChart()
   } catch (err) {
     console.error('ログ取得失敗:', err)
   }

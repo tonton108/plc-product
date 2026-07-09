@@ -18,6 +18,7 @@ from api.serializers import (
     AlarmHistorySerializer,
     PLCStatusSerializer
 )
+from api.auth_service import require_user, require_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ errors_alarms_bp = Blueprint('errors_alarms', __name__, url_prefix='/api')
 # ========================================
 
 @errors_alarms_bp.route("/equipment/<equipment_id>/error_logs", methods=["POST"])
+@require_api_key
 def save_error_log(equipment_id):
     """PLC通信エラーを記録（Raspberry Piエージェントから呼び出し）"""
     try:
@@ -72,6 +74,7 @@ def save_error_log(equipment_id):
 
 
 @errors_alarms_bp.route("/equipment/<equipment_id>/error_logs", methods=["GET"])
+@require_user()
 def get_error_logs(equipment_id):
     """エラーログ一覧を取得"""
     try:
@@ -93,6 +96,7 @@ def get_error_logs(equipment_id):
 
 
 @errors_alarms_bp.route("/equipment/<equipment_id>/error_logs/<int:error_log_id>/resolve", methods=["PATCH"])
+@require_user()
 def resolve_error_log(equipment_id, error_log_id):
     """エラーログを解決（resolve）する"""
     try:
@@ -128,6 +132,7 @@ def resolve_error_log(equipment_id, error_log_id):
 # ========================================
 
 @errors_alarms_bp.route("/equipment/<equipment_id>/alarms", methods=["POST"])
+@require_api_key
 def save_alarm(equipment_id):
     """アラームを記録（Raspberry Piエージェントから呼び出し）"""
     try:
@@ -160,6 +165,7 @@ def save_alarm(equipment_id):
 
 
 @errors_alarms_bp.route("/equipment/<equipment_id>/alarms", methods=["GET"])
+@require_user()
 def get_alarms(equipment_id):
     """アラーム履歴一覧を取得"""
     try:
@@ -181,6 +187,7 @@ def get_alarms(equipment_id):
 
 
 @errors_alarms_bp.route("/equipment/<equipment_id>/alarms/<int:alarm_id>/acknowledge", methods=["PATCH"])
+@require_user()
 def acknowledge_alarm(equipment_id, alarm_id):
     """アラームを確認（acknowledge）する"""
     try:
@@ -219,6 +226,7 @@ def acknowledge_alarm(equipment_id, alarm_id):
 
 
 @errors_alarms_bp.route("/equipment/<equipment_id>/alarms/<int:alarm_id>/clear", methods=["PATCH"])
+@require_user()
 def clear_alarm(equipment_id, alarm_id):
     """アラームを解除（clear）する"""
     try:
@@ -254,6 +262,7 @@ def clear_alarm(equipment_id, alarm_id):
 # ========================================
 
 @errors_alarms_bp.route("/equipment/<equipment_id>/plc_status", methods=["GET"])
+@require_user()
 def get_plc_status(equipment_id):
     """PLC通信状態を取得"""
     try:

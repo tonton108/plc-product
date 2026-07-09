@@ -54,10 +54,21 @@ def register_websocket_handlers(socketio):
         emit('status', {'msg': 'Left monitoring room'})
 
     @socketio.on('connect')
-    def on_connect():
-        """WebSocket接続確立"""
+    def on_connect(auth=None):
+        """WebSocket接続確立（Phase 1: ハンドシェイクのトークン認証必須）
+
+        クライアントは io(url, { auth: { token } }) でBearerトークンを渡す。
+        無効なら False を返して接続を拒否する。
+        """
+        from api.auth_service import authenticate_socketio_connect
+
+        user = authenticate_socketio_connect(auth)
+        if user is None:
+            logger.warning('Socket.IO接続を拒否しました（トークン無効または未指定）')
+            return False
+
         emit('status', {'msg': 'Connected to PLC monitoring system'})
-        logger.info('NuxtUI client connected')
+        logger.info(f'NuxtUI client connected (user={user.username})')
 
     @socketio.on('disconnect')
     def on_disconnect():

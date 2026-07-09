@@ -44,6 +44,19 @@ socketio.init_app(app, async_mode='threading', cors_allowed_origins="*")
 | `/api/admin/cleanup` | POST | 手動クリーンアップ実行 | routes.py |
 | `/api/admin/stats` | GET | データベース統計取得 | routes.py |
 | `/api/admin/create_summary` | POST | 集計データ作成 | routes.py |
+| `/api/auth/login` | POST | ログイン（Bearerトークン発行） | api/routes/auth.py |
+| `/api/auth/logout` | POST | ログアウト（トークン失効） | api/routes/auth.py |
+| `/api/auth/me` | GET | ログイン中ユーザー情報取得 | api/routes/auth.py |
+| `/api/health` | GET | ヘルスチェック（DB疎通含む・唯一の無認証） | api/routes/health.py |
+
+**認証（Phase 1・2026-07-10追加）:**
+
+全エンドポイントは認証必須（`/api/health`と`/api/auth/login`を除く）。
+
+- 人間向け: `Authorization: Bearer <トークン>`（`/api/auth/login`で取得、24時間期限）
+- エージェント向け: `X-API-Key: <キー>`（`flask auth issue-api-key`で発行。設備別キーは対象設備のみアクセス可）
+- 保護デコレータは `api/auth_service.py`（`require_user` / `require_api_key` / `require_user_or_api_key`）
+- 設計判断の詳細は `_docs/decisions/auth-architecture.md` を参照
 
 **Socket.IOイベント:**
 

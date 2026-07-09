@@ -18,7 +18,8 @@ Phase 19: デバイス識別関数をdevice_utils.pyに統合
 """
 
 # api_client.pyからのエクスポート
-from api_client import DatabaseAPI
+# Phase 1: agent_api_headers（エージェントAPIキー認証ヘッダ生成）も再エクスポート
+from api_client import DatabaseAPI, agent_api_headers
 
 # Phase 19: デバイス識別関数を統合モジュールから直接インポート
 from device_utils import (
@@ -37,4 +38,5 @@ __all__ = [
     'get_cpu_serial_number',
     'get_mac_address',
     'get_ip_address',
+    'agent_api_headers',
 ]

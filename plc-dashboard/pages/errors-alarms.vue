@@ -106,7 +106,7 @@
  */
 import { ref, onMounted } from 'vue'
 
-const config = useRuntimeConfig()
+const { apiFetch } = useApi()
 const selectedEquipmentId = ref(null)
 const equipmentList = ref([])
 
@@ -128,8 +128,7 @@ const {
  */
 const loadEquipmentList = async () => {
   try {
-    const response = await fetch(`${config.public.apiBase}/api/equipment`)
-    const data = await response.json()
+    const data = await apiFetch('/api/equipment')
     equipmentList.value = data
 
     // デフォルトで最初の設備を選択

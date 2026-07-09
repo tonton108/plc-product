@@ -19,6 +19,8 @@ from api.scheduler import (
     create_monthly_summary,
     DATA_RETENTION_CONFIG
 )
+from api.auth_service import require_user
+from db.models import UserRoles
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +28,7 @@ admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
 
 
 @admin_bp.route("/cleanup", methods=["POST"])
+@require_user(role=UserRoles.ADMIN)
 def manual_cleanup():
     """手動クリーンアップ実行"""
     try:
@@ -51,6 +54,7 @@ def manual_cleanup():
 
 
 @admin_bp.route("/stats", methods=["GET"])
+@require_user(role=UserRoles.ADMIN)
 def get_database_stats():
     """データベース統計情報を取得"""
     try:
@@ -95,6 +99,7 @@ def get_database_stats():
 
 
 @admin_bp.route("/create_summary", methods=["POST"])
+@require_user(role=UserRoles.ADMIN)
 def manual_create_summary():
     """手動で集計データ作成"""
     try:

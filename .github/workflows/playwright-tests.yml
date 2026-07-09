@@ -75,6 +75,17 @@ jobs:
         env:
           DATABASE_URL: postgresql+psycopg2://plc_user:plc_pass@localhost:5432/plc_monitor
 
+      - name: Seed auth (admin user + agent API key)
+        run: |
+          cd plc-dashboard
+          export PYTHONPATH="${PWD}/backend:${PYTHONPATH}"
+          cd backend
+          # Phase 1認証対応: E2E用のadminユーザーと共有APIキーを既知の値で作成
+          # （パスワードは scripts/test_monitoring_chart.py のログイン処理と一致させる）
+          flask --app manage.py auth seed --admin-password plc-monitor-2025 --api-key plc-e2e-agent-key
+        env:
+          DATABASE_URL: postgresql+psycopg2://plc_user:plc_pass@localhost:5432/plc_monitor
+
       - name: Start backend server
         run: |
           cd plc-dashboard
@@ -82,8 +93,9 @@ jobs:
           cd backend
           flask --app manage.py run --host=0.0.0.0 --port=5000 &
           # 設備登録より前にバックエンドの起動を保証する（レースで登録が接続拒否になるのを防ぐ）
+          # Phase 1認証対応: /api/equipment は401を返すようになったため、無認証の /api/health で確認
           for i in $(seq 1 30); do
-            if curl -sf http://localhost:5000/api/equipment >/dev/null 2>&1; then
+            if curl -sf http://localhost:5000/api/health >/dev/null 2>&1; then
               echo "backend ready"; break
             fi
             echo "waiting for backend... ($i)"; sleep 1
@@ -106,6 +118,9 @@ jobs:
           # continuousモードは内部で register_equipment()（PLC設定登録含む）→ 連続送信 を実行する。
           python demo_data_sender.py --mode continuous --equipment-id LINE_A_001 --interval 2.0 &
           sleep 5
+        env:
+          # Phase 1認証対応: seedステップで登録した共有APIキー
+          AGENT_API_KEY: plc-e2e-agent-key
 
       - name: Run Playwright tests
         run: |

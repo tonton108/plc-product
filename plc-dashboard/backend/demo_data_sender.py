@@ -9,10 +9,21 @@ import requests
 import time
 import random
 import json
+import os
 from datetime import datetime, timezone
 import threading
 import argparse
 import logging
+
+# Phase 1認証対応: エージェント向けAPIはX-API-Keyヘッダ必須。
+# 環境変数 AGENT_API_KEY にサーバー側で発行したキーを設定する
+# （例: flask --app manage.py auth issue-api-key --name demo）
+AGENT_API_KEY = os.getenv("AGENT_API_KEY", "")
+
+
+def agent_api_headers():
+    """エージェントAPI用の認証ヘッダを返す（未設定時は空dict）"""
+    return {"X-API-Key": AGENT_API_KEY} if AGENT_API_KEY else {}
 
 # Phase 14: ロギング設定
 logging.basicConfig(
@@ -93,7 +104,7 @@ class PLCDataSender:
         """データをサーバーに送信"""
         try:
             url = f"{self.server_url}/api/logs"
-            headers = {"Content-Type": "application/json"}
+            headers = {"Content-Type": "application/json", **agent_api_headers()}
             response = requests.post(url, json=data, headers=headers, timeout=5)
             
             if response.status_code == 200:
@@ -155,7 +166,7 @@ class PLCDataSender:
 
         try:
             url = f"{self.server_url}/api/register"
-            response = requests.post(url, json=registration_data, timeout=5)
+            response = requests.post(url, json=registration_data, headers=agent_api_headers(), timeout=5)
 
             if response.status_code == 200:
                 logger.info(f"設備登録成功: {self.equipment_id}")
@@ -232,7 +243,7 @@ class PLCDataSender:
 
         try:
             url = f"{self.server_url}/api/equipment/{self.equipment_id}/plc_configs"
-            response = requests.put(url, json=plc_configs, timeout=5)
+            response = requests.put(url, json=plc_configs, headers=agent_api_headers(), timeout=5)
 
             if response.status_code == 200:
                 logger.info(f"PLC設定登録成功: {len(plc_configs)}個の設定を登録しました")

@@ -5,6 +5,7 @@ import pytest
 import os
 from app import create_app, db as _db
 from db.models import Equipment, PLCDataConfig, Log
+from db.models import User, AuthToken, AgentApiKey, UserRoles
 
 
 @pytest.fixture(scope='session')
@@ -38,10 +39,79 @@ def session(app):
         _db.session.commit()
 
 
+def _make_authed_client(app, headers):
+    """指定ヘッダを全リクエストに自動付与するテストクライアントを作る"""
+    test_client = app.test_client()
+    original_open = test_client.open
+
+    def open_with_auth(*args, **kwargs):
+        request_headers = kwargs.setdefault('headers', {})
+        if isinstance(request_headers, dict):
+            for key, value in headers.items():
+                request_headers.setdefault(key, value)
+        return original_open(*args, **kwargs)
+
+    test_client.open = open_with_auth
+    return test_client
+
+
 @pytest.fixture(scope='function')
-def client(app, session):
-    """テスト用Flaskクライアントを作成"""
+def admin_user(session):
+    """テスト用adminユーザー"""
+    user = User(username='test_admin', password='test-admin-password', role=UserRoles.ADMIN)
+    session.add(user)
+    session.commit()
+    return user
+
+
+@pytest.fixture(scope='function')
+def admin_token(session, admin_user):
+    """adminユーザーのBearerトークン（平文）"""
+    token, raw_token = AuthToken.issue(admin_user)
+    session.add(token)
+    session.commit()
+    return raw_token
+
+
+@pytest.fixture(scope='function')
+def agent_api_key(session):
+    """テスト用エージェントAPIキー（平文）"""
+    record, raw_key = AgentApiKey.issue(name='test-shared-key')
+    session.add(record)
+    session.commit()
+    return raw_key
+
+
+@pytest.fixture(scope='function')
+def client(app, session, admin_token, agent_api_key):
+    """認証済みテストクライアント（adminトークン＋APIキーを自動付与）
+
+    既存の機能テストが認証必須化後もそのまま通るように、
+    人間用トークンとエージェント用APIキーの両方を付与する。
+    認証自体の検証（401/403）は test_auth.py の unauth_client 等で行う。
+    """
+    return _make_authed_client(app, {
+        'Authorization': f'Bearer {admin_token}',
+        'X-API-Key': agent_api_key,
+    })
+
+
+@pytest.fixture(scope='function')
+def unauth_client(app, session):
+    """無認証のテストクライアント（401検証用）"""
     return app.test_client()
+
+
+@pytest.fixture(scope='function')
+def operator_client(app, session):
+    """operatorロールのテストクライアント（403検証用）"""
+    user = User(username='test_operator', password='test-operator-password', role=UserRoles.OPERATOR)
+    session.add(user)
+    session.commit()
+    token, raw_token = AuthToken.issue(user)
+    session.add(token)
+    session.commit()
+    return _make_authed_client(app, {'Authorization': f'Bearer {raw_token}'})
 
 
 @pytest.fixture(scope='function')
