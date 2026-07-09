@@ -101,6 +101,10 @@ class PLCDataConfig(db.Model):
     address = db.Column(db.String(20), nullable=False)    # D100, D101など
     scale_factor = db.Column(db.Float, default=1)          # 倍率
     plc_data_type = db.Column(db.String(20), default='word')  # bit, word, dword, float32
+    # 32bit値（dword/float32）のワード間順序（Phase 2）
+    # high_first: 先頭アドレス=上位（シーメンス等）/ low_first: 先頭アドレス=下位（三菱等）
+    # 既定は low_first（三菱MELSECが最多想定。詳細は _docs/plc-knowledge/endianness.md）
+    word_order = db.Column(db.String(20), default='low_first')
 
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
@@ -115,7 +119,8 @@ class PLCDataConfig(db.Model):
         scale_factor: float = 1,
         plc_data_type: str = "word",
         icon: str = "",
-        unit: str = ""
+        unit: str = "",
+        word_order: str = "low_first"
     ):
         self.equipment_id = equipment_id
         self.data_type = data_type  # 内部キー（後方互換性）
@@ -126,3 +131,4 @@ class PLCDataConfig(db.Model):
         self.address = address
         self.scale_factor = scale_factor
         self.plc_data_type = plc_data_type
+        self.word_order = word_order

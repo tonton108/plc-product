@@ -130,6 +130,8 @@ def read_mitsubishi_plc(plc, data_points):
             address = setting.get("address")
             scale = setting.get("scale", 1)
             data_type = setting.get("data_type", "word")  # デフォルト: word
+            # 32bitワード順序（Phase 2）。三菱は先頭アドレス=下位ワードのため low_first
+            word_order = setting.get("word_order", "low_first")
 
             # バッチ読み取り済みのデータはスキップ
             if key in data:
@@ -181,10 +183,10 @@ def read_mitsubishi_plc(plc, data_points):
                             headdevice=f"D{addr_num}", readsize=2
                         )
 
-                        # 共通関数でfloat32/dwordに変換（Big-Endian）
+                        # 共通関数でfloat32/dwordに変換（word_orderで順序を指定）
                         if len(word_values) >= 2:
                             raw_value = convert_words_to_value(
-                                word_values[0], word_values[1], data_type
+                                word_values[0], word_values[1], data_type, word_order
                             )
 
                     else:

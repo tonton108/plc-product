@@ -124,7 +124,9 @@ class ConfigManager:
                     "address": plc_config.get("address"),
                     "data_type": plc_config.get("plc_data_type", "word"),  # 新しいPLCデータ型フィールド
                     "scale": plc_config.get("scale_factor", 1),
-                    "enabled": plc_config.get("enabled", False)
+                    "enabled": plc_config.get("enabled", False),
+                    # 32bitワード順序（Phase 2）。三菱既定 low_first
+                    "word_order": plc_config.get("word_order", "low_first")
                 }
 
             logger.info(f" DB設定読み込み成功: {equipment_id}")
