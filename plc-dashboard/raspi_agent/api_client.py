@@ -42,6 +42,14 @@ load_dotenv()
 # モジュール用ロガー
 logger = logging.getLogger(__name__)
 
+# Phase 1: エージェントAPIキー認証（中央サーバー側で X-API-Key ヘッダを検証する）
+AGENT_API_KEY = os.getenv("AGENT_API_KEY", "")
+
+
+def agent_api_headers():
+    """中央サーバーAPI用の認証ヘッダを返す（未設定時は空dict＝ローカル開発向け）"""
+    return {"X-API-Key": AGENT_API_KEY} if AGENT_API_KEY else {}
+
 
 # ==========================================
 # API例外ハンドリングヘルパー（Phase 18追加）
@@ -111,7 +119,7 @@ class DatabaseAPI:
         Phase 18: 例外ハンドリング改善 - 具体的な例外型を使用
         """
         try:
-            response = requests.get(f"{self.base_url}/equipment/{equipment_id}", timeout=API_TIMEOUT)
+            response = requests.get(f"{self.base_url}/equipment/{equipment_id}", headers=agent_api_headers(), timeout=API_TIMEOUT)
             if response.status_code == 200:
                 return response.json()
             elif response.status_code == 404:
@@ -145,7 +153,7 @@ class DatabaseAPI:
             if ip_address:
                 params['ip_address'] = ip_address
 
-            response = requests.get(f"{self.base_url}/equipment/search", params=params, timeout=API_TIMEOUT)
+            response = requests.get(f"{self.base_url}/equipment/search", params=params, headers=agent_api_headers(), timeout=API_TIMEOUT)
             if response.status_code == 200:
                 return response.json()
             elif response.status_code == 404:
@@ -164,7 +172,7 @@ class DatabaseAPI:
         Phase 18: 例外ハンドリング改善
         """
         try:
-            response = requests.get(f"{self.base_url}/equipment/{equipment_id}/setup_status", timeout=API_TIMEOUT)
+            response = requests.get(f"{self.base_url}/equipment/{equipment_id}/setup_status", headers=agent_api_headers(), timeout=API_TIMEOUT)
             if response.status_code == 200:
                 result = response.json()
                 return result.get("setup_completed", False)
@@ -182,7 +190,7 @@ class DatabaseAPI:
         Phase 18: 例外ハンドリング改善
         """
         try:
-            response = requests.get(f"{self.base_url}/equipment/{equipment_id}/plc_configs", timeout=API_TIMEOUT)
+            response = requests.get(f"{self.base_url}/equipment/{equipment_id}/plc_configs", headers=agent_api_headers(), timeout=API_TIMEOUT)
             if response.status_code == 200:
                 return response.json()
             return []
@@ -201,7 +209,7 @@ class DatabaseAPI:
         try:
             equipment_id = equipment_data.get("equipment_id")
             response = requests.put(f"{self.base_url}/equipment/{equipment_id}",
-                                  json=equipment_data, timeout=API_TIMEOUT)
+                                  json=equipment_data, headers=agent_api_headers(), timeout=API_TIMEOUT)
             if response.status_code == 200:
                 return True
             logger.warning(f"設備設定保存 - HTTPエラー {response.status_code}")
@@ -220,7 +228,7 @@ class DatabaseAPI:
         """
         try:
             response = requests.put(f"{self.base_url}/equipment/{target_equipment_id}",
-                                  json=equipment_data, timeout=API_TIMEOUT)
+                                  json=equipment_data, headers=agent_api_headers(), timeout=API_TIMEOUT)
             if response.status_code == 200:
                 return True
             logger.warning(f"設備設定保存（ID指定） - HTTPエラー {response.status_code}")
@@ -239,7 +247,7 @@ class DatabaseAPI:
         """
         try:
             response = requests.put(f"{self.base_url}/equipment/{equipment_id}/plc_configs",
-                                  json=plc_configs, timeout=API_TIMEOUT)
+                                  json=plc_configs, headers=agent_api_headers(), timeout=API_TIMEOUT)
             if response.status_code == 200:
                 return True
             logger.warning(f"PLCデータ設定保存 - HTTPエラー {response.status_code}")
@@ -257,7 +265,7 @@ class DatabaseAPI:
         Phase 18: 例外ハンドリング改善
         """
         try:
-            response = requests.post(f"{self.base_url}/equipment/{equipment_id}/mark_setup_completed", timeout=API_TIMEOUT)
+            response = requests.post(f"{self.base_url}/equipment/{equipment_id}/mark_setup_completed", headers=agent_api_headers(), timeout=API_TIMEOUT)
             if response.status_code == 200:
                 return True
             logger.warning(f"セットアップ完了マーク - HTTPエラー {response.status_code}")
@@ -290,7 +298,7 @@ class DatabaseAPI:
 
             # 2. 中央サーバーへの送信を試行
             try:
-                response = requests.post(f"{self.base_url}/logs", json=payload, timeout=API_TIMEOUT)
+                response = requests.post(f"{self.base_url}/logs", json=payload, headers=agent_api_headers(), timeout=API_TIMEOUT)
                 if response.status_code == 200:
                     # 送信成功 → バッファから削除
                     self.buffer.mark_as_sent(record_id)
@@ -336,7 +344,7 @@ class DatabaseAPI:
         for record_id, equipment_id, data in pending:
             try:
                 # タイムスタンプを再設定せず、元のタイムスタンプを使用
-                response = requests.post(f"{self.base_url}/logs", json=data, timeout=API_TIMEOUT)
+                response = requests.post(f"{self.base_url}/logs", json=data, headers=agent_api_headers(), timeout=API_TIMEOUT)
 
                 if response.status_code == 200:
                     # 送信成功 → バッファから削除
