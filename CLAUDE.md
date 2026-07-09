@@ -383,46 +383,44 @@ if equipment:
 
 詳細は `plc-dashboard/_docs/decisions/equipment-identification-strategy.md` を参照。
 
-### 3. PLCプロトコル実装
+### 3. PLCプロトコル実装（32bit値のワード順序）
 
-**すべてのPLCでBig-Endianを使用します。**
+**32bit値のワード順序はメーカー・機種依存です。**「全PLCでBig-Endian・`(word1 << 16) | word2` 固定」という旧ルールは、三菱の公式マニュアルにより反証されました（2026-07再調査）。
 
-```python
-# ✅ 正しい: Big-Endian
-bytes_data = struct.pack('>HH', word1, word2)
-
-# ❌ 間違い: Little-Endian
-bytes_data = struct.pack('<HH', word1, word2)
-```
-
-**三菱PLCのfloat32/dword読み取り例:**
+- **三菱（Q/L/iQ-R確認済み）: 先頭アドレス = 下位ワード** → 正しい結合は `(word2 << 16) | word1`
+- シーメンスS7: 上位ワードが先 → `(word1 << 16) | word2`
+- オムロン・キーエンス: 実機確認必須
+- 実装方針: 設備/項目ごとの `word_order` 設定で吸収（`docs/SPEC.md` §5.3、Phase 2で導入予定）
 
 ```python
-# raspi_agent/plc_agent.py:442-463 参照
-# 2ワード読み取り (32bit)
+# 三菱PLCのfloat32読み取り（先頭アドレス=下位ワード）
 word_values = plc.batchread_wordunits(headdevice="D100", readsize=2)
-
-# Big-Endian形式で結合
 word1, word2 = word_values[0], word_values[1]
-combined = (word1 << 16) | word2
-float_value = struct.unpack('>f', struct.pack('>I', combined))[0]  # '>f' = Big-Endian
+bytes_data = struct.pack('>HH', word2, word1)  # 三菱はlow_first: 後アドレス側が上位
+float_value = struct.unpack('>f', bytes_data)[0]
 ```
+
+バイト列の組み立ては常に `>`（Big-Endian表記）で統一し、**ワード順序はpackに渡す並び順で吸収**します。`struct.pack('<HH', ...)` やエンディアン未指定は禁止。
 
 詳細は `plc-dashboard/_docs/plc-knowledge/endianness.md` を参照。
 
 ### 4. タイムアウト設定
 
-**PLC通信は必ずタイムアウト（3-5秒）を設定してください。**
+**PLC通信は必ずタイムアウト（3-5秒）を設定してください。設定APIはライブラリごとに異なります。**
 
 ```python
-# ✅ 正しい
+# ✅ 正しい（pymcprotocol）: connect()にtimeout引数は存在しない
+plc.setaccessopt(timer_sec=5)
+plc.connect(ip, port)
+
+# ❌ 間違い: TypeErrorになる
 plc.connect(ip, port, timeout=5.0)
 
-# ❌ 間違い
+# ❌ 注意: 動くがデフォルト（監視タイマ1秒/ソケット2秒）のまま
 plc.connect(ip, port)
 ```
 
-詳細は `plc-dashboard/_docs/plc-knowledge/timeout-settings.md` を参照。
+pymodbusは `ModbusTcpClient(..., timeout=5.0)`。詳細は `plc-dashboard/_docs/plc-knowledge/timeout-settings.md` を参照。
 
 ### 5. 変数シャドーイング問題
 
@@ -607,4 +605,4 @@ docker compose logs -f backend | grep "📡 WebSocket"
 
 ---
 
-**最終更新:** 2026-01-19
+**最終更新:** 2026-07-09（PLC通信の一次情報再調査を反映: ワード順序・pymcprotocolタイムアウトAPI）

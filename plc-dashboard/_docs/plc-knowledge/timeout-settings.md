@@ -1,7 +1,9 @@
 # タイムアウト設定のベストプラクティス
 
 **作成日:** 2025-10-24
-**最終更新:** 2026-01-24
+**最終更新:** 2026-07-09（pymcprotocolのAPI仕様を一次情報で再検証し修正）
+
+> ⚠️ **注意:** タイムアウトの設定方法はライブラリごとにAPIが異なる。本ドキュメント旧版の `plc.connect(ip, port, timeout=5.0)` という汎用例は**pymcprotocolでは動かない**（TypeError）。「プロトコル別タイムアウト設定」の節にある各ライブラリの正規APIを使うこと。
 
 ## 概要
 
@@ -24,10 +26,7 @@ PLC通信は工場LANを経由するため、以下のリスクがあります�
 
 ### 通信タイムアウト: 3-5秒
 
-```python
-# ✅ 推奨: 3-5秒のタイムアウト
-plc.connect(ip="192.168.0.10", port=5000, timeout=5.0)
-```
+推奨値は3-5秒（設定方法はライブラリごとに異なる。後述の「プロトコル別タイムアウト設定」を参照）。
 
 **根拠:**
 - 通常のPLC応答時間: 50-200ms
@@ -103,37 +102,43 @@ conn.timeout = 5.0  # ✅ タイムアウト5秒
 
 ### 三菱電機（MC Protocol）
 
+**⚠️ pymcprotocolの `connect()` に timeout 引数は存在しない**（pymcprotocol 0.3.0のソースで確認済み。docstringに記載があるのはドキュメントバグ）。タイムアウトは `setaccessopt(timer_sec=...)` で設定する。
+
 ```python
 # plc-dashboard/raspi_agent/plc_drivers/mitsubishi.py
 import pymcprotocol
 
 plc = pymcprotocol.Type3E()
-plc.connect(
-    ip=config['plc_ip'],
-    port=config.get('plc_port', 5000),
-    timeout=5.0  # ✅ タイムアウト5秒
-)
+plc.setaccessopt(timer_sec=5)  # ✅ MCプロトコル監視タイマ5秒（ソケットタイムアウトは自動で+1秒=6秒）
+plc.connect(config['plc_ip'], config.get('plc_port', 5000))
+```
+
+**デフォルト値に注意:** `setaccessopt` を呼ばない場合、MCプロトコル監視タイマは**1秒**、ソケットタイムアウトは**2秒**（推奨値3-5秒より短い）。「タイムアウトを設定したつもり」にならないこと。
+
+```python
+# ❌ 間違い: TypeErrorになる（timeout引数は存在しない）
+plc.connect(ip, port, timeout=5.0)
+
+# ❌ 注意: 動くがタイムアウトはデフォルトの1秒/2秒のまま
+plc.connect(ip, port)
 ```
 
 ## よくある間違い
 
-### 間違い1: タイムアウト未設定
+（以下のコード例は概念を示す擬似コード。実際のAPI名は上記「プロトコル別タイムアウト設定」を参照）
+
+### 間違い1: タイムアウト未設定（デフォルト任せ）
 
 ```python
-# ❌ 間違い: タイムアウトなし
+# ❌ 間違い: タイムアウトを明示せずデフォルト任せ
 plc.connect(ip, port)
-# → ネットワーク障害時に無限待機
 ```
 
 **問題:**
-- デフォルトタイムアウトはライブラリ依存（30秒、60秒、無限など）
-- 長時間ハングアップのリスク
+- デフォルトタイムアウトはライブラリ依存（pymcprotocolは2秒、pymodbusは3秒、ライブラリによっては無限など）
+- 意図しない値で動く／長時間ハングアップのリスク
 
-**修正:**
-```python
-# ✅ 正しい: 必ずタイムアウトを明示
-plc.connect(ip, port, timeout=5.0)
-```
+**修正:** 各ライブラリの正規APIで必ず明示する（例: pymcprotocolは `setaccessopt(timer_sec=5)`、pymodbusは `ModbusTcpClient(..., timeout=5.0)`）
 
 ### 間違い2: タイムアウトが短すぎる
 
@@ -278,8 +283,8 @@ logger.info(f"通信統計: 成功={success_count}, タイムアウト={timeout_
 
 PLC通信実装時は、以下を確認してください：
 
-- [ ] すべてのPLC接続で`timeout`パラメータを明示しているか
-- [ ] タイムアウト値は3-5秒の範囲か
+- [ ] すべてのPLC接続で、そのライブラリの正規APIでタイムアウトを明示しているか（pymcprotocolは`setaccessopt(timer_sec=)`、`connect()`のtimeout引数ではない）
+- [ ] タイムアウト値は3-5秒の範囲か（デフォルト任せにしていないか）
 - [ ] タイムアウトエラーを`try-except`でキャッチしているか
 - [ ] タイムアウト時のフォールバック処理があるか
 - [ ] ローカルバッファにデータを保存しているか

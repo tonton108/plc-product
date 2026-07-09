@@ -32,7 +32,7 @@ jobs:
             - Security vulnerabilities (especially in PLC communication)
             - Python best practices and type safety
             - PLC protocol implementation (Modbus TCP, FINS, MC Protocol)
-            - Endianness issues (all PLCs use Big-Endian)
+            - 32-bit word order issues (word order is vendor-specific: Mitsubishi stores the LOWER word at the first address, so (word1 << 16) | word2 is WRONG for Mitsubishi; Siemens S7 is high-word-first. See _docs/plc-knowledge/endianness.md)
             - Error handling and timeout settings
             - Performance issues
             - Code quality and maintainability
