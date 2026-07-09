@@ -136,7 +136,9 @@ class PLCDataConfigSerializer:
             "address": config.address,
             "scale_factor": config.scale_factor,
             "plc_data_type": getattr(config, "plc_data_type", "word"),
-            "unit": getattr(config, "unit", "")
+            "unit": getattr(config, "unit", ""),
+            # 32bitワード順序（Phase 2）。エージェントがこの値で変換する
+            "word_order": getattr(config, "word_order", "low_first")
         }
 
     @staticmethod
@@ -171,6 +173,12 @@ class LogSerializer:
             "error_code": log.error_code
         }
 
+        # 動的項目（Log.data）をフラットにマージ（Phase 2）。
+        # 固定カラムと同名キーがあっても固定カラムを優先し、上書きしない
+        if log.data:
+            for key, value in log.data.items():
+                data.setdefault(key, value)
+
         if include_equipment_id and equipment_id_str:
             data["equipment_id"] = equipment_id_str
 
@@ -193,7 +201,7 @@ class LogSerializer:
         Returns:
             dict: リアルタイム配信用データ
         """
-        return {
+        realtime = {
             "equipment_id": equipment_id,
             "timestamp": log.timestamp.isoformat(),
             "production_count": log.production_count,
@@ -204,6 +212,13 @@ class LogSerializer:
             "error_code": log.error_code,
             "status": "normal" if not log.error_code else "error"
         }
+
+        # 動的項目（Log.data）をフラットにマージ（Phase 2）
+        if log.data:
+            for key, value in log.data.items():
+                realtime.setdefault(key, value)
+
+        return realtime
 
 
 class DailyLogSummarySerializer:
@@ -220,7 +235,7 @@ class DailyLogSummarySerializer:
         Returns:
             dict: シリアライズされた日次集計データ
         """
-        return {
+        result = {
             "date": summary.date.isoformat(),
             "production_count": summary.production_count_total,
             "current_avg": summary.current_avg,
@@ -233,6 +248,13 @@ class DailyLogSummarySerializer:
             "error_count": summary.error_count,
             "data_count": summary.data_count
         }
+
+        # 動的項目の集計（data_summary）をマージ（Phase 2）
+        if summary.data_summary:
+            for key, value in summary.data_summary.items():
+                result.setdefault(key, value)
+
+        return result
 
     @staticmethod
     def to_list(summaries) -> List[dict]:

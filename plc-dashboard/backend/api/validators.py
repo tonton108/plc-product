@@ -139,23 +139,25 @@ def validate_protocol(protocol: str) -> bool:
 
 def validate_data_type(data_type: str) -> bool:
     """
-    PLCデータタイプを検証
+    PLCデータ項目名（data_type）を検証
+
+    Phase 2: ホワイトリスト方式（固定6種のみ許可）から形式検証に変更。
+    「設備ごとに任意のデータ項目を定義できる」仕様のため、項目名は
+    固定リストではなく文字種・長さで検証する。
 
     Args:
-        data_type: 検証するデータタイプ
+        data_type: 検証するデータ項目名
 
     Returns:
         bool: 有効な場合はTrue、無効な場合はFalse
+
+    検証ルール:
+        - 1〜50文字
+        - 英数字、アンダースコア、ハイフンのみ許可
     """
-    valid_types = [
-        'production_count',
-        'current',
-        'temperature',
-        'pressure',
-        'cycle_time',
-        'error_code'
-    ]
-    return data_type in valid_types
+    if not data_type:
+        return False
+    return bool(re.match(r'^[A-Za-z0-9_-]{1,50}$', data_type))
 
 
 def require_json(f: Callable[..., Any]) -> Callable[..., Any]:

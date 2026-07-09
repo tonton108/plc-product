@@ -13,6 +13,7 @@ import logging
 
 from db import db
 from db.models import Equipment, Log, DailyLogSummary, SetupStatus, OperationalStatus
+from db.models.logs import FIXED_LOG_FIELDS, LOG_META_FIELDS
 from api.serializers import LogSerializer, DailyLogSummarySerializer
 from api.helpers import get_equipment_or_404, handle_api_errors
 from api.auth_service import require_user, require_api_key
@@ -75,6 +76,12 @@ def save_log_data():
             log_entry.cycle_time = data.get("cycle_time")
             log_entry.error_code = data.get("error_code")
 
+            # 固定カラム・メタキー以外の受信項目を動的項目として data(JSON) に保存
+            # （設備ごとに任意項目を定義できる仕様の中核。Phase 2）
+            reserved = set(FIXED_LOG_FIELDS) | set(LOG_META_FIELDS)
+            dynamic_data = {k: v for k, v in data.items() if k not in reserved}
+            log_entry.data = dynamic_data or None
+
             db.session.add(log_entry)
 
             # 初回データ受信時にセットアップ完了
@@ -100,17 +107,8 @@ def save_log_data():
         # WebSocketでリアルタイム配信
         socketio = get_socketio()
         if socketio:
-            realtime_data = {
-                "equipment_id": equipment_id,
-                "timestamp": timestamp.isoformat(),
-                "production_count": data.get("production_count"),
-                "current": data.get("current"),
-                "temperature": data.get("temperature"),
-                "pressure": data.get("pressure"),
-                "cycle_time": data.get("cycle_time"),
-                "error_code": data.get("error_code"),
-                "status": "normal" if not data.get("error_code") else "error"
-            }
+            # 固定項目＋動的項目をシリアライザで一元的に構築（保存したlog_entryから）
+            realtime_data = LogSerializer.to_realtime(log_entry, equipment_id)
 
             try:
                 socketio.emit('plc_data_update', realtime_data, to='monitoring')

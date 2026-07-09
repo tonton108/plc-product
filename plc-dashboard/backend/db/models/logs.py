@@ -11,6 +11,21 @@ from typing import Optional
 from db import db
 
 
+# ログの固定カラム（後方互換）に対応するキー。これら以外の受信項目は
+# 動的項目として Log.data(JSON) に格納する（Phase 2: 動的データ項目の一気通貫）
+FIXED_LOG_FIELDS = (
+    "production_count",
+    "current",
+    "temperature",
+    "pressure",
+    "cycle_time",
+    "error_code",
+)
+
+# 受信JSONのうち、データ項目ではないメタキー（data に混ぜない）
+LOG_META_FIELDS = ("equipment_id", "timestamp")
+
+
 class Log(db.Model):
     """ログテーブル（全データ項目対応版 + 動的JSON対応）"""
     __tablename__ = 'logs'
@@ -81,7 +96,8 @@ class DailyLogSummary(db.Model):
         pressure_min: Optional[float] = None,
         cycle_time_avg: Optional[float] = None,
         error_count: Optional[int] = None,
-        data_count: Optional[int] = None
+        data_count: Optional[int] = None,
+        data_summary: Optional[dict] = None
     ):
         self.equipment_id = equipment_id
         self.date = date
@@ -98,6 +114,7 @@ class DailyLogSummary(db.Model):
         self.cycle_time_avg = cycle_time_avg
         self.error_count = error_count
         self.data_count = data_count
+        self.data_summary = data_summary
 
 
 class MonthlyLogSummary(db.Model):
@@ -150,7 +167,8 @@ class MonthlyLogSummary(db.Model):
         pressure_min: Optional[float] = None,
         cycle_time_avg: Optional[float] = None,
         error_count_total: Optional[int] = None,
-        operational_days: Optional[int] = None
+        operational_days: Optional[int] = None,
+        data_summary: Optional[dict] = None
     ):
         self.equipment_id = equipment_id
         self.year = year
@@ -168,3 +186,4 @@ class MonthlyLogSummary(db.Model):
         self.cycle_time_avg = cycle_time_avg
         self.error_count_total = error_count_total
         self.operational_days = operational_days
+        self.data_summary = data_summary

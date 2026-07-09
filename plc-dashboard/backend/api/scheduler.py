@@ -18,6 +18,8 @@ from calendar import monthrange
 import threading
 import time
 
+from api.aggregation import summarize_dynamic_from_logs, summarize_dynamic_from_daily
+
 # モジュール用ロガー
 logger = logging.getLogger(__name__)
 
@@ -231,6 +233,9 @@ def create_daily_summary(target_date):
             # エラー件数
             error_count = len([log for log in daily_logs if log.error_code and log.error_code > 0])
 
+            # 動的項目（Log.data）の集計（Phase 2）
+            dynamic_summary = summarize_dynamic_from_logs(daily_logs)
+
             # 新しい日次集計を作成
             daily_summary = DailyLogSummary(
                 equipment_id=equipment_id,
@@ -247,7 +252,8 @@ def create_daily_summary(target_date):
                 pressure_min=min(pressure_values) if pressure_values else None,
                 cycle_time_avg=sum(cycle_values) / len(cycle_values) if cycle_values else None,
                 error_count=error_count,
-                data_count=len(daily_logs)
+                data_count=len(daily_logs),
+                data_summary=dynamic_summary or None
             )
 
             db.session.add(daily_summary)
@@ -317,6 +323,9 @@ def create_monthly_summary(year, month):
             cycle_avgs = [ds.cycle_time_avg for ds in daily_summaries if ds.cycle_time_avg is not None]
             error_total = sum([ds.error_count for ds in daily_summaries if ds.error_count])
 
+            # 動的項目（日次data_summary）の月次集約（Phase 2）
+            dynamic_summary = summarize_dynamic_from_daily(daily_summaries)
+
             # 新しい月次集計を作成
             monthly_summary = MonthlyLogSummary(
                 equipment_id=equipment_id,
@@ -334,7 +343,8 @@ def create_monthly_summary(year, month):
                 pressure_min=min([ds.pressure_min for ds in daily_summaries if ds.pressure_min is not None], default=None),
                 cycle_time_avg=sum(cycle_avgs) / len(cycle_avgs) if cycle_avgs else None,
                 error_count_total=error_total,
-                operational_days=len(daily_summaries)
+                operational_days=len(daily_summaries),
+                data_summary=dynamic_summary or None
             )
 
             db.session.add(monthly_summary)

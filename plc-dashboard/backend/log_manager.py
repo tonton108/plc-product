@@ -29,6 +29,7 @@ from app import create_app
 from db import db
 from db.models import Equipment, Log, DailyLogSummary, MonthlyLogSummary
 from sqlalchemy import text, func
+from api.aggregation import summarize_dynamic_from_logs
 
 def show_stats():
     """データベース統計を表示"""
@@ -180,6 +181,9 @@ def create_daily_summary_manual(date_str):
             production_total = max([log.production_count for log in daily_logs if log.production_count is not None], default=0)
             error_count = len([log for log in daily_logs if log.error_code and log.error_code > 0])
 
+            # 動的項目（Log.data）の集計（Phase 2、scheduler.pyと同じ共通ヘルパー）
+            dynamic_summary = summarize_dynamic_from_logs(daily_logs)
+
             # 既存削除
             existing_summary = DailyLogSummary.query.filter_by(
                 equipment_id=equipment.id,
@@ -204,7 +208,8 @@ def create_daily_summary_manual(date_str):
                 pressure_min=min(pressure_values) if pressure_values else None,
                 cycle_time_avg=sum(cycle_values) / len(cycle_values) if cycle_values else None,
                 error_count=error_count,
-                data_count=len(daily_logs)
+                data_count=len(daily_logs),
+                data_summary=dynamic_summary or None
             )
 
             db.session.add(daily_summary)
@@ -215,13 +220,21 @@ def create_daily_summary_manual(date_str):
         logger.info(f"日次集計作成完了: {created_count}設備")
 
 def create_monthly_summary_manual(year, month):
-    """指定月の月次集計を手動作成"""
+    """指定月の月次集計を手動作成
+
+    集計本体は scheduler.create_monthly_summary に委譲する（Issue #10）。
+    以前はこのCLIが独自実装を持ち、temperature/pressure/cycle_time や
+    動的項目(data_summary)を欠いてスケジューラ経由の集計と乖離していた。
+    共通化により、どちらの経路でも同じ内容の月次集計が作られる。
+    """
+    from api.scheduler import create_monthly_summary
+
     app, socketio = create_app()
 
     with app.app_context():
         logger.info(f"{year}年{month}月の月次集計を作成します")
 
-        # 既存データの確認
+        # 既存データの確認（CLIのみ対話確認。上書きはscheduler側がDELETE→再作成で行う）
         existing = MonthlyLogSummary.query.filter_by(year=year, month=month).count()
         if existing > 0:
             logger.warning(f"{year}年{month}月の集計は既に{existing}件存在します")
@@ -230,55 +243,8 @@ def create_monthly_summary_manual(year, month):
                 logger.info("キャンセルしました")
                 return
 
-        created_count = 0
-        equipments = Equipment.query.all()
-
-        for equipment in equipments:
-            # 指定月の日次集計を取得
-            from calendar import monthrange
-            start_date = datetime(year, month, 1).date()
-            end_date = datetime(year, month, monthrange(year, month)[1]).date()
-
-            daily_summaries = db.session.query(DailyLogSummary)\
-                .filter_by(equipment_id=equipment.id)\
-                .filter(DailyLogSummary.date >= start_date)\
-                .filter(DailyLogSummary.date <= end_date)\
-                .all()
-
-            if not daily_summaries:
-                continue
-
-            # 月次集計の計算
-            production_total = max([ds.production_count_total for ds in daily_summaries if ds.production_count_total], default=0)
-            current_avgs = [ds.current_avg for ds in daily_summaries if ds.current_avg is not None]
-            error_total = sum([ds.error_count for ds in daily_summaries if ds.error_count])
-
-            # 既存削除
-            existing_summary = MonthlyLogSummary.query.filter_by(
-                equipment_id=equipment.id,
-                year=year,
-                month=month
-            ).first()
-            if existing_summary:
-                db.session.delete(existing_summary)
-
-            # 新規作成
-            monthly_summary = MonthlyLogSummary(
-                equipment_id=equipment.id,
-                year=year,
-                month=month,
-                production_count_total=production_total,
-                current_avg=sum(current_avgs) / len(current_avgs) if current_avgs else None,
-                error_count_total=error_total,
-                operational_days=len(daily_summaries)
-            )
-
-            db.session.add(monthly_summary)
-            created_count += 1
-            logger.info(f"  {equipment.equipment_id}: {len(daily_summaries)}日分から集計作成")
-
-        db.session.commit()
-        logger.info(f"月次集計作成完了: {created_count}設備")
+        create_monthly_summary(year, month)
+        logger.info("月次集計作成完了")
 
 def main():
     parser = argparse.ArgumentParser(description='PLCログデータ管理ツール')
