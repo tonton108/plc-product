@@ -283,7 +283,21 @@ def auto_identify_equipment():
 
 
 # === メインループ ===
-def main_loop():
+def main_loop(stop_event=None):
+    """PLCデータ収集のメインループ（送信・再送・バッファクリーンアップを含む）
+
+    Args:
+        stop_event: threading.Event。セットされるとループを安全に終了する。
+                    WebUI（agent_app.py）からスレッドとして起動する場合に渡す。
+                    None の場合は無限ループ（単体起動時）。
+    """
+    def wait(seconds):
+        # stop_event があれば待機中も停止要求に即応できる
+        if stop_event is not None:
+            stop_event.wait(seconds)
+        else:
+            time.sleep(seconds)
+
     # 初回起動時に環境変数を再読み込み
     logger.info("🚀 PLCエージェント起動 - 環境変数確認中...")
     reload_env_vars()
@@ -298,7 +312,7 @@ def main_loop():
     logger.info(f"  - 再送信間隔: {retry_interval}秒ごと")
     logger.info(f"  - クリーンアップ間隔: {cleanup_interval}秒ごと（7日以上前のデータを削除）")
 
-    while True:
+    while stop_event is None or not stop_event.is_set():
         # 設定をDB優先で読み込み（設定変更に対応）
         config = load_plc_config()
         equipment_id = config.get("equipment_id")
@@ -311,7 +325,7 @@ def main_loop():
 
             if not equipment_id:
                 logger.warning("設備自動識別に失敗しました。10秒後に再試行します。")
-                time.sleep(10)
+                wait(10)
                 continue
 
             # 設定を再読み込み（識別結果を反映）
@@ -349,7 +363,7 @@ def main_loop():
 
         # 設定された間隔で待機
         interval = config.get("interval", INTERVAL)
-        time.sleep(interval / 1000.0)
+        wait(interval / 1000.0)
 
         # カウンター更新
         retry_counter += interval / 1000.0

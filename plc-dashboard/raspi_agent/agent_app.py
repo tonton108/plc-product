@@ -845,7 +845,11 @@ def start_plc_agent():
     plc_agent_stop_event.clear()
     
     # PLCエージェントをスレッドで起動
-    plc_agent_thread = threading.Thread(target=plc_agent_wrapper, daemon=True)
+    # plc_agent.main_loop に一本化（再送・バッファクリーンアップを含むフル機能版。
+    # 旧 plc_agent_wrapper はこれらを持たず、未送信バッファが溜まり続ける実害があった）
+    plc_agent_thread = threading.Thread(
+        target=plc_main_loop, args=(plc_agent_stop_event,), daemon=True
+    )
     plc_agent_thread.start()
     safe_print("🚀 PLCエージェントを起動しました")
 
@@ -866,45 +870,6 @@ def stop_plc_agent():
             safe_print("🛑 PLCエージェントを停止しました")
     
     plc_agent_thread = None
-
-def plc_agent_wrapper():
-    """PLCエージェントのラッパー関数（停止イベント監視付き）"""
-    from plc_agent import read_from_plc
-    from db_utils import DatabaseAPI
-    try:
-        # plc_agent.pyのmain_loop関数を停止イベント付きで実行
-        while not plc_agent_stop_event.is_set():
-            # 設定をDB優先で読み込み（設定変更に対応）
-            config_manager = ConfigManager()
-            config = config_manager.load_plc_config()
-            equipment_id = config.get("equipment_id")
-            
-            if not equipment_id:
-                safe_print("⚠️ 設備IDが未設定です。10秒後に再試行します。")
-                plc_agent_stop_event.wait(10)
-                continue
-            
-            # 設定に基づいてPLCからデータを取得
-            db_api = DatabaseAPI()
-            values = read_from_plc(config)
-
-            if values:
-                # DB APIを使用してログデータを送信
-                success = db_api.send_log_data(equipment_id, values)
-                
-                if success:
-                    safe_print(f"✅ DB送信成功: {equipment_id} / {values}")
-                else:
-                    safe_print(f"❌ DB送信エラー: {equipment_id}")
-            else:
-                safe_print("⚠️ データ取得失敗。")
-
-            # 設定された間隔で待機（停止イベントも監視）
-            interval = config.get("interval", 5000)
-            plc_agent_stop_event.wait(interval / 1000.0)
-            
-    except Exception as e:
-        safe_print(f"[ERROR] PLCエージェントエラー: {e}")
 
 def cleanup_on_exit():
     """アプリケーション終了時のクリーンアップ"""
