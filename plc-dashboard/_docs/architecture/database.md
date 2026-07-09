@@ -96,7 +96,7 @@ class Log(db.Model):
     data = db.Column(db.JSON)  # {temperature: 25.5, pressure: 101.3, ...}
 ```
 
-**保存期間:** 90日間
+**保存期間:** 30日間（SPEC §5.2。旧90日）
 
 **インデックス:**
 - `idx_logs_timestamp` - タイムスタンプ検索の高速化
@@ -156,7 +156,7 @@ class MonthlyLogSummary(db.Model):
 ### 3層構造
 
 ```
-[詳細データ: 90日間]
+[詳細データ: 30日間]
   ↓ 日次集計（99.9%圧縮）
 [日次集計: 365日間]
   ↓ 月次集計（99.99%圧縮）
@@ -167,7 +167,7 @@ class MonthlyLogSummary(db.Model):
 
 | データ層 | 保存期間 | 用途 | 根拠 |
 |---------|---------|------|------|
-| **詳細データ** | 90日間 | リアルタイム監視、詳細分析 | トラブルシューティングに必要な期間 |
+| **詳細データ** | 30日間 | リアルタイム監視、詳細分析 | SPEC §5.2（200台規模での容量・保守性。旧90日） |
 | **日次集計** | 365日間 | 週次・月次トレンド分析 | 年間比較に必要な期間 |
 | **月次集計** | 永続 | 長期比較、年次計画 | 数年単位の傾向分析に必要 |
 
@@ -185,11 +185,11 @@ class MonthlyLogSummary(db.Model):
 
 ### 自動クリーンアップ
 
-`backend/api/routes.py`の`DATA_RETENTION_CONFIG`で設定：
+`backend/api/scheduler.py`の`DATA_RETENTION_CONFIG`で設定：
 
 ```python
 DATA_RETENTION_CONFIG = {
-    'raw_data_days': 90,          # 詳細データ保持期間
+    'raw_data_days': 30,          # 詳細データ保持期間（SPEC §5.2。旧90日）
     'daily_data_days': 365,       # 日次集計保持期間
     'cleanup_interval_hours': 24  # クリーンアップ実行間隔
 }
@@ -200,7 +200,7 @@ DATA_RETENTION_CONFIG = {
 `backend/api/scheduler.py`で以下を自動実行：
 
 1. **24時間間隔でクリーンアップ実行**
-   - 90日以上前の詳細ログを削除
+   - 30日以上前の詳細ログを削除
    - 365日以上前の日次集計を削除
 
 2. **前日の日次集計を自動作成**

@@ -88,7 +88,7 @@
 [並行] 集計・クリーンアップ（backend内 daemon スレッド, 24時間毎, scheduler.py:353-388）:
    ├─ 前日分の日次集計 create_daily_summary
    ├─ 月初のみ前月の月次集計 create_monthly_summary
-   └─ 古いデータ削除: raw 90日 / daily 365日 / error_log 30日 / alarm_history 30日(解除済のみ)
+   └─ 古いデータ削除: raw 30日(SPEC §5.2) / daily 365日 / error_log 30日 / alarm_history 30日(解除済のみ)
 ```
 
 ### 階層化アーカイブ（クエリ最適化）

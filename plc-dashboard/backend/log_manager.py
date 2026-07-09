@@ -12,7 +12,7 @@ import argparse
 import logging
 from datetime import datetime, timedelta, timezone
 
-from api.constants import DEFAULT_DB_URL, BATCH_DELETE_SIZE, DEFAULT_CLEANUP_DAYS
+from api.constants import DEFAULT_DB_URL, DEFAULT_CLEANUP_DAYS
 
 # Phase 15: ロギング設定
 logging.basicConfig(
@@ -96,13 +96,21 @@ def show_stats():
         logger.info("=" * 60)
 
 def cleanup_old_data(days):
-    """古いデータを削除"""
+    """古いデータを削除
+
+    Phase 3: 削除本体を scheduler.batch_cleanup に委譲し、3系統
+    （CLI・管理API・スケジューラ）のクリーンアップ実装を1系統に統合した。
+    以前はここで `.all()` → `for log: db.session.delete(log)` と全件を
+    ORM経由でロード・逐次削除しており、大量ログで非効率だった。
+    CLI固有の対話確認のみここに残す。
+    """
+    from api.scheduler import batch_cleanup
+
     app, socketio = create_app()
 
     with app.app_context():
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
-        old_logs = Log.query.filter(Log.timestamp < cutoff_date)
-        count = old_logs.count()
+        count = Log.query.filter(Log.timestamp < cutoff_date).count()
 
         if count == 0:
             logger.info(f"{days}日以上古いログはありません")
@@ -110,26 +118,22 @@ def cleanup_old_data(days):
 
         logger.info(f"{days}日以上古いログを削除します: {count:,}件")
 
-        # 確認
+        # 確認（CLIのみの対話確認）
         confirm = input("続行しますか？ (y/N): ")
         if confirm.lower() != 'y':
             logger.info("キャンセルしました")
             return
 
-        # バッチ削除（Phase 15: 定数を使用）
-        deleted_count = 0
-
-        while True:
-            batch = Log.query.filter(Log.timestamp < cutoff_date).limit(BATCH_DELETE_SIZE).all()
-            if not batch:
-                break
-
-            for log in batch:
-                db.session.delete(log)
-
-            db.session.commit()
-            deleted_count += len(batch)
-            logger.info(f"削除済み: {deleted_count:,}/{count:,}件")
+        # 削除本体は共通のバッチDELETE（set-based, IN(サブクエリ)）に委譲。
+        # 上で件数表示に使ったcutoff_dateをそのまま渡し、input()確認待ちの間に
+        # 基準時刻がずれて表示件数と実削除件数が食い違うのを防ぐ。
+        deleted_count = batch_cleanup(
+            model=Log,
+            date_column=Log.timestamp,
+            retention_days=days,
+            data_name="ログ",
+            cutoff_date=cutoff_date
+        )
 
         logger.info(f"削除完了: {deleted_count:,}件")
 
@@ -255,7 +259,7 @@ def main():
     
     # データクリーンアップ
     cleanup_parser = subparsers.add_parser('cleanup', help='古いデータを削除')
-    cleanup_parser.add_argument('--days', type=int, default=90, help='保持期間（日）')
+    cleanup_parser.add_argument('--days', type=int, default=DEFAULT_CLEANUP_DAYS, help='保持期間（日）')
     
     # 日次集計作成
     daily_parser = subparsers.add_parser('daily', help='日次集計を作成')
