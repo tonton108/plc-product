@@ -65,7 +65,9 @@ def convert_words_to_dword(word1, word2, word_order=WORD_ORDER_HIGH_FIRST):
     return _combine_words(word1, word2, word_order)
 
 
-def convert_words_to_value(word1, word2, data_type="dword", word_order=WORD_ORDER_HIGH_FIRST):
+def convert_words_to_value(
+    word1, word2, data_type="dword", word_order=WORD_ORDER_HIGH_FIRST
+):
     """
     2ワードを指定データ型に変換
 

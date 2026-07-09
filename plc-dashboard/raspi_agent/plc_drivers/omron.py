@@ -202,7 +202,9 @@ def read_omron_plc(fins_client, data_points):
                         if mem_area and len(mem_area) >= 4:
                             word1 = int.from_bytes(mem_area[0:2], byteorder="big")
                             word2 = int.from_bytes(mem_area[2:4], byteorder="big")
-                            raw_value = convert_words_to_value(word1, word2, data_type, word_order)
+                            raw_value = convert_words_to_value(
+                                word1, word2, data_type, word_order
+                            )
 
                     else:
                         # 従来の16bitワード読み取り

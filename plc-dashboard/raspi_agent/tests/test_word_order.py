@@ -5,6 +5,7 @@
 中心に、convert_words_to_value の両順序を検証する。
 旧版の (word1<<16)|word2 固定では三菱の32bit値が化けていた既知バグの回帰防止。
 """
+
 import struct
 
 import pytest
@@ -21,19 +22,23 @@ class TestDwordWordOrder:
 
     def test_high_first(self):
         # word1=0x1234（上位）, word2=0x5678（下位） → 0x12345678
-        assert convert_words_to_value(0x1234, 0x5678, "dword", "high_first") == 0x12345678
+        assert (
+            convert_words_to_value(0x1234, 0x5678, "dword", "high_first") == 0x12345678
+        )
 
     def test_low_first(self):
         # word1=0x5678（下位）, word2=0x1234（上位） → 0x12345678
         # 三菱: 先頭アドレス side（word1）が下位
-        assert convert_words_to_value(0x5678, 0x1234, "dword", "low_first") == 0x12345678
+        assert (
+            convert_words_to_value(0x5678, 0x1234, "dword", "low_first") == 0x12345678
+        )
 
     def test_orders_differ(self):
         """同じ2ワードでも順序指定で結果が変わる（取り違え防止）"""
         high = convert_words_to_value(0x0001, 0x0000, "dword", "high_first")
         low = convert_words_to_value(0x0001, 0x0000, "dword", "low_first")
         assert high == 0x00010000  # 65536
-        assert low == 0x00000001   # 1
+        assert low == 0x00000001  # 1
         assert high != low
 
     def test_dword_helper_default_high_first(self):

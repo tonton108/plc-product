@@ -124,7 +124,9 @@ def keyence_address_to_modbus(address, data_type="word"):
         raise ValueError(f"不明なキーエンスアドレス形式: {address}")
 
 
-def read_keyence_modbus(client, address, data_type="word", scale=1, word_order="low_first"):
+def read_keyence_modbus(
+    client, address, data_type="word", scale=1, word_order="low_first"
+):
     """
     キーエンスPLCからModbus経由でデータ読み取り
 
@@ -282,7 +284,9 @@ def read_keyence_plc(client, data_points, modbus_port=DEFAULT_MODBUS_PORT):
                 continue
 
             if address:
-                raw_value = read_keyence_modbus(client, address, data_type, scale, word_order)
+                raw_value = read_keyence_modbus(
+                    client, address, data_type, scale, word_order
+                )
                 if raw_value is not None:
                     if data_type == "bit":
                         data[key] = int(raw_value)
