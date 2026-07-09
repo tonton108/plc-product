@@ -330,6 +330,8 @@ def create_monthly_summary(year, month):
                 temperature_max=max([ds.temperature_max for ds in daily_summaries if ds.temperature_max is not None], default=None),
                 temperature_min=min([ds.temperature_min for ds in daily_summaries if ds.temperature_min is not None], default=None),
                 pressure_avg=sum(pressure_avgs) / len(pressure_avgs) if pressure_avgs else None,
+                pressure_max=max([ds.pressure_max for ds in daily_summaries if ds.pressure_max is not None], default=None),
+                pressure_min=min([ds.pressure_min for ds in daily_summaries if ds.pressure_min is not None], default=None),
                 cycle_time_avg=sum(cycle_avgs) / len(cycle_avgs) if cycle_avgs else None,
                 error_count_total=error_total,
                 operational_days=len(daily_summaries)
