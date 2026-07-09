@@ -108,6 +108,47 @@ class TestDynamicDataValidation:
             data=json.dumps(configs), content_type='application/json')
         assert response.status_code == 400
 
+    def test_fixed_column_name_still_allowed(self, client, sample_equipment):
+        """固定カラム名（production_count等）は data_type として引き続き許可"""
+        configs = [{
+            "data_type": "temperature",
+            "enabled": True,
+            "address": "D101",
+            "plc_data_type": "word",
+        }]
+        response = client.put(
+            f'/api/equipment/{sample_equipment.equipment_id}/plc_configs',
+            data=json.dumps(configs), content_type='application/json')
+        assert response.status_code == 200
+
+    def test_reserved_meta_key_rejected(self, client, sample_equipment):
+        """メタキー（equipment_id/timestamp/status）は項目名に使えない"""
+        for reserved in ("equipment_id", "timestamp", "status"):
+            configs = [{
+                "data_type": reserved,
+                "enabled": True,
+                "address": "D100",
+                "plc_data_type": "word",
+            }]
+            response = client.put(
+                f'/api/equipment/{sample_equipment.equipment_id}/plc_configs',
+                data=json.dumps(configs), content_type='application/json')
+            assert response.status_code == 400, f"{reserved} should be rejected"
+
+    def test_invalid_word_order_rejected(self, client, sample_equipment):
+        """word_orderの不正値（typo等）は拒否される（無言でhigh_first化を防ぐ）"""
+        configs = [{
+            "data_type": "temp_a",
+            "enabled": True,
+            "address": "D100",
+            "plc_data_type": "float32",
+            "word_order": "Low_First",  # 大文字typo
+        }]
+        response = client.put(
+            f'/api/equipment/{sample_equipment.equipment_id}/plc_configs',
+            data=json.dumps(configs), content_type='application/json')
+        assert response.status_code == 400
+
 
 class TestWordOrderConfig:
     """word_orderのPLC設定の往復"""

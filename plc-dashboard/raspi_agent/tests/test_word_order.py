@@ -41,9 +41,10 @@ class TestDwordWordOrder:
         assert low == 0x00000001  # 1
         assert high != low
 
-    def test_dword_helper_default_high_first(self):
-        """convert_words_to_dword の既定は high_first（後方互換）"""
-        assert convert_words_to_dword(0x0001, 0x0000) == 0x00010000
+    def test_dword_helper_default_low_first(self):
+        """convert_words_to_dword の既定はシステム既定の low_first（三菱）"""
+        # low_first: word1=下位, word2=上位 → (0x0000<<16)|0x0001 = 1
+        assert convert_words_to_dword(0x0001, 0x0000) == 0x00000001
 
 
 class TestFloat32WordOrder:
@@ -75,6 +76,8 @@ class TestFloat32WordOrder:
         value = convert_words_to_value(0x0000, 0x3F40, "float32", "low_first")
         assert abs(value - 0.75) < 0.0001
 
-    def test_float32_helper_default_high_first(self):
+    def test_float32_helper_default_low_first(self):
+        """convert_words_to_float32 の既定は low_first（三菱）"""
         upper, lower = self._split_float(100.5)
-        assert abs(convert_words_to_float32(upper, lower) - 100.5) < 0.001
+        # low_first既定なので、先頭に下位(lower)・次に上位(upper)を渡すと復元される
+        assert abs(convert_words_to_float32(lower, upper) - 100.5) < 0.001

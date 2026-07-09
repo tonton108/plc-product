@@ -26,15 +26,24 @@ WORD_ORDER_LOW_FIRST = "low_first"
 
 
 def _combine_words(word1, word2, word_order):
-    """先に読んだ word1, 次の word2 を word_order に従って32bitに結合する"""
-    if word_order == WORD_ORDER_LOW_FIRST:
-        # 先頭アドレス側（word1）が下位ワード
-        return (word2 << 16) | word1
-    # high_first（既定の後方互換）: 先頭アドレス側（word1）が上位ワード
-    return (word1 << 16) | word2
+    """先に読んだ word1, 次の word2 を word_order に従って32bitに結合する
+
+    未知の値（typo等）はシステム既定の low_first にフォールバックし警告する。
+    バックエンドのバリデーションで弾いているが、二重の防御として
+    「無言で逆順にならない」ことを保証する。
+    """
+    if word_order == WORD_ORDER_HIGH_FIRST:
+        # 先頭アドレス側（word1）が上位ワード（シーメンス等）
+        return (word1 << 16) | word2
+    if word_order != WORD_ORDER_LOW_FIRST:
+        logger.warning(
+            f"未知のword_order '{word_order}' を既定の low_first として扱います"
+        )
+    # low_first（既定）: 先頭アドレス側（word1）が下位ワード（三菱等）
+    return (word2 << 16) | word1
 
 
-def convert_words_to_float32(word1, word2, word_order=WORD_ORDER_HIGH_FIRST):
+def convert_words_to_float32(word1, word2, word_order=WORD_ORDER_LOW_FIRST):
     """
     2ワードをIEEE754 float32に変換
 
@@ -50,7 +59,7 @@ def convert_words_to_float32(word1, word2, word_order=WORD_ORDER_HIGH_FIRST):
     return struct.unpack(">f", struct.pack(">I", combined))[0]
 
 
-def convert_words_to_dword(word1, word2, word_order=WORD_ORDER_HIGH_FIRST):
+def convert_words_to_dword(word1, word2, word_order=WORD_ORDER_LOW_FIRST):
     """
     2ワードを32bit整数（dword）に変換
 
@@ -66,7 +75,7 @@ def convert_words_to_dword(word1, word2, word_order=WORD_ORDER_HIGH_FIRST):
 
 
 def convert_words_to_value(
-    word1, word2, data_type="dword", word_order=WORD_ORDER_HIGH_FIRST
+    word1, word2, data_type="dword", word_order=WORD_ORDER_LOW_FIRST
 ):
     """
     2ワードを指定データ型に変換
