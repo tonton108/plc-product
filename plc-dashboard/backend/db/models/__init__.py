@@ -26,6 +26,9 @@ from .logs import Log, DailyLogSummary, MonthlyLogSummary
 # エラー・アラームモデル
 from .errors import CommunicationErrorLog, AlarmHistory, PLCStatus
 
+# 認証モデル（Phase 1）
+from .auth import User, AuthToken, AgentApiKey, UserRoles
+
 # 定数クラス
 from .constants import (
     SetupStatus,
@@ -54,6 +57,11 @@ __all__ = [
     'CommunicationErrorLog',
     'AlarmHistory',
     'PLCStatus',
+    # 認証モデル（Phase 1）
+    'User',
+    'AuthToken',
+    'AgentApiKey',
+    'UserRoles',
     # 定数クラス
     'SetupStatus',
     'OperationalStatus',

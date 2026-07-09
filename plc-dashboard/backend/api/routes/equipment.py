@@ -26,6 +26,8 @@ from api.validators import (
 from api.serializers import EquipmentSerializer, PLCDataConfigSerializer
 from api.helpers import get_equipment_by_device_info
 from api.constants import DEFAULT_MODBUS_PORT
+from api.auth_service import require_user, require_api_key, require_user_or_api_key
+from db.models import UserRoles
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +35,7 @@ equipment_bp = Blueprint('equipment', __name__, url_prefix='/api')
 
 
 @equipment_bp.route("/register", methods=["POST"])
+@require_api_key
 @require_json
 def api_register() -> Tuple[Response, int]:
     """設備を登録（Raspberry Piエージェントから呼び出し）"""
@@ -128,6 +131,7 @@ def api_register() -> Tuple[Response, int]:
 
 
 @equipment_bp.route("/equipment", methods=["GET"])
+@require_user()
 def get_all_equipment() -> Tuple[Response, int]:
     """全設備一覧を取得"""
     try:
@@ -138,6 +142,7 @@ def get_all_equipment() -> Tuple[Response, int]:
 
 
 @equipment_bp.route("/check-equipment", methods=["POST"])
+@require_user_or_api_key()
 def check_equipment() -> Tuple[Response, int]:
     """MACアドレスとIPで設備を検索"""
     data = request.get_json()
@@ -155,6 +160,7 @@ def check_equipment() -> Tuple[Response, int]:
 
 
 @equipment_bp.route("/equipment/<equipment_id>", methods=["GET"])
+@require_user_or_api_key()
 def get_equipment_config(equipment_id: str) -> Tuple[Response, int]:
     """設備基本設定を取得"""
     try:
@@ -168,6 +174,7 @@ def get_equipment_config(equipment_id: str) -> Tuple[Response, int]:
 
 
 @equipment_bp.route("/equipment/<equipment_id>", methods=["PUT"])
+@require_user_or_api_key(role=UserRoles.ADMIN)
 @require_json
 def save_equipment_config(equipment_id: str) -> Tuple[Response, int]:
     """設備基本設定を保存"""
@@ -243,6 +250,7 @@ def save_equipment_config(equipment_id: str) -> Tuple[Response, int]:
 
 
 @equipment_bp.route("/equipment/search", methods=["GET"])
+@require_user_or_api_key()
 def search_equipment() -> Tuple[Response, int]:
     """デバイス情報で設備を検索
 
@@ -272,6 +280,7 @@ def search_equipment() -> Tuple[Response, int]:
 
 
 @equipment_bp.route("/equipment/<equipment_id>/setup_status", methods=["GET"])
+@require_user_or_api_key()
 def get_setup_status(equipment_id: str) -> Tuple[Response, int]:
     """設備のセットアップ完了状態を確認"""
     try:
@@ -296,6 +305,7 @@ def get_setup_status(equipment_id: str) -> Tuple[Response, int]:
 
 
 @equipment_bp.route("/equipment/<equipment_id>/mark_setup_completed", methods=["POST"])
+@require_user_or_api_key(role=UserRoles.ADMIN)
 def mark_setup_completed(equipment_id: str) -> Tuple[Response, int]:
     """設備のセットアップ完了をマーク"""
     try:
@@ -319,6 +329,7 @@ def mark_setup_completed(equipment_id: str) -> Tuple[Response, int]:
 
 
 @equipment_bp.route("/equipment/<equipment_id>/plc_configs", methods=["GET"])
+@require_user_or_api_key()
 def get_plc_data_configs(equipment_id: str) -> Tuple[Response, int]:
     """PLCデータ設定を取得"""
     try:
@@ -333,6 +344,7 @@ def get_plc_data_configs(equipment_id: str) -> Tuple[Response, int]:
 
 
 @equipment_bp.route("/equipment/<equipment_id>/plc_configs", methods=["PUT"])
+@require_user_or_api_key(role=UserRoles.ADMIN)
 @require_json
 def save_plc_data_configs(equipment_id: str) -> Tuple[Response, int]:
     """PLCデータ設定を保存（Phase 6セキュリティ修正: SQLAlchemy ORM使用）"""

@@ -15,6 +15,7 @@ from db import db
 from db.models import Equipment, Log, DailyLogSummary, SetupStatus, OperationalStatus
 from api.serializers import LogSerializer, DailyLogSummarySerializer
 from api.helpers import get_equipment_or_404, handle_api_errors
+from api.auth_service import require_user, require_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ def get_socketio():
 
 
 @logs_bp.route("/logs", methods=["POST"])
+@require_api_key
 def save_log_data():
     """ログデータをDBに保存 + WebSocketでリアルタイム配信"""
     try:
@@ -129,6 +131,7 @@ def save_log_data():
 
 
 @logs_bp.route("/logs/<equipment_id>/latest", methods=["GET"])
+@require_user()
 @handle_api_errors
 def get_latest_data(equipment_id):
     """最新データ取得（初期表示用）- Phase 6: 共通Helper使用"""
@@ -147,6 +150,7 @@ def get_latest_data(equipment_id):
 
 
 @logs_bp.route("/logs/<equipment_id>/history", methods=["GET"])
+@require_user()
 @handle_api_errors
 def get_history_data(equipment_id):
     """履歴データ取得（グラフ表示用）- Phase 6: 共通Helper使用"""
@@ -167,6 +171,7 @@ def get_history_data(equipment_id):
 
 
 @logs_bp.route("/logs/<equipment_id>/history_optimized", methods=["GET"])
+@require_user()
 @handle_api_errors
 def get_history_data_optimized(equipment_id):
     """最適化された履歴データ取得 - Phase 6: 共通Helper使用"""

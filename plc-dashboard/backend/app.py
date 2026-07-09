@@ -43,7 +43,16 @@ def create_app():
 
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
+
+    # SECRET_KEY: 既知の弱い固定デフォルト('dev-secret-key')は廃止（Phase 1）。
+    # 未設定時は起動ごとのランダム値を使う（認証トークンはDB照合方式のため
+    # SECRET_KEYに依存せず、再起動でセッションが無効になる副作用もない）
+    secret_key = os.getenv('SECRET_KEY')
+    if not secret_key:
+        import secrets
+        secret_key = secrets.token_hex(32)
+        logger.warning("SECRET_KEYが未設定のため、起動ごとのランダム値を使用します（本番では必ず環境変数で設定してください）")
+    app.config['SECRET_KEY'] = secret_key
 
     # SQLAlchemyのエンジン設定（データベースごとに最適化）
     if 'sqlite' in database_url:
@@ -85,6 +94,10 @@ def create_app():
 
     register_routes(app, socketio)  # socketioを渡す
     register_error_handlers(app)
+
+    # 認証管理CLIコマンドを登録（flask auth ...）
+    from api.cli import register_cli
+    register_cli(app)
 
     logger.debug(f"Registered tables: {db.Model.metadata.tables.keys()}")
     logger.debug(f"URL Map:\n{app.url_map}")

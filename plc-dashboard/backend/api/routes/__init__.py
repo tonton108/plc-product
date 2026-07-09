@@ -19,6 +19,7 @@ APIルートモジュール
 
 import logging
 
+from api.routes.auth import auth_bp
 from api.routes.equipment import equipment_bp
 from api.routes.logs import logs_bp
 from api.routes.admin import admin_bp
@@ -39,6 +40,7 @@ def register_all_routes(app, socketio=None):
         socketio: Flask-SocketIOインスタンス（オプション）
     """
     # Blueprintを登録
+    app.register_blueprint(auth_bp)
     app.register_blueprint(equipment_bp)
     app.register_blueprint(logs_bp)
     app.register_blueprint(admin_bp)
@@ -85,6 +87,7 @@ def register_routes(app, socketio=None):
 __all__ = [
     'register_all_routes',
     'register_routes',  # 後方互換性エイリアス
+    'auth_bp',
     'equipment_bp',
     'logs_bp',
     'admin_bp',
