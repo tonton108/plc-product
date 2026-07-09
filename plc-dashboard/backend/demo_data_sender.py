@@ -143,8 +143,11 @@ class PLCDataSender:
             "equipment_id": self.equipment_id,
             "manufacturer": "Demo Corporation",
             "series": "DEMO-PLC",
-            "ip": "192.168.1.100",
+            "ip": "192.168.1.100",          # ラズパイのIP（履歴用）
+            "plc_ip": "192.168.1.200",      # PLCのIP（通信用・DBでNOT NULL）
             "mac_address": "00:11:22:33:44:55",
+            # cpu_serial_numberはNOT NULL・UNIQUE。設備IDごとに一意にして衝突を防ぐ
+            "cpu_serial_number": f"DEMO-CPU-{self.equipment_id}",
             "hostname": "demo-raspberry-pi",
             "port": 502,
             "interval": 2
@@ -171,6 +174,9 @@ class PLCDataSender:
 
     def register_plc_configs(self):
         """PLC設定を登録"""
+        # data_typeはバックエンドのvalidate_data_type（validators.py）が許可する値に限定する。
+        # 許可値: production_count / current / temperature / pressure / cycle_time / error_code。
+        # generate_demo_data() が実際に送る項目に合わせ、グラフに実データが流れるようにする。
         plc_configs = [
             {
                 "name": "温度",
@@ -197,30 +203,30 @@ class PLCDataSender:
                 "data_type": "pressure",
                 "enabled": True,
                 "address": "D300",
-                "scale_factor": 10,
+                "scale_factor": 1000,
                 "plc_data_type": "word",
                 "icon": "",
                 "unit": "MPa"
             },
             {
-                "name": "回転数",
-                "data_type": "rotation",
+                "name": "サイクルタイム",
+                "data_type": "cycle_time",
                 "enabled": True,
                 "address": "D400",
+                "scale_factor": 10,
+                "plc_data_type": "word",
+                "icon": "",
+                "unit": "秒"
+            },
+            {
+                "name": "生産数",
+                "data_type": "production_count",
+                "enabled": True,
+                "address": "D500",
                 "scale_factor": 1,
                 "plc_data_type": "word",
                 "icon": "",
-                "unit": "rpm"
-            },
-            {
-                "name": "振動",
-                "data_type": "vibration",
-                "enabled": True,
-                "address": "D500",
-                "scale_factor": 100,
-                "plc_data_type": "word",
-                "icon": "",
-                "unit": "mm/s"
+                "unit": "個"
             }
         ]
 

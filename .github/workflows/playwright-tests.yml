@@ -80,9 +80,14 @@ jobs:
           cd plc-dashboard
           export PYTHONPATH="${PWD}/backend:${PYTHONPATH}"
           cd backend
-          python demo_data_sender.py --mode register --equipment-id LINE_A_001 &
           flask --app manage.py run --host=0.0.0.0 --port=5000 &
-          sleep 5
+          # 設備登録より前にバックエンドの起動を保証する（レースで登録が接続拒否になるのを防ぐ）
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:5000/api/equipment >/dev/null 2>&1; then
+              echo "backend ready"; break
+            fi
+            echo "waiting for backend... ($i)"; sleep 1
+          done
         env:
           DATABASE_URL: postgresql+psycopg2://plc_user:plc_pass@localhost:5432/plc_monitor
 
@@ -92,13 +97,15 @@ jobs:
           npm run dev &
           sleep 10
 
-      - name: Start demo data sender
+      - name: Register equipment and start demo data sender
         run: |
           cd plc-dashboard
           export PYTHONPATH="${PWD}/backend:${PYTHONPATH}"
           cd backend
-          python demo_data_sender.py --mode continuous --interval 2.0 &
-          sleep 3
+          # テストが参照する LINE_A_001 を登録（PLC設定含む）し、同一設備へ連続データを送信する。
+          # continuousモードは内部で register_equipment()（PLC設定登録含む）→ 連続送信 を実行する。
+          python demo_data_sender.py --mode continuous --equipment-id LINE_A_001 --interval 2.0 &
+          sleep 5
 
       - name: Run Playwright tests
         run: |

@@ -10,6 +10,7 @@ Phase 4リファクタリング: データ型変換関数を追加して重複�
 Phase 11リファクタリング: converters.pyとbatch_reader.pyに分割
 Phase 16: 型ヒント追加
 """
+
 import os
 import time
 import random
@@ -18,7 +19,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any, Callable, TypeVar
 from dotenv import load_dotenv
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 # Phase 11: 分割されたモジュールからインポート（後方互換性）
 from .converters import (
@@ -41,7 +42,9 @@ CONNECTION_TIMEOUT = int(os.getenv("CONNECTION_TIMEOUT", "5"))
 READ_TIMEOUT = int(os.getenv("READ_TIMEOUT", "3"))
 
 # セキュリティ設定（CLAUDE.md参照）
-ALLOWED_PLC_IPS = os.getenv("ALLOWED_PLC_IPS", "").split(",") if os.getenv("ALLOWED_PLC_IPS") else []
+ALLOWED_PLC_IPS = (
+    os.getenv("ALLOWED_PLC_IPS", "").split(",") if os.getenv("ALLOWED_PLC_IPS") else []
+)
 READ_ONLY_MODE = os.getenv("READ_ONLY_MODE", "true").lower() == "true"
 
 # グローバルパフォーマンス統計（CLAUDE.md参照）
@@ -52,12 +55,12 @@ error_stats = {
     "last_success": None,
     "consecutive_failures": 0,
     # パフォーマンス監視用の追加指標
-    "total_attempts": 0,        # 総通信試行回数
-    "successful_attempts": 0,   # 成功回数
-    "total_response_time": 0.0, # 累積応答時間（ms）
-    "max_response_time": 0.0,   # 最大応答時間（ms）
-    "min_response_time": float('inf'),  # 最小応答時間（ms）
-    "start_time": datetime.now()  # 統計開始時刻
+    "total_attempts": 0,  # 総通信試行回数
+    "successful_attempts": 0,  # 成功回数
+    "total_response_time": 0.0,  # 累積応答時間（ms）
+    "max_response_time": 0.0,  # 最大応答時間（ms）
+    "min_response_time": float("inf"),  # 最小応答時間（ms）
+    "start_time": datetime.now(),  # 統計開始時刻
 }
 
 
@@ -82,8 +85,8 @@ def print_error_stats() -> None:
     logger.info(f"  連続失敗: {error_stats['consecutive_failures']}回")
 
     # 通信成功率
-    total = error_stats['total_attempts']
-    success = error_stats['successful_attempts']
+    total = error_stats["total_attempts"]
+    success = error_stats["successful_attempts"]
     if total > 0:
         success_rate = (success / total) * 100
         error_rate = 100 - success_rate
@@ -91,26 +94,36 @@ def print_error_stats() -> None:
         logger.info(f"  総試行回数: {total}回")
         logger.info(f"  成功回数: {success}回")
         logger.info(f"  失敗回数: {total - success}回")
-        logger.info(f"  通信成功率: {success_rate:.2f}% {'(達成)' if success_rate >= 95 else '(未達成)'}")
-        logger.info(f"  エラー率: {error_rate:.2f}% {'(達成)' if error_rate <= 5 else '(未達成)'}")
+        logger.info(
+            f"  通信成功率: {success_rate:.2f}% {'(達成)' if success_rate >= 95 else '(未達成)'}"
+        )
+        logger.info(
+            f"  エラー率: {error_rate:.2f}% {'(達成)' if error_rate <= 5 else '(未達成)'}"
+        )
 
     # 応答時間統計
     if success > 0:
-        avg_response = error_stats['total_response_time'] / success
+        avg_response = error_stats["total_response_time"] / success
         logger.info("【応答時間統計】")
-        logger.info(f"  平均応答時間: {avg_response:.2f}ms {'(達成)' if avg_response <= 100 else '(未達成)'}")
+        logger.info(
+            f"  平均応答時間: {avg_response:.2f}ms {'(達成)' if avg_response <= 100 else '(未達成)'}"
+        )
         logger.info(f"  最大応答時間: {error_stats['max_response_time']:.2f}ms")
-        if error_stats['min_response_time'] != float('inf'):
+        if error_stats["min_response_time"] != float("inf"):
             logger.info(f"  最小応答時間: {error_stats['min_response_time']:.2f}ms")
 
     # 稼働時間
-    uptime = datetime.now() - error_stats['start_time']
+    uptime = datetime.now() - error_stats["start_time"]
     logger.info("【稼働時間】")
-    logger.info(f"  開始時刻: {error_stats['start_time'].strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(
+        f"  開始時刻: {error_stats['start_time'].strftime('%Y-%m-%d %H:%M:%S')}"
+    )
     logger.info(f"  稼働時間: {uptime}")
 
-    if error_stats['last_success']:
-        logger.info(f"  最終成功: {error_stats['last_success'].strftime('%Y-%m-%d %H:%M:%S')}")
+    if error_stats["last_success"]:
+        logger.info(
+            f"  最終成功: {error_stats['last_success'].strftime('%Y-%m-%d %H:%M:%S')}"
+        )
     else:
         logger.info("  最終成功: なし")
 
@@ -120,7 +133,7 @@ def print_error_stats() -> None:
 def update_error_stats(
     success: bool = True,
     error_type: Optional[str] = None,
-    response_time_ms: Optional[float] = None
+    response_time_ms: Optional[float] = None,
 ) -> None:
     """
     パフォーマンス統計を更新（CLAUDE.md参照）
@@ -143,11 +156,17 @@ def update_error_stats(
         # 応答時間を記録
         if response_time_ms is not None:
             error_stats["total_response_time"] += response_time_ms
-            error_stats["max_response_time"] = max(error_stats["max_response_time"], response_time_ms)
-            error_stats["min_response_time"] = min(error_stats["min_response_time"], response_time_ms)
+            error_stats["max_response_time"] = max(
+                error_stats["max_response_time"], response_time_ms
+            )
+            error_stats["min_response_time"] = min(
+                error_stats["min_response_time"], response_time_ms
+            )
 
             if response_time_ms > 100:
-                logger.warning(f"⚠️ 応答時間が遅い: {response_time_ms:.2f}ms (目標: 100ms以下)")
+                logger.warning(
+                    f"⚠️ 応答時間が遅い: {response_time_ms:.2f}ms (目標: 100ms以下)"
+                )
             else:
                 logger.info(f"✅ PLC通信成功 (応答時間: {response_time_ms:.2f}ms)")
         else:
@@ -159,7 +178,9 @@ def update_error_stats(
         elif error_type == "read":
             error_stats["read_errors"] += 1
 
-        logger.warning(f"❌ PLC通信失敗 (連続失敗: {error_stats['consecutive_failures']}回)")
+        logger.warning(
+            f"❌ PLC通信失敗 (連続失敗: {error_stats['consecutive_failures']}回)"
+        )
 
     # 定期的に統計を表示（100回ごと）
     if error_stats["total_attempts"] % 100 == 0:
@@ -185,7 +206,9 @@ def validate_plc_ip(ip_address: str) -> bool:
         logger.info(f"✅ IPアドレス検証成功: {ip_address}")
         return True
     else:
-        logger.error(f"🚫 不正なPLC IPアドレス: {ip_address} (ホワイトリスト: {ALLOWED_PLC_IPS})")
+        logger.error(
+            f"🚫 不正なPLC IPアドレス: {ip_address} (ホワイトリスト: {ALLOWED_PLC_IPS})"
+        )
         return False
 
 
@@ -197,15 +220,15 @@ def check_write_permission() -> bool:
         bool: 書き込み可能な場合True、それ以外False
     """
     if READ_ONLY_MODE:
-        logger.warning("🔒 書き込み保護モードが有効です。PLCへの書き込みは禁止されています。")
+        logger.warning(
+            "🔒 書き込み保護モードが有効です。PLCへの書き込みは禁止されています。"
+        )
         return False
     return True
 
 
 def retry_on_failure(
-    func: Callable[[], T],
-    max_retries: int = MAX_RETRY_ATTEMPTS,
-    delay: int = 1
+    func: Callable[[], T], max_retries: int = MAX_RETRY_ATTEMPTS, delay: int = 1
 ) -> Optional[T]:
     """
     リトライ機構付きの関数実行
@@ -234,8 +257,7 @@ def retry_on_failure(
 
 
 def safe_plc_read(
-    plc_func: Callable[[], T],
-    error_msg: str = "PLC読み取りエラー"
+    plc_func: Callable[[], T], error_msg: str = "PLC読み取りエラー"
 ) -> Optional[T]:
     """
     安全なPLC読み取り（タイムアウト・エラー処理付き）
@@ -288,7 +310,9 @@ def generate_dummy_data(data_points: Dict[str, Dict[str, Any]]) -> Dict[str, Any
             elif data_type == "bit":
                 dummy_data[key] = random.choice([0, 1])  # ビット値
             elif data_type == "float32":
-                dummy_data[key] = round(random.uniform(0.0, 1000.0), 3)  # 高精度浮動小数点
+                dummy_data[key] = round(
+                    random.uniform(0.0, 1000.0), 3
+                )  # 高精度浮動小数点
             elif data_type == "dword":
                 dummy_data[key] = random.randint(0, 4294967295)  # 32bit整数
             else:
@@ -310,27 +334,27 @@ def generate_dummy_data(data_points: Dict[str, Dict[str, Any]]) -> Dict[str, Any
 
 __all__ = [
     # エラー統計
-    'error_stats',
-    'print_error_stats',
-    'update_error_stats',
+    "error_stats",
+    "print_error_stats",
+    "update_error_stats",
     # セキュリティ・バリデーション
-    'validate_plc_ip',
-    'check_write_permission',
-    'retry_on_failure',
-    'safe_plc_read',
+    "validate_plc_ip",
+    "check_write_permission",
+    "retry_on_failure",
+    "safe_plc_read",
     # ダミーデータ
-    'generate_dummy_data',
+    "generate_dummy_data",
     # 環境変数
-    'MAX_RETRY_ATTEMPTS',
-    'CONNECTION_TIMEOUT',
-    'READ_TIMEOUT',
-    'ALLOWED_PLC_IPS',
-    'READ_ONLY_MODE',
+    "MAX_RETRY_ATTEMPTS",
+    "CONNECTION_TIMEOUT",
+    "READ_TIMEOUT",
+    "ALLOWED_PLC_IPS",
+    "READ_ONLY_MODE",
     # converters.pyからの再エクスポート
-    'convert_words_to_float32',
-    'convert_words_to_dword',
-    'convert_words_to_value',
+    "convert_words_to_float32",
+    "convert_words_to_dword",
+    "convert_words_to_value",
     # batch_reader.pyからの再エクスポート
-    'extract_address_number',
-    'group_continuous_word_addresses',
+    "extract_address_number",
+    "group_continuous_word_addresses",
 ]

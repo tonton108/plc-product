@@ -10,6 +10,7 @@ CLAUDE.md参照: PLCプロトコル基礎知識 - Modbus TCP
 
 Phase 4リファクタリング: データ型変換を共通関数に置き換え
 """
+
 import logging
 from .base import (
     validate_plc_ip,
@@ -18,9 +19,9 @@ from .base import (
     safe_plc_read,
     group_continuous_word_addresses,
     convert_words_to_value,
-    CONNECTION_TIMEOUT
+    CONNECTION_TIMEOUT,
 )
-from ..config.constants import DEFAULT_MODBUS_PORT
+from config.constants import DEFAULT_MODBUS_PORT
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,9 @@ def connect_keyence_plc(ip, port=DEFAULT_MODBUS_PORT, timeout=CONNECTION_TIMEOUT
     try:
         from pymodbus.client import ModbusTcpClient
     except ImportError:
-        logger.error("pymodbusライブラリがインストールされていません: pip install pymodbus")
+        logger.error(
+            "pymodbusライブラリがインストールされていません: pip install pymodbus"
+        )
         return None
 
     def _connect():
@@ -78,18 +81,18 @@ def keyence_address_to_modbus(address, data_type="word"):
     """
     address_upper = address.upper()
 
-    if address_upper.startswith('DM'):
+    if address_upper.startswith("DM"):
         # データメモリ → Holding Registers
         addr_num = int(address[2:])
         if data_type == "bit":
             raise ValueError("DMアドレスではビット指定はできません")
         return ("holding", addr_num)
 
-    elif address_upper.startswith('R'):
+    elif address_upper.startswith("R"):
         # リレー → Coils
-        if '.' in address:
+        if "." in address:
             # ビット指定 (例: R100.1)
-            base_addr, bit_pos = address.split('.')
+            base_addr, bit_pos = address.split(".")
             addr_num = int(base_addr[1:])
             bit_pos = int(bit_pos)
             # キーエンスでは1リレー = 16ビット
@@ -102,10 +105,10 @@ def keyence_address_to_modbus(address, data_type="word"):
                 modbus_addr = addr_num
         return ("coil", modbus_addr)
 
-    elif address_upper.startswith('MR'):
+    elif address_upper.startswith("MR"):
         # 内部リレー → Coils (オフセット付き)
-        if '.' in address:
-            base_addr, bit_pos = address.split('.')
+        if "." in address:
+            base_addr, bit_pos = address.split(".")
             addr_num = int(base_addr[2:])
             bit_pos = int(bit_pos)
             modbus_addr = 10000 + addr_num * 16 + bit_pos  # オフセット
@@ -136,6 +139,7 @@ def read_keyence_modbus(client, address, data_type="word", scale=1):
     """
     try:
         from pymodbus.exceptions import ModbusException
+
         register_type, modbus_addr = keyence_address_to_modbus(address, data_type)
 
         if data_type == "bit":
@@ -178,7 +182,7 @@ def read_keyence_modbus(client, address, data_type="word", scale=1):
                     value = 0
                     for i in range(16):
                         if i < len(result.bits) and result.bits[i]:
-                            value |= (1 << i)
+                            value |= 1 << i
                     return value
                 else:
                     raise Exception(f"Coil読み取りエラー: {result}")
@@ -203,27 +207,33 @@ def read_keyence_plc(client, data_points, modbus_port=DEFAULT_MODBUS_PORT):
     data = {}
 
     # バッチ読み取り最適化: 連続したwordアドレスをグループ化（DMアドレスのみ）
-    word_groups = group_continuous_word_addresses(data_points, device_type='DM')
+    word_groups = group_continuous_word_addresses(data_points, device_type="DM")
 
     # グループ化されたwordアドレスを一括読み取り
     for group in word_groups:
         try:
-            start_addr = group['start_address']
-            count = group['count']
+            start_addr = group["start_address"]
+            count = group["count"]
 
             if count == 1:
                 # 単独アドレス → 個別読み取り
                 logger.debug(f"📖 単独読み取り: DM{start_addr}")
-                result = client.read_holding_registers(address=start_addr, count=1, unit=1)
+                result = client.read_holding_registers(
+                    address=start_addr, count=1, unit=1
+                )
             else:
                 # 連続アドレス → バッチ読み取り（最適化）
-                logger.info(f"🚀 バッチ読み取り: DM{start_addr}-DM{start_addr + count - 1} ({count}ワード)")
-                result = client.read_holding_registers(address=start_addr, count=count, unit=1)
+                logger.info(
+                    f"🚀 バッチ読み取り: DM{start_addr}-DM{start_addr + count - 1} ({count}ワード)"
+                )
+                result = client.read_holding_registers(
+                    address=start_addr, count=count, unit=1
+                )
 
             # 読み取った値を各項目に割り当て
             if not result.isError():
-                for i, key in enumerate(group['keys']):
-                    setting = group['settings'][i]
+                for i, key in enumerate(group["keys"]):
+                    setting = group["settings"][i]
                     scale = setting.get("scale", 1)
                     raw_value = result.registers[i]
 
@@ -233,18 +243,22 @@ def read_keyence_plc(client, data_points, modbus_port=DEFAULT_MODBUS_PORT):
                     else:
                         data[key] = raw_value
 
-                    logger.debug(f"  ✅ {key} = {data[key]} (raw: {raw_value}, scale: {scale})")
+                    logger.debug(
+                        f"  ✅ {key} = {data[key]} (raw: {raw_value}, scale: {scale})"
+                    )
             else:
                 raise Exception(f"Modbus読み取りエラー: {result}")
 
         except Exception as e:
             logger.error(f"❌ バッチ読み取りエラー (DM{group['start_address']}): {e}")
             # エラー時は個別に再試行
-            for i, key in enumerate(group['keys']):
-                setting = group['settings'][i]
-                addr_num = group['start_address'] + i
+            for i, key in enumerate(group["keys"]):
+                setting = group["settings"][i]
+                addr_num = group["start_address"] + i
                 try:
-                    result = client.read_holding_registers(address=addr_num, count=1, unit=1)
+                    result = client.read_holding_registers(
+                        address=addr_num, count=1, unit=1
+                    )
                     if not result.isError():
                         raw_value = result.registers[0]
                         scale = setting.get("scale", 1)

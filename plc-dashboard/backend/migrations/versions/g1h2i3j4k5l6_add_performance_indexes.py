@@ -21,34 +21,23 @@ def upgrade():
     Phase 3: パフォーマンス最適化インデックスを追加
 
     最適化対象:
-    1. logs テーブル: equipment_id + timestamp (最重要)
-    2. plc_data_configs テーブル: equipment_id
-    3. daily_log_summaries テーブル: date降順最適化
+    1. plc_data_configs テーブル: equipment_id / enabled
+    2. daily_log_summaries テーブル: date降順最適化
+    3. monthly_log_summaries テーブル: year/month降順最適化
+
+    注意:
+    logs テーブルの idx_logs_equipment_timestamp / idx_logs_timestamp は
+    既存マイグレーション a1b2c3d4e5f6 で作成済みのため、本マイグレーションでは
+    再作成しない。同名インデックスを二重にCREATEすると `flask db upgrade` が
+    "relation already exists" で失敗するため（過去にこの不具合でCIが停止していた）。
+    ※ PostgreSQLのB-treeインデックスは降順ORDER BYを後方スキャンで処理できるため、
+      DESC専用の同名インデックスを別途作らなくても最新データ取得は最適化される。
     """
 
     print("[MIGRATION] Phase 3インデックス作成開始...")
 
-    # 1. logsテーブルの最適化（最重要）
-    print("[MIGRATION] logsテーブルにインデックスを作成中...")
-
-    # equipment_id + timestamp DESC の複合インデックス
-    # 用途: 設備ごとの最新データ取得、時系列範囲検索
-    op.create_index(
-        'idx_logs_equipment_timestamp',
-        'logs',
-        ['equipment_id', sa.text('timestamp DESC')],
-        postgresql_ops={'timestamp': 'DESC'}
-    )
-    print("[MIGRATION] ✅ idx_logs_equipment_timestamp 作成完了")
-
-    # timestamp のみのインデックス（全設備の時系列検索用）
-    op.create_index(
-        'idx_logs_timestamp',
-        'logs',
-        [sa.text('timestamp DESC')],
-        postgresql_ops={'timestamp': 'DESC'}
-    )
-    print("[MIGRATION] ✅ idx_logs_timestamp 作成完了")
+    # 1. logsテーブルのインデックスは a1b2c3d4e5f6 で作成済み（重複作成を避けるためスキップ）
+    print("[MIGRATION] logsテーブルのインデックスは a1b2c3d4e5f6 で作成済み（スキップ）")
 
     # 2. plc_data_configsテーブルの最適化
     print("[MIGRATION] plc_data_configsテーブルにインデックスを作成中...")
@@ -98,8 +87,6 @@ def upgrade():
     connection = op.get_bind()
 
     print("[MIGRATION] カラムコメントを追加中...")
-    connection.execute(sa.text("COMMENT ON INDEX idx_logs_equipment_timestamp IS '設備ごとの時系列検索用（最新データ取得、範囲検索）'"))
-    connection.execute(sa.text("COMMENT ON INDEX idx_logs_timestamp IS '全設備の時系列検索用（グローバル検索）'"))
     connection.execute(sa.text("COMMENT ON INDEX idx_plc_configs_equipment IS 'PLC設定のJOIN最適化用'"))
     connection.execute(sa.text("COMMENT ON INDEX idx_plc_configs_enabled IS '有効な設定のみ取得用'"))
     connection.execute(sa.text("COMMENT ON INDEX idx_daily_summary_equipment_date_desc IS '日次集計の降順検索最適化用'"))
@@ -107,33 +94,31 @@ def upgrade():
 
     print("[MIGRATION] Phase 3インデックス作成完了")
     print("[MIGRATION] 期待される効果:")
-    print("[MIGRATION]   - logsテーブル検索: 10倍以上高速化")
     print("[MIGRATION]   - JOIN操作: 3-5倍高速化")
-    print("[MIGRATION]   - 最新データ取得: 50倍以上高速化")
+    print("[MIGRATION]   - 日次/月次集計の降順検索を最適化")
 
 
 def downgrade():
     """
     Phase 3インデックスを削除
+
+    注意: logs テーブルのインデックスは a1b2c3d4e5f6 の downgrade で削除されるため、
+    ここでは触らない（本マイグレーションで作成した4本のみ削除）。
     """
 
     print("[MIGRATION] Phase 3インデックスを削除中...")
 
     # インデックスコメント削除
     connection = op.get_bind()
-    connection.execute(sa.text("COMMENT ON INDEX idx_logs_equipment_timestamp IS NULL"))
-    connection.execute(sa.text("COMMENT ON INDEX idx_logs_timestamp IS NULL"))
     connection.execute(sa.text("COMMENT ON INDEX idx_plc_configs_equipment IS NULL"))
     connection.execute(sa.text("COMMENT ON INDEX idx_plc_configs_enabled IS NULL"))
     connection.execute(sa.text("COMMENT ON INDEX idx_daily_summary_equipment_date_desc IS NULL"))
     connection.execute(sa.text("COMMENT ON INDEX idx_monthly_summary_equipment_year_month_desc IS NULL"))
 
-    # インデックス削除
+    # インデックス削除（本マイグレーションで作成した分のみ）
     op.drop_index('idx_monthly_summary_equipment_year_month_desc', table_name='monthly_log_summaries')
     op.drop_index('idx_daily_summary_equipment_date_desc', table_name='daily_log_summaries')
     op.drop_index('idx_plc_configs_enabled', table_name='plc_data_configs')
     op.drop_index('idx_plc_configs_equipment', table_name='plc_data_configs')
-    op.drop_index('idx_logs_timestamp', table_name='logs')
-    op.drop_index('idx_logs_equipment_timestamp', table_name='logs')
 
     print("[MIGRATION] Phase 3ダウングレード完了")
