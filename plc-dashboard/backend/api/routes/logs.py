@@ -111,8 +111,13 @@ def save_log_data():
             realtime_data = LogSerializer.to_realtime(log_entry, equipment_id)
 
             try:
-                socketio.emit('plc_data_update', realtime_data, to='monitoring')
-                logger.debug("WebSocket送信完了: monitoring")
+                # 設備別room宛てに配信（Phase 3）。
+                # 旧実装は to='monitoring'（全体）で、全クライアントが全設備の更新を
+                # 受信しクライアント側で捨てていた（200台×20画面で20倍の増幅）。
+                # 表示中の設備のみが参加する equipment_{id} room に限定する
+                room = f"equipment_{equipment_id}"
+                socketio.emit('plc_data_update', realtime_data, to=room)
+                logger.debug(f"WebSocket送信完了: {room}")
             except Exception as ws_error:
                 logger.warning(f"WebSocket送信エラー (処理継続): {ws_error}")
 
