@@ -15,16 +15,17 @@ class Equipment(db.Model):
     __tablename__ = 'equipments'
     id = db.Column(db.Integer, primary_key=True)
     equipment_id = db.Column(db.String(50), unique=True, nullable=False)
-    manufacturer = db.Column(db.String(50))
-    series = db.Column(db.String(50))
+    # nullable=False はマイグレーション d1e2f3g4h5i6 でDBに適用済みのNOT NULL制約と対応
+    manufacturer = db.Column(db.String(50), nullable=False)
+    series = db.Column(db.String(50), nullable=False)
     ip = db.Column(db.String(100))        # ラズパイのIPアドレス
-    plc_ip = db.Column(db.String(100))    # PLCのIPアドレス
+    plc_ip = db.Column(db.String(100), nullable=False)    # PLCのIPアドレス
     mac_address = db.Column(db.String(50))  # ラズパイのMACアドレス
-    cpu_serial_number = db.Column(db.String(50), unique=True)  # ラズパイのCPUシリアル番号（不変識別子）
+    cpu_serial_number = db.Column(db.String(50), unique=True, nullable=False)  # ラズパイのCPUシリアル番号（不変識別子）
     hostname = db.Column(db.String(100))    # ラズパイのホスト名
-    port = db.Column(db.Integer)             # PLCのポート
+    port = db.Column(db.Integer, nullable=False)             # PLCのポート
     modbus_port = db.Column(db.Integer, default=502)  # キーエンス用Modbusポート
-    interval = db.Column(db.Integer)
+    interval = db.Column(db.Integer, nullable=False)
 
     # ステータスを2つのフィールドに分離（セットアップ状態と運用状態）
     setup_status = db.Column(db.String(50), nullable=False, default="未登録")

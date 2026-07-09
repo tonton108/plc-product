@@ -49,6 +49,7 @@ data = {
     "hostname": socket.gethostname(),
     "manufacturer": "",  # 空文字で初期化
     "series": "",        # 空文字で初期化
+    "plc_ip": "",        # 空文字で初期化（DBのNOT NULL制約対応。未送信だとNoneが渡り登録が失敗する）
     "port": DEFAULT_MODBUS_PORT,  # デフォルトポート
     "interval": 60       # デフォルト間隔（秒）
 }

@@ -117,9 +117,9 @@ class MonthlyLogSummary(db.Model):
     temperature_max = db.Column(db.Float)
     temperature_min = db.Column(db.Float)
     pressure_avg = db.Column(db.Float)
-    # 注: pressure_max, pressure_minはDBスキーマに存在しないため、コメントアウト
-    # pressure_max = db.Column(db.Float)
-    # pressure_min = db.Column(db.Float)
+    # マイグレーション b2c3d4e5f6a7 でDBに追加済みのカラム（モデル側の欠落を解消）
+    pressure_max = db.Column(db.Float)
+    pressure_min = db.Column(db.Float)
     cycle_time_avg = db.Column(db.Float)
     error_count_total = db.Column(db.Integer)
     operational_days = db.Column(db.Integer)            # 稼働日数
@@ -146,6 +146,8 @@ class MonthlyLogSummary(db.Model):
         temperature_max: Optional[float] = None,
         temperature_min: Optional[float] = None,
         pressure_avg: Optional[float] = None,
+        pressure_max: Optional[float] = None,
+        pressure_min: Optional[float] = None,
         cycle_time_avg: Optional[float] = None,
         error_count_total: Optional[int] = None,
         operational_days: Optional[int] = None
@@ -161,7 +163,8 @@ class MonthlyLogSummary(db.Model):
         self.temperature_max = temperature_max
         self.temperature_min = temperature_min
         self.pressure_avg = pressure_avg
-        # pressure_max, pressure_minは削除
+        self.pressure_max = pressure_max
+        self.pressure_min = pressure_min
         self.cycle_time_avg = cycle_time_avg
         self.error_count_total = error_count_total
         self.operational_days = operational_days
