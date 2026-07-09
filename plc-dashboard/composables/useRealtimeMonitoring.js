@@ -42,6 +42,9 @@ export const useRealtimeMonitoring = (equipmentId, options = {}) => {
     }
   }
 
+  // クリーンアップ関数（setupWebSocket が設定し、disconnect が呼ぶ）
+  let cleanup = null
+
   // WebSocket接続設定
   const setupWebSocket = ($socket) => {
     if (!$socket) {
@@ -49,6 +52,9 @@ export const useRealtimeMonitoring = (equipmentId, options = {}) => {
       addDebugLog('error', 'Socket.IO クライアントが利用できません')
       return
     }
+
+    // 再セットアップ時は前回のリスナー・タイマーを先に解除
+    if (cleanup) cleanup()
 
     console.log('🔌 WebSocket接続を開始...')
     addDebugLog('info', 'WebSocket接続を開始')
@@ -147,8 +153,10 @@ export const useRealtimeMonitoring = (equipmentId, options = {}) => {
       }
     }, 10000)
 
-    // クリーンアップ関数を返す
-    return () => {
+    // クリーンアップ関数を保持して返す
+    // （従来は return するだけで呼び出し元が受け取っておらず、disconnect() が
+    //   常に no-op になってリスナーと setInterval がページ遷移ごとに蓄積していた）
+    cleanup = () => {
       clearInterval(intervalId)
       if ($socket) {
         // 個別イベントリスナーを解除してメモリリークを防止
@@ -161,12 +169,15 @@ export const useRealtimeMonitoring = (equipmentId, options = {}) => {
         $socket.disconnect()
       }
     }
+    return cleanup
   }
 
   // クリーンアップ（コンポーネントアンマウント時）
-  let cleanup = null
   const disconnect = () => {
-    if (cleanup) cleanup()
+    if (cleanup) {
+      cleanup()
+      cleanup = null
+    }
   }
 
   onBeforeUnmount(() => {
