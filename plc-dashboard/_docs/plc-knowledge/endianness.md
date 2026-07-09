@@ -1,224 +1,118 @@
-# エンディアン問題と対処法
+# エンディアンとワード順序
 
 **作成日:** 2025-10-24
-**最終更新:** 2026-01-24
+**最終更新:** 2026-07-09（一次情報による再調査で全面改訂）
 
-## 概要
+## ⚠️ 重要: 旧ルールの撤回
 
-PLCデータ処理で最も注意すべき**エンディアン問題**について記録します。すべてのPLC（キーエンス、オムロン、三菱）で**Big-Endian**を使用しています。
+このドキュメントの旧版には「すべてのPLCはBig-Endianであり、32bit値は常に `(word1 << 16) | word2`（先に読んだワードが上位）」という固定ルールが記載されていましたが、**2026年7月の再調査により、三菱MELSECについては誤りであることが公式マニュアルで確認されました。**
 
-## エンディアンとは
+- 三菱電機公式マニュアル SH-080008（MCプロトコルリファレンス）: 実数0.75（IEEE754で`0x3F400000`）をD0/D1に格納した場合、**D0=0000H（下位ワード）、D1=3F40H（上位ワード）**
+- 三菱電機公式マニュアル SH-080628ENG（共通命令編）: 32bit命令が使う2ワードのうち、**指定デバイス番号（先頭アドレス）が下位16bit、+1が上位16bit**（DMOV等の `(S+1,S)→(D+1,D)` 表記で D+1=Upper, D=Lower と明示）
 
-エンディアン（Byte Order）は、複数バイトのデータをメモリに格納する順序を指します。
+つまり三菱では **先頭アドレス側が下位ワード** であり、`batchread_wordunits` が返すアドレス昇順リストに対して正しい結合は `(word2 << 16) | word1` です。
 
-### Big-Endian（ビッグエンディアン）
-上位バイトから順に格納（人間が読みやすい順序）
+## 問題は2層に分かれる
 
-```
-0x12345678 → [0x12] [0x34] [0x56] [0x78]
-              MSB                   LSB
-```
+「エンディアン」と一括りにされがちですが、実装上は独立した2つの問題です。混同しないこと。
 
-### Little-Endian（リトルエンディアン）
-下位バイトから順に格納（x86/x64 CPUの標準）
+### 第1層: ワード内のバイト順序（狭義のエンディアン）
 
-```
-0x12345678 → [0x78] [0x56] [0x34] [0x12]
-              LSB                   MSB
-```
+16bitワードの中で上位バイトと下位バイトのどちらが先に伝送されるか。
 
-## PLCはすべてBig-Endian
+**→ 通信ライブラリ（pymodbus / pymcprotocol / fins / python-snap7）がint値に変換して返すため、本プロジェクトの実装層では通常意識する必要がない。**
 
-**重要:** このプロジェクトでサポートするすべてのPLCは**Big-Endian**です。
+（参考: ワイヤレベルのバイト順はプロトコルごとに異なり、再調査でも決着していない。ライブラリを信頼する。）
 
-| メーカー | プロトコル | エンディアン |
-|---------|-----------|-----------|
-| キーエンス | Modbus TCP | **Big-Endian** |
-| オムロン | FINS | **Big-Endian** |
-| 三菱電機 | MC Protocol | **Big-Endian** |
-| シーメンス | S7 Protocol | **Big-Endian** |
+### 第2層: ワード間の順序（32bit値のワードオーダー）★本題
 
-## よくある間違い
+32bit値（DWord/Float32）を2つの16bitワードに分けて格納するとき、**先頭アドレス側が上位か下位か**。これはプロトコルではなく**PLC（CPU）側のデータ格納規約に依存し、メーカー・機種ごとに異なる。**
 
-### 間違い: Little-Endianで処理
+## メーカー別ワード順序（2026-07再調査の結果）
 
-```python
-# ❌ 間違い: Little-Endianで処理
-def read_dword_wrong(word1, word2):
-    # word2を上位、word1を下位として結合（Little-Endian）
-    value = (word2 << 16) | word1
-    return value
+| メーカー | 32bitワード順序 | 正しい結合式 | 検証状態 | 出典 |
+|---|---|---|---|---|
+| **三菱電機**（Q/L/iQ-R確認済み） | **先頭アドレス = 下位ワード** | `(word2 << 16) \| word1` | ✅ 公式マニュアルで確定（3-0×5クレーム） | SH-080008, SH-080628ENG |
+| **シーメンス S7** | Big-Endian（上位バイト先行）。snap7が返すバイト列を `struct.unpack('>f', ...)` で解釈 | `(word1 << 16) \| word2` 相当 | ✅ snap7公式で確定 | snap7 "Siemens data format" |
+| **オムロン FINS** | **FINSプロトコル自体は規定しない**（CPU命令仕様依存）。第1ワード=下位が示唆される | `(word2 << 16) \| word1` の可能性が高い | ⚠️ 確度medium・**実機確認必須** | W227E12 FINSコマンドリファレンス |
+| **キーエンス KV** | 未検証（Modbus経由の場合は機器・設定依存） | 不明 | ❌ 未検証・**実機確認必須** | - |
 
-# 例: PLC値 = 0x12345678
-word1 = 0x1234  # 上位ワード
-word2 = 0x5678  # 下位ワード
+**注意（三菱）:** 一次資料での裏取りはQ/L/iQ-R系まで。FX5/iQ-Fも業界的にほぼ確実に同一だが直接検証はしていない。
 
-result = read_dword_wrong(word1, word2)
-# result = (0x5678 << 16) | 0x1234 = 0x56781234 ❌ 間違い！
-```
+## 実装方針（SPEC.md §5.3）
 
-### 正しい: Big-Endianで処理
+固定ルールでは対応できないため、**ワード順序（word_order）を設備または項目ごとに設定可能にする**:
+
+- `PLCDataConfig` に `word_order` 設定を追加（`high_first` / `low_first`）
+- デフォルト値はメーカープロファイルから導出（三菱→`low_first`、シーメンス→`high_first` 等）
+- 導入は動的データ項目の一気通貫実装（Phase 2）と同時に行う
+
+### 現行実装の既知の問題
+
+`plc-dashboard/raspi_agent/plc_agent.py` の `convert_plc_data` は全メーカーに対して `(word1 << 16) | word2` 固定で処理しており、**三菱の実PLCに接続すると32bit値（dword/float32）がすべて化ける**。Phase 2 の word_order 設定導入と同時に修正する（現在はダミーPLC運用のため実害は未顕在）。
 
 ```python
-# ✅ 正しい: Big-Endianで処理
-def read_dword_correct(word1, word2):
-    # word1を上位、word2を下位として結合（Big-Endian）
-    value = (word1 << 16) | word2
-    return value
+# 現行実装（三菱では誤り）
+value = (word1 << 16) | word2
 
-# 例: PLC値 = 0x12345678
-word1 = 0x1234  # 上位ワード
-word2 = 0x5678  # 下位ワード
-
-result = read_dword_correct(word1, word2)
-# result = (0x1234 << 16) | 0x5678 = 0x12345678 ✅ 正しい！
+# 三菱の正しい処理（word_order='low_first'）
+value = (word2 << 16) | word1
 ```
-
-## 実装箇所
-
-### DWord（32bit整数）の読み取り
-
-`plc-dashboard/raspi_agent/plc_agent.py:276-279`
-
-```python
-elif plc_data_type == 'dword':
-    # 32bit整数の読み取り（Big-Endian）
-    word1, word2 = raw_value[0], raw_value[1]
-    value = (word1 << 16) | word2  # ✅ Big-Endian
-    return value * scale_factor
-```
-
-**解説:**
-- `word1`: 上位16bit（MSB）
-- `word2`: 下位16bit（LSB）
-- `(word1 << 16) | word2`: word1を上位に配置してword2と結合
-
-### Float32（IEEE754浮動小数点）の読み取り
-
-`plc-dashboard/raspi_agent/plc_agent.py:281-285`
-
-```python
-elif plc_data_type == 'float32':
-    # IEEE754浮動小数点の読み取り（Big-Endian）
-    word1, word2 = raw_value[0], raw_value[1]
-    bytes_data = struct.pack('>HH', word1, word2)  # ✅ '>' = Big-Endian
-    value = struct.unpack('>f', bytes_data)[0]
-    return value * scale_factor
-```
-
-**解説:**
-- `struct.pack('>HH', word1, word2)`: Big-Endianで2つのワードをバイト列に変換
-  - `>`: Big-Endian指定
-  - `HH`: unsigned short (16bit) × 2
-- `struct.unpack('>f', bytes_data)`: Big-EndianでIEEE754形式の浮動小数点に変換
-  - `>`: Big-Endian指定
-  - `f`: float (32bit)
 
 ## struct.packのフォーマット文字
 
-| 文字 | 意味 | エンディアン |
-|-----|------|-----------|
-| `@` | ネイティブ（デフォルト） | システム依存 |
-| `=` | ネイティブ | システム依存 |
-| `<` | Little-Endian | 固定 |
-| `>` | **Big-Endian** | **固定（PLCで使用）** |
-| `!` | Network (Big-Endian) | 固定 |
-
-**このプロジェクトでは常に `>` を使用します。**
-
-## デバッグ方法
-
-### 1. バイナリダンプで確認
+ワードのリストからfloat32を復元する際のバイト列組み立てには引き続き `>`（Big-Endian）を使う。**ワード順序の問題はpackに渡すワードの並び順で吸収する**:
 
 ```python
 import struct
 
-# PLCから読み取った2ワード
-word1 = 0x1234
-word2 = 0x5678
+# word_order='high_first'（シーメンス等）
+bytes_data = struct.pack('>HH', word1, word2)
 
-# Big-Endianでバイト列に変換
-bytes_big = struct.pack('>HH', word1, word2)
-print(f"Big-Endian bytes: {bytes_big.hex()}")
-# 出力: 12345678 ✅ 正しい
+# word_order='low_first'（三菱等）
+bytes_data = struct.pack('>HH', word2, word1)
 
-# Little-Endianでバイト列に変換（間違い）
-bytes_little = struct.pack('<HH', word1, word2)
-print(f"Little-Endian bytes: {bytes_little.hex()}")
-# 出力: 34127856 ❌ 間違い！
+value = struct.unpack('>f', bytes_data)[0]
 ```
 
-### 2. ログ出力で確認
+## デバッグ方法
 
-```python
-logger.debug(f"Raw words: word1=0x{word1:04X}, word2=0x{word2:04X}")
-logger.debug(f"Combined (Big-Endian): 0x{(word1 << 16) | word2:08X}")
-```
+### 1. 実PLC値と比較（最重要）
 
-### 3. 実PLC値と比較
-
-PLCのモニタ画面で表示される値と、Pythonで読み取った値を比較します。
+PLCのモニタ画面（GX Works等）で表示される値と、Pythonで読み取った値を比較する。**新しいメーカー・機種を接続したら必ず32bit値で1回実施すること。**
 
 | PLC表示 | Python読取 | 判定 |
 |--------|----------|-----|
-| 1234567 | 1234567 | ✅ 正しい |
-| 1234567 | 7654321 | ❌ エンディアン逆 |
+| 123.45 | 123.45 | ✅ word_order正しい |
+| 123.45 | 全く異なる巨大値/極小値 | ❌ ワード順序が逆 |
 
-## Codexレビュー観点
-
-`.github/workflows/codex-review.yml:35` でエンディアン問題を自動チェックしています：
-
-```yaml
-- Endianness issues (all PLCs use Big-Endian)
-```
-
-Codexは以下のコードを指摘します：
-- `(word2 << 16) | word1` ← Little-Endian（間違い）
-- `struct.pack('<HH', ...)` ← Little-Endian指定（間違い）
-- `struct.pack('HH', ...)` ← エンディアン未指定（システム依存、危険）
-
-## 過去の問題事例
-
-### 事例1: テストコードでエンディアンミス
-
-**ファイル:** `plc-dashboard/raspi_agent/test_codex_review.py:37-38`（テスト用に意図的に間違えたコード）
+### 2. バイナリダンプで確認
 
 ```python
-# ❌ 意図的なエンディアン間違い（Codexテスト用）
-word1, word2 = plc_data[0], plc_data[1]
-float_value = struct.pack('<HH', word2, word1)  # Little-Endian
+logger.debug(f"Raw words: word1=0x{word1:04X}, word2=0x{word2:04X}")
+logger.debug(f"high_first: 0x{(word1 << 16) | word2:08X} / low_first: 0x{(word2 << 16) | word1:08X}")
 ```
 
-**問題:**
-1. `<` でLittle-Endianを指定（PLCはBig-Endian）
-2. `word2, word1` の順序が逆
-
-**正しい実装:**
-```python
-# ✅ 正しい実装
-word1, word2 = plc_data[0], plc_data[1]
-bytes_data = struct.pack('>HH', word1, word2)  # Big-Endian
-float_value = struct.unpack('>f', bytes_data)[0]
-```
+既知のテスト値（例: PLC側に0.75を書いてもらう → `0x3F400000`）でどちらの解釈が一致するか確認する。
 
 ## チェックリスト
 
-PLCデータ処理を実装する際は、以下を確認してください：
-
-- [ ] `struct.pack()`で必ず `>` (Big-Endian) を指定しているか
-- [ ] `struct.unpack()`で必ず `>` (Big-Endian) を指定しているか
-- [ ] DWord結合時に `(word1 << 16) | word2` の順序になっているか
-- [ ] テストケースで実PLC値と比較しているか
-- [ ] ログ出力でバイナリダンプを確認できるか
+- [ ] 32bit値の結合前に、その設備の `word_order` を確認したか
+- [ ] 新規メーカー・機種の接続時に、実PLC値との突き合わせを行ったか
+- [ ] `struct.pack()`/`struct.unpack()` で `>` を指定しているか（バイト列組み立ては常にBig-Endian表記で統一）
+- [ ] エンディアン未指定（`struct.pack('HH', ...)`）を使っていないか（システム依存で危険）
 
 ## 関連ドキュメント
 
 - `_docs/plc-knowledge/protocols.md` - PLCプロトコル実装ガイド
 - `_docs/plc-knowledge/troubleshooting.md` - トラブルシューティングガイド
-- `.github/workflows/codex-review.yml` - Codex自動レビュー設定
+- `docs/SPEC.md` §5.3 - word_order設定の仕様
 
 ---
 
 **参考リンク:**
-- [Wikipedia: Endianness](https://en.wikipedia.org/wiki/Endianness)
+- [三菱電機 SH-080008: MELSECコミュニケーションプロトコル リファレンスマニュアル](https://dl.mitsubishielectric.com/dl/fa/document/manual/plc/sh080008/sh080008ab.pdf)
+- [三菱電機 SH-080628ENG: QCPU共通命令編](https://dl.mitsubishielectric.com/dl/fa/document/manual/plc/sh080628eng/sh080628engd.pdf)
+- [Snap7: Siemens data format](https://snap7.sourceforge.net/siemens_dataformat.html)
+- [オムロン W227E12: FINSコマンドリファレンス](https://www.myomron.com/downloads/1.Manuals/Networks/W227E12_FINS_Commands_Reference_Manual.pdf)
 - [Python struct — Interpret bytes as packed binary data](https://docs.python.org/3/library/struct.html)
