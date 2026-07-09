@@ -101,6 +101,16 @@ export const useRealtimeMonitoring = (equipmentId, options = {}) => {
     $socket.on('connect_error', (error) => {
       console.error('❌ WebSocket接続エラー:', error)
       addDebugLog('error', `接続エラー: ${error.message}`)
+
+      // サーバーが接続を拒否した場合、トークン失効が原因なら無限リトライせず
+      // 再認証へ誘導する。/api/auth/me で有効性を確認し、401なら useApi が
+      // セッション破棄＋ログイン画面遷移を行う（期限切れで失効済みトークンが
+      // localStorageに残っているケースも捕捉できる）
+      const { apiFetch } = useApi()
+      apiFetch('/api/auth/me').catch(() => {
+        // 401はuseApi側で処理済み。到達不能等のその他エラーはリトライに委ねる
+        $socket.disconnect()
+      })
     })
 
     // PLCデータ更新イベント（重複回避のためこのイベントのみ使用）

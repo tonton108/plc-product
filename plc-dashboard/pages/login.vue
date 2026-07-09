@@ -133,8 +133,7 @@ const login = async () => {
 
 // すでにログイン済みの場合はリダイレクト
 onMounted(() => {
-  const authToken = localStorage.getItem('plc_auth_token')
-  if (authToken) {
+  if (auth.isAuthenticated()) {
     router.push('/')
   }
 })

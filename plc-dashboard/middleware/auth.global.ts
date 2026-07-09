@@ -6,6 +6,8 @@
  *   errors-alarms / logs / equipment 詳細がURL直打ちで素通しだった）
  */
 
+import { TOKEN_KEY } from '~/composables/useAuth'
+
 export default defineNuxtRouteMiddleware((to) => {
   // サーバーサイドでは実行しない（クライアントサイドのみ）
   if (import.meta.server) {
@@ -18,7 +20,7 @@ export default defineNuxtRouteMiddleware((to) => {
   }
 
   // 認証トークンの確認
-  const authToken = localStorage.getItem('plc_auth_token')
+  const authToken = localStorage.getItem(TOKEN_KEY)
 
   if (!authToken) {
     // 未認証の場合、ログインページにリダイレクト

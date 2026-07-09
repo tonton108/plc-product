@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client'
+import { TOKEN_KEY } from '~/composables/useAuth'
 
 export default defineNuxtPlugin((nuxtApp) => {
   // クライアントサイドでのみ実行
@@ -13,7 +14,7 @@ export default defineNuxtPlugin((nuxtApp) => {
     const socket = io(apiBase, {
       autoConnect: false,
       auth: (cb) => {
-        cb({ token: localStorage.getItem('plc_auth_token') || '' })
+        cb({ token: localStorage.getItem(TOKEN_KEY) || '' })
       }
     })
 

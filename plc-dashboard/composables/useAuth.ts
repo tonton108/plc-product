@@ -13,8 +13,9 @@ interface AuthUser {
   is_active: boolean
 }
 
-const TOKEN_KEY = 'plc_auth_token'
-const USER_KEY = 'plc_auth_user'
+// localStorageキー（他ファイルからも必ずこの定数を参照すること。直書き禁止）
+export const TOKEN_KEY = 'plc_auth_token'
+export const USER_KEY = 'plc_auth_user'
 
 export const useAuth = () => {
   const config = useRuntimeConfig()

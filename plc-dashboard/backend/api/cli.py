@@ -164,6 +164,9 @@ def seed(admin_password, api_key):
     else:
         admin.set_password(admin_password)
         admin.is_active = True
+        # パスワード変更時は既存トークンを全失効（set-passwordコマンドと同じ原則）
+        for token in admin.tokens:
+            db.session.delete(token)
         click.echo("adminユーザーのパスワードを更新しました")
 
     from db.models.auth import hash_token

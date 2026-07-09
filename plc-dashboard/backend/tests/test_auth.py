@@ -199,3 +199,65 @@ class TestApiKeyAuth:
             headers={'Authorization': f'Bearer {admin_token}'},
         )
         assert response.status_code == 401
+
+
+class TestApiKeyScope:
+    """設備別APIキーのスコープ検証のテスト（SPEC.md §4.2）"""
+
+    @staticmethod
+    def _issue_scoped_key(session, equipment):
+        from db.models import AgentApiKey
+        record, raw_key = AgentApiKey.issue(name='scoped-key', equipment_id=equipment.id)
+        session.add(record)
+        session.commit()
+        return raw_key
+
+    def test_scoped_key_allows_own_equipment(self, unauth_client, session, sample_equipment):
+        """設備別キーは自分の設備へのログ送信を許可"""
+        raw_key = self._issue_scoped_key(session, sample_equipment)
+        response = unauth_client.post(
+            '/api/logs',
+            json={"equipment_id": sample_equipment.equipment_id, "production_count": 1},
+            headers={'X-API-Key': raw_key},
+        )
+        assert response.status_code == 200
+
+    def test_scoped_key_rejects_other_equipment(self, unauth_client, session, sample_equipment):
+        """設備別キーは他設備へのアクセスを401で拒否（URLパラメータ経由）"""
+        from db.models import Equipment
+        other = Equipment(
+            equipment_id="OTHER_001",
+            manufacturer="Mitsubishi",
+            series="iQ-R",
+            plc_ip="192.168.1.101",
+            cpu_serial_number="CPU_OTHER_001",
+            port=5000,
+            interval=5000,
+        )
+        session.add(other)
+        session.commit()
+
+        raw_key = self._issue_scoped_key(session, sample_equipment)
+
+        # 他設備へのログ送信（ボディのequipment_id）
+        response = unauth_client.post(
+            '/api/logs',
+            json={"equipment_id": "OTHER_001", "production_count": 1},
+            headers={'X-API-Key': raw_key},
+        )
+        assert response.status_code == 401
+
+        # 他設備の設定取得（URLパラメータのequipment_id）
+        response = unauth_client.get(
+            '/api/equipment/OTHER_001/plc_configs',
+            headers={'X-API-Key': raw_key},
+        )
+        assert response.status_code == 401
+
+    def test_shared_key_allows_any_equipment(self, unauth_client, agent_api_key, sample_equipment):
+        """共有キー（equipment_id=NULL）は任意の設備を許可"""
+        response = unauth_client.get(
+            f'/api/equipment/{sample_equipment.equipment_id}/plc_configs',
+            headers={'X-API-Key': agent_api_key},
+        )
+        assert response.status_code == 200
