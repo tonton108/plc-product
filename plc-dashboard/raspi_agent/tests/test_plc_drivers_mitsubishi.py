@@ -6,6 +6,7 @@
 - 修正前後の比較テスト
 - 公式実装例との適合性テスト
 """
+
 import pytest
 import sys
 import os
@@ -31,8 +32,9 @@ class TestMitsubishiDeviceAddressFormat:
 
         # 期待値: "M100" (pymcprotocol公式ドキュメントと一致)
         expected = "M100"
-        assert device_address == expected, \
-            f"Expected '{expected}', got '{device_address}'"
+        assert (
+            device_address == expected
+        ), f"Expected '{expected}', got '{device_address}'"
 
     @pytest.mark.unit
     def test_m100_address_format_wrong(self):
@@ -56,20 +58,21 @@ class TestMitsubishiDeviceAddressFormat:
     def test_various_device_addresses(self):
         """様々なデバイスアドレスの形式テスト"""
         test_cases = [
-            ("M", 0, "M0"),          # M0
-            ("M", 1, "M1"),          # M1
-            ("M", 100, "M100"),      # M100
-            ("M", 1000, "M1000"),    # M1000
-            ("X", 10, "X10"),        # X10 (入力)
-            ("Y", 10, "Y10"),        # Y10 (出力)
-            ("D", 100, "D100"),      # D100 (データレジスタ)
-            ("D", 1000, "D1000"),    # D1000
+            ("M", 0, "M0"),  # M0
+            ("M", 1, "M1"),  # M1
+            ("M", 100, "M100"),  # M100
+            ("M", 1000, "M1000"),  # M1000
+            ("X", 10, "X10"),  # X10 (入力)
+            ("Y", 10, "Y10"),  # Y10 (出力)
+            ("D", 100, "D100"),  # D100 (データレジスタ)
+            ("D", 1000, "D1000"),  # D1000
         ]
 
         for device_type, addr_num, expected in test_cases:
             device_address = f"{device_type}{addr_num}"
-            assert device_address == expected, \
-                f"{device_type}{addr_num}: Expected '{expected}', got '{device_address}'"
+            assert (
+                device_address == expected
+            ), f"{device_type}{addr_num}: Expected '{expected}', got '{device_address}'"
 
     @pytest.mark.unit
     def test_pymcprotocol_official_format(self):
@@ -130,7 +133,7 @@ class TestMitsubishiPLCReadWithMock:
                 "enabled": True,
                 "data_type": "word",
                 "address": "D100",
-                "scale": 1
+                "scale": 1,
             }
         }
 
@@ -145,9 +148,10 @@ class TestMitsubishiPLCReadWithMock:
             kwargs = call_args[1]
 
             # headdeviceパラメータの確認
-            headdevice = kwargs.get('headdevice')
-            assert headdevice == "D100", \
-                f"デバイスアドレス形式が不正: expected 'D100', got '{headdevice}'"
+            headdevice = kwargs.get("headdevice")
+            assert (
+                headdevice == "D100"
+            ), f"デバイスアドレス形式が不正: expected 'D100', got '{headdevice}'"
 
             # 16進数フォーマットでないことを確認
             assert headdevice != "D0064", "16進数フォーマットは使用すべきでない"
@@ -162,12 +166,7 @@ class TestMitsubishiPLCReadWithMock:
         mock_plc.batchread_bitunits.return_value = [1]  # M100の値=1
 
         data_points = {
-            "flag": {
-                "enabled": True,
-                "data_type": "bit",
-                "address": "M100",
-                "scale": 1
-            }
+            "flag": {"enabled": True, "data_type": "bit", "address": "M100", "scale": 1}
         }
 
         from plc_drivers.mitsubishi import read_mitsubishi_plc
@@ -180,10 +179,11 @@ class TestMitsubishiPLCReadWithMock:
                 call_args = mock_plc.batchread_bitunits.call_args_list[0]
                 kwargs = call_args[1]
 
-                headdevice = kwargs.get('headdevice')
+                headdevice = kwargs.get("headdevice")
                 # シンプルな文字列形式であることを確認
-                assert headdevice == "M100", \
-                    f"ビットデバイス形式が不正: expected 'M100', got '{headdevice}'"
+                assert (
+                    headdevice == "M100"
+                ), f"ビットデバイス形式が不正: expected 'M100', got '{headdevice}'"
 
                 # 16進数フォーマットでないことを確認
                 assert headdevice != "M0064", "16進数フォーマットは使用すべきでない"
@@ -198,9 +198,24 @@ class TestMitsubishiPLCReadWithMock:
         mock_plc.batchread_wordunits.return_value = [100, 101, 102]  # D100-D102
 
         data_points = {
-            "temp1": {"enabled": True, "data_type": "word", "address": "D100", "scale": 1},
-            "temp2": {"enabled": True, "data_type": "word", "address": "D101", "scale": 1},
-            "temp3": {"enabled": True, "data_type": "word", "address": "D102", "scale": 1},
+            "temp1": {
+                "enabled": True,
+                "data_type": "word",
+                "address": "D100",
+                "scale": 1,
+            },
+            "temp2": {
+                "enabled": True,
+                "data_type": "word",
+                "address": "D101",
+                "scale": 1,
+            },
+            "temp3": {
+                "enabled": True,
+                "data_type": "word",
+                "address": "D102",
+                "scale": 1,
+            },
         }
 
         from plc_drivers.mitsubishi import read_mitsubishi_plc
@@ -212,12 +227,13 @@ class TestMitsubishiPLCReadWithMock:
             call_args = mock_plc.batchread_wordunits.call_args_list[0]
             kwargs = call_args[1]
 
-            headdevice = kwargs.get('headdevice')
-            readsize = kwargs.get('readsize')
+            headdevice = kwargs.get("headdevice")
+            readsize = kwargs.get("readsize")
 
             # 開始デバイスがD100
-            assert headdevice == "D100", \
-                f"バッチ読み取り開始デバイスが不正: {headdevice}"
+            assert (
+                headdevice == "D100"
+            ), f"バッチ読み取り開始デバイスが不正: {headdevice}"
 
             # 読み取りサイズが3
             assert readsize == 3, f"バッチ読み取りサイズが不正: {readsize}"
@@ -238,8 +254,9 @@ class TestMitsubishiDeviceTypeHandling:
         for addr in test_addresses:
             device_address = f"{device_type}{addr}"
             expected = f"M{addr}"
-            assert device_address == expected, \
-                f"Mデバイスは10進数表記: expected '{expected}', got '{device_address}'"
+            assert (
+                device_address == expected
+            ), f"Mデバイスは10進数表記: expected '{expected}', got '{device_address}'"
 
     @pytest.mark.unit
     def test_xy_device_decimal_format(self):
@@ -264,8 +281,9 @@ class TestMitsubishiDeviceTypeHandling:
         for addr in test_addresses:
             device_address = f"{device_type}{addr}"
             expected = f"D{addr}"
-            assert device_address == expected, \
-                f"Dデバイスは10進数表記: expected '{expected}', got '{device_address}'"
+            assert (
+                device_address == expected
+            ), f"Dデバイスは10進数表記: expected '{expected}', got '{device_address}'"
 
 
 class TestPymcprotocolCompatibility:

@@ -30,7 +30,7 @@ def convert_words_to_float32(word1, word2):
         float: 変換されたfloat32値
     """
     combined = (word1 << 16) | word2
-    return struct.unpack('>f', struct.pack('>I', combined))[0]
+    return struct.unpack(">f", struct.pack(">I", combined))[0]
 
 
 def convert_words_to_dword(word1, word2):
@@ -73,6 +73,6 @@ def convert_words_to_value(word1, word2, data_type="dword"):
     """
     combined = (word1 << 16) | word2
     if data_type == "float32":
-        return struct.unpack('>f', struct.pack('>I', combined))[0]
+        return struct.unpack(">f", struct.pack(">I", combined))[0]
     else:  # dword
         return combined

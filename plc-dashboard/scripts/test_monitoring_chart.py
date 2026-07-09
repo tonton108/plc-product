@@ -38,7 +38,9 @@ def test_monitoring_chart():
             print("\n[3/7] Logging in...")
             page.fill('input[type="text"]', 'admin')
             page.fill('input[type="password"]', 'plc-monitor-2025')
-            page.click('button:has-text("ログイン")')
+            # i18nでボタン文言が言語により変わる（CIは英語ロケール→"Login"）ため、
+            # 日本語テキストではなく type="submit"（ログインフォーム唯一の送信ボタン）で特定する
+            page.click('button[type="submit"]')
 
             # ログイン後のページ遷移を待つ（URLがログインページから変わるまで）
             page.wait_for_function('window.location.pathname !== "/login"', timeout=10000)
@@ -55,6 +57,13 @@ def test_monitoring_chart():
             print("\n[5/7] Waiting for monitoring page to load...")
             page.wait_for_selector('.glass-card', timeout=10000)
             print("  [OK] Monitoring page loaded")
+
+            # グラフ（canvas付きカード）が実際に描画されるまで待機。
+            # PLC設定が登録済みなら onMounted の fetchPLCConfigs 完了後にチャートが生成される。
+            # 描画されない場合はここでタイムアウト→テスト失敗（E2Eの実効性を担保）。
+            print("  Waiting for chart cards (canvas) to render...")
+            page.wait_for_selector('.glass-card:has(canvas)', timeout=15000)
+            print("  [OK] Chart cards rendered")
 
             # スクリーンショット1: 初期状態
             screenshot_path_1 = Path(__file__).parent / 'monitoring_chart_before.png'

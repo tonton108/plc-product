@@ -10,12 +10,13 @@ CLAUDE.md参照: PLCプロトコル基礎知識 - S7 Protocol
 
 注意: 現在はスタブ実装です。実際の通信ロジックは未実装です。
 """
+
 import logging
 from .base import (
     validate_plc_ip,
     update_error_stats,
     retry_on_failure,
-    CONNECTION_TIMEOUT
+    CONNECTION_TIMEOUT,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,7 +44,9 @@ def connect_siemens_plc(ip, rack=0, slot=1, timeout=CONNECTION_TIMEOUT):
     try:
         import snap7
     except ImportError:
-        logger.error("snap7ライブラリがインストールされていません: pip install python-snap7")
+        logger.error(
+            "snap7ライブラリがインストールされていません: pip install python-snap7"
+        )
         return None
 
     def _connect():

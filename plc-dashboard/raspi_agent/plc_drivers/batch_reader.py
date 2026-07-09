@@ -27,15 +27,15 @@ def extract_address_number(address):
         int: アドレス番号（例: 100, 200, 100）
     """
     # ビット指定がある場合は除外（D100.5 → D100）
-    address_base = address.split('.')[0]
+    address_base = address.split(".")[0]
     # 数字部分を抽出
-    match = re.search(r'\d+', address_base)
+    match = re.search(r"\d+", address_base)
     if match:
         return int(match.group())
     return None
 
 
-def group_continuous_word_addresses(data_points, device_type='D'):
+def group_continuous_word_addresses(data_points, device_type="D"):
     """
     連続したワードアドレスをグループ化（バッチ読み取り最適化用）
     CLAUDE.md参照: パフォーマンス最適化 - バッチ読み取りの活用
@@ -66,7 +66,7 @@ def group_continuous_word_addresses(data_points, device_type='D'):
         address = setting.get("address", "")
 
         # ビット指定やdword/float32は個別処理
-        if data_type != "word" or '.' in address:
+        if data_type != "word" or "." in address:
             continue
 
         # 指定デバイスタイプのみ
@@ -75,15 +75,17 @@ def group_continuous_word_addresses(data_points, device_type='D'):
 
         addr_num = extract_address_number(address)
         if addr_num is not None:
-            word_items.append({
-                'key': key,
-                'setting': setting,
-                'address_num': addr_num,
-                'address': address
-            })
+            word_items.append(
+                {
+                    "key": key,
+                    "setting": setting,
+                    "address_num": addr_num,
+                    "address": address,
+                }
+            )
 
     # アドレス番号でソート
-    word_items.sort(key=lambda x: x['address_num'])
+    word_items.sort(key=lambda x: x["address_num"])
 
     # 連続アドレスをグループ化
     groups = []
@@ -93,27 +95,30 @@ def group_continuous_word_addresses(data_points, device_type='D'):
         if current_group is None:
             # 新しいグループ開始
             current_group = {
-                'keys': [item['key']],
-                'start_address': item['address_num'],
-                'count': 1,
-                'settings': [item['setting']],
-                'addresses': [item['address']]
+                "keys": [item["key"]],
+                "start_address": item["address_num"],
+                "count": 1,
+                "settings": [item["setting"]],
+                "addresses": [item["address"]],
             }
-        elif item['address_num'] == current_group['start_address'] + current_group['count']:
+        elif (
+            item["address_num"]
+            == current_group["start_address"] + current_group["count"]
+        ):
             # 連続している → グループに追加
-            current_group['keys'].append(item['key'])
-            current_group['count'] += 1
-            current_group['settings'].append(item['setting'])
-            current_group['addresses'].append(item['address'])
+            current_group["keys"].append(item["key"])
+            current_group["count"] += 1
+            current_group["settings"].append(item["setting"])
+            current_group["addresses"].append(item["address"])
         else:
             # 連続していない → グループ確定して新しいグループ開始
             groups.append(current_group)
             current_group = {
-                'keys': [item['key']],
-                'start_address': item['address_num'],
-                'count': 1,
-                'settings': [item['setting']],
-                'addresses': [item['address']]
+                "keys": [item["key"]],
+                "start_address": item["address_num"],
+                "count": 1,
+                "settings": [item["setting"]],
+                "addresses": [item["address"]],
             }
 
     # 最後のグループを追加
