@@ -1,6 +1,7 @@
 import os
 import time
 import logging
+import threading
 from dotenv import load_dotenv
 from db_utils import ConfigManager, DatabaseAPI, get_cpu_serial_number, get_mac_address, get_ip_address
 
@@ -291,12 +292,9 @@ def main_loop(stop_event=None):
                     WebUI（agent_app.py）からスレッドとして起動する場合に渡す。
                     None の場合は無限ループ（単体起動時）。
     """
-    def wait(seconds):
-        # stop_event があれば待機中も停止要求に即応できる
-        if stop_event is not None:
-            stop_event.wait(seconds)
-        else:
-            time.sleep(seconds)
+    # 単体起動時は誰もセットしないEventに正規化し、以降のNone分岐を不要にする
+    if stop_event is None:
+        stop_event = threading.Event()
 
     # 初回起動時に環境変数を再読み込み
     logger.info("🚀 PLCエージェント起動 - 環境変数確認中...")
@@ -312,84 +310,93 @@ def main_loop(stop_event=None):
     logger.info(f"  - 再送信間隔: {retry_interval}秒ごと")
     logger.info(f"  - クリーンアップ間隔: {cleanup_interval}秒ごと（7日以上前のデータを削除）")
 
-    while stop_event is None or not stop_event.is_set():
-        # 設定をDB優先で読み込み（設定変更に対応）
-        config = load_plc_config()
-        equipment_id = config.get("equipment_id")
-
-        if not equipment_id:
-            logger.warning("設備IDが未設定です。自動識別を試行します...")
-
-            # CPUシリアル番号による自動識別を実行
-            equipment_id = auto_identify_equipment()
+    while not stop_event.is_set():
+        # ループ全体を保護し、想定外の例外でも収集スレッドを止めない
+        # （スレッド実行時の未捕捉例外はstderrにしか出ず、ログに残らず無音で死ぬため）
+        try:
+            # 設定をDB優先で読み込み（設定変更に対応）
+            config = load_plc_config()
+            equipment_id = config.get("equipment_id")
 
             if not equipment_id:
-                logger.warning("設備自動識別に失敗しました。10秒後に再試行します。")
-                wait(10)
-                continue
+                logger.warning("設備IDが未設定です。自動識別を試行します...")
 
-            # 設定を再読み込み（識別結果を反映）
-            config = load_plc_config()
+                # CPUシリアル番号による自動識別を実行
+                equipment_id = auto_identify_equipment()
 
-        # 設定に基づいてPLCからデータを取得
-        values = read_from_plc(config)
+                if not equipment_id:
+                    logger.warning("設備自動識別に失敗しました。10秒後に再試行します。")
+                    stop_event.wait(10)
+                    continue
 
-        if values:
-            # Phase 4: アラーム検出とAPI送信
-            error_code = values.get("error_code")
-            if error_code and error_code > 0:
-                # エラーコードが0以外の場合、アラームとして報告
-                alarm_level = "WARNING" if error_code == 1 else "ERROR"
-                report_alarm(
-                    alarm_code=f"E{error_code:03d}",
-                    alarm_level=alarm_level,
-                    alarm_message=f"PLCアラーム検出: エラーコード {error_code}",
-                    alarm_data={
-                        "error_code": error_code,
-                        "plc_values": values
-                    }
-                )
-                logger.warning(f"⚠️ アラーム検出: E{error_code:03d} ({alarm_level})")
+                # 設定を再読み込み（識別結果を反映）
+                config = load_plc_config()
 
-            # DB APIを使用してログデータを送信（バッファリング対応）
-            success = db_api.send_log_data(equipment_id, values)
+            # 設定に基づいてPLCからデータを取得
+            values = read_from_plc(config)
 
-            if success:
-                logger.info(f"✅ DB送信成功: {equipment_id} / {values}")
+            if values:
+                # Phase 4: アラーム検出とAPI送信
+                error_code = values.get("error_code")
+                if error_code and error_code > 0:
+                    # スケール適用でfloatになり得るため書式化前にintへ正規化
+                    error_code = int(error_code)
+                    # エラーコードが0以外の場合、アラームとして報告
+                    alarm_level = "WARNING" if error_code == 1 else "ERROR"
+                    report_alarm(
+                        alarm_code=f"E{error_code:03d}",
+                        alarm_level=alarm_level,
+                        alarm_message=f"PLCアラーム検出: エラーコード {error_code}",
+                        alarm_data={
+                            "error_code": error_code,
+                            "plc_values": values
+                        }
+                    )
+                    logger.warning(f"⚠️ アラーム検出: E{error_code:03d} ({alarm_level})")
+
+                # DB APIを使用してログデータを送信（バッファリング対応）
+                success = db_api.send_log_data(equipment_id, values)
+
+                if success:
+                    logger.info(f"✅ DB送信成功: {equipment_id} / {values}")
+                else:
+                    logger.warning(f"DB送信失敗（バッファに保存済み）: {equipment_id}")
             else:
-                logger.warning(f"DB送信失敗（バッファに保存済み）: {equipment_id}")
-        else:
-            logger.warning("データ取得失敗。")
+                logger.warning("データ取得失敗。")
 
-        # 設定された間隔で待機
-        interval = config.get("interval", INTERVAL)
-        wait(interval / 1000.0)
+            # 設定された間隔で待機
+            interval = config.get("interval", INTERVAL)
+            stop_event.wait(interval / 1000.0)
 
-        # カウンター更新
-        retry_counter += interval / 1000.0
-        cleanup_counter += interval / 1000.0
+            # カウンター更新
+            retry_counter += interval / 1000.0
+            cleanup_counter += interval / 1000.0
 
-        # 定期的に未送信データを再送信
-        if retry_counter >= retry_interval:
-            try:
-                success, failure, total = db_api.retry_pending_data(batch_size=100)
-                if total > 0:
-                    logger.info(f"🔄 未送信データ再送完了: 成功={success}, 失敗={failure}")
-            except Exception as e:
-                logger.error(f"未送信データ再送エラー: {e}")
-            finally:
-                retry_counter = 0
+            # 定期的に未送信データを再送信
+            if retry_counter >= retry_interval:
+                try:
+                    success, failure, total = db_api.retry_pending_data(batch_size=100)
+                    if total > 0:
+                        logger.info(f"🔄 未送信データ再送完了: 成功={success}, 失敗={failure}")
+                except Exception as e:
+                    logger.error(f"未送信データ再送エラー: {e}")
+                finally:
+                    retry_counter = 0
 
-        # 定期的に古いバッファデータをクリーンアップ
-        if cleanup_counter >= cleanup_interval:
-            try:
-                deleted = db_api.cleanup_buffer(days=7)
-                if deleted > 0:
-                    logger.info(f"🗑️ 古いバッファデータを削除: {deleted}件")
-            except Exception as e:
-                logger.error(f"バッファクリーンアップエラー: {e}")
-            finally:
-                cleanup_counter = 0
+            # 定期的に古いバッファデータをクリーンアップ
+            if cleanup_counter >= cleanup_interval:
+                try:
+                    deleted = db_api.cleanup_buffer(days=7)
+                    if deleted > 0:
+                        logger.info(f"🗑️ 古いバッファデータを削除: {deleted}件")
+                except Exception as e:
+                    logger.error(f"バッファクリーンアップエラー: {e}")
+                finally:
+                    cleanup_counter = 0
+
+        except Exception:
+            logger.exception("main_loopで未捕捉の例外が発生しました。5秒後に継続します")
+            stop_event.wait(5)
 
 
 if __name__ == "__main__":
