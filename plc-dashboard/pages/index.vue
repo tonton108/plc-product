@@ -240,14 +240,11 @@ import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from '~/composables/useToast'
 
-// 認証ミドルウェアを適用
-definePageMeta({
-  middleware: 'auth'
-})
+// 認証ガードは middleware/auth.global.ts で全ページに適用（Phase 1）
 
 const router = useRouter()
-const config = useRuntimeConfig()
-const apiBase = config.public.apiBase
+const { apiFetch } = useApi()
+const auth = useAuth()
 const toast = useToast()
 
 const equipmentList = ref([])
@@ -273,11 +270,7 @@ const tableHeaders = [
 const fetchEquipment = async () => {
   try {
     loading.value = true
-    const response = await fetch(`${apiBase}/api/equipment`)
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    const data = await response.json()
+    const data = await apiFetch('/api/equipment')
     equipmentList.value = data
     toast.success(`設備データを更新しました（${data.length}件）`)
   } catch (err) {
@@ -312,13 +305,11 @@ const goToLogs = (equipmentId) => {
   router.push(`/equipment/${equipmentId}`)
 }
 
-const logout = () => {
-  if (process.client) {
-    localStorage.removeItem('plc_auth_token')
-    localStorage.removeItem('plc_auth_user')
-    toast.success('ログアウトしました')
-    router.push('/login')
-  }
+const logout = async () => {
+  // サーバー側のトークンも失効させる（Phase 1）
+  await auth.logout()
+  toast.success('ログアウトしました')
+  router.push('/login')
 }
 
 // localStorageから表示モードを復元

@@ -89,7 +89,7 @@
   import { Chart } from 'vue-chartjs'
   import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 
-  const config = useRuntimeConfig()
+  const { apiFetch } = useApi()
 
   ChartJS.register(
     Title,
@@ -169,8 +169,7 @@
   // 設備一覧を取得
   const fetchEquipment = async () => {
     try {
-      const res = await fetch(`${config.public.apiBase}/api/equipment`)
-      const data = await res.json()
+      const data = await apiFetch('/api/equipment')
       equipmentList.value = data
       if (data.length > 0 && !selectedEquipmentId.value) {
         selectedEquipmentId.value = data[0].equipment_id
@@ -187,11 +186,8 @@
     try {
       // 正しいエンドポイント: /api/logs/<equipment_id>/history_optimized
       const period = selectedPeriod.value || '1h'
-      const res = await fetch(`${config.public.apiBase}/api/logs/${selectedEquipmentId.value}/history_optimized?period=${period}`)
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`)
-      }
-      const response = await res.json(); const logs = response.data || response
+      const response = await apiFetch(`/api/logs/${selectedEquipmentId.value}/history_optimized?period=${period}`)
+      const logs = response.data || response
       logsRaw.value = logs
       updateChart()
     } catch (err) {

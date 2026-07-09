@@ -84,10 +84,7 @@ import StatusCards from '~/components/monitoring/StatusCards.vue'
 import ChartCards from '~/components/monitoring/ChartCards.vue'
 import DataCards from '~/components/monitoring/DataCards.vue'
 
-// 認証ミドルウェアを適用
-definePageMeta({
-  middleware: 'auth'
-})
+// 認証ガードは middleware/auth.global.ts で全ページに適用（Phase 1）
 
 ChartJS.register(
   Title,
@@ -102,8 +99,7 @@ ChartJS.register(
 const route = useRoute()
 const router = useRouter()
 const { $socket } = useNuxtApp()
-const config = useRuntimeConfig()
-const apiBase = config.public.apiBase
+const { apiFetch } = useApi()
 const toast = useToast()
 
 // データ定義
@@ -218,14 +214,9 @@ const clearDebugLog = () => {
 const testLatestAPI = async () => {
   realtimeMonitoring.addDebugLog('info', 'API テスト開始: /api/logs/latest')
   try {
-    const response = await fetch(`${apiBase}/api/logs/${equipmentId}/latest`)
-    if (response.ok) {
-      const data = await response.json()
-      realtimeMonitoring.addDebugLog('success', `API テスト成功: ${data.timestamp}`)
-      console.log('📡 API テスト結果:', data)
-    } else {
-      realtimeMonitoring.addDebugLog('error', `API テスト失敗: ${response.status}`)
-    }
+    const data = await apiFetch(`/api/logs/${equipmentId}/latest`)
+    realtimeMonitoring.addDebugLog('success', `API テスト成功: ${data.timestamp}`)
+    console.log('📡 API テスト結果:', data)
   } catch (error) {
     realtimeMonitoring.addDebugLog('error', `API テストエラー: ${error.message}`)
   }
@@ -270,13 +261,8 @@ const updateMonitoringData = (data) => {
 
 const fetchEquipmentInfo = async () => {
   try {
-    const response = await fetch(`${apiBase}/api/equipment/${equipmentId}`)
-    if (response.ok) {
-      equipmentInfo.value = await response.json()
-      realtimeMonitoring.addDebugLog('success', '設備情報取得成功')
-    } else {
-      realtimeMonitoring.addDebugLog('error', `設備情報取得失敗: ${response.status}`)
-    }
+    equipmentInfo.value = await apiFetch(`/api/equipment/${equipmentId}`)
+    realtimeMonitoring.addDebugLog('success', '設備情報取得成功')
   } catch (error) {
     console.error('設備情報取得エラー:', error)
     realtimeMonitoring.addDebugLog('error', `設備情報取得エラー: ${error.message}`)
@@ -286,17 +272,12 @@ const fetchEquipmentInfo = async () => {
 // ✅ PLC設定を取得して動的にデータ構造を生成
 const fetchPLCConfigs = async () => {
   try {
-    const response = await fetch(`${apiBase}/api/equipment/${equipmentId}/plc_configs`)
-    if (response.ok) {
-      plcConfigs.value = await response.json()
-      realtimeMonitoring.addDebugLog('success', `PLC設定取得成功: ${plcConfigs.value.length}項目`)
-      console.log('📋 PLC設定:', plcConfigs.value)
+    plcConfigs.value = await apiFetch(`/api/equipment/${equipmentId}/plc_configs`)
+    realtimeMonitoring.addDebugLog('success', `PLC設定取得成功: ${plcConfigs.value.length}項目`)
+    console.log('📋 PLC設定:', plcConfigs.value)
 
-      // 動的にデータ構造を生成
-      await initializeDynamicStructures()
-    } else {
-      realtimeMonitoring.addDebugLog('error', `PLC設定取得失敗: ${response.status}`)
-    }
+    // 動的にデータ構造を生成
+    await initializeDynamicStructures()
   } catch (error) {
     console.error('PLC設定取得エラー:', error)
     realtimeMonitoring.addDebugLog('error', `PLC設定取得エラー: ${error.message}`)
@@ -415,16 +396,11 @@ const initializeDynamicStructures = async () => {
 
 const fetchLatestData = async () => {
   try {
-    const response = await fetch(`${apiBase}/api/logs/${equipmentId}/latest`)
-    if (response.ok) {
-      const data = await response.json()
-      realtimeMonitoring.addDebugLog('success', `最新データ取得成功: ${data.timestamp}`)
+    const data = await apiFetch(`/api/logs/${equipmentId}/latest`)
+    realtimeMonitoring.addDebugLog('success', `最新データ取得成功: ${data.timestamp}`)
 
-      // handleDataUpdateを使用（updateMonitoringData + updateChartData + データ履歴追加を一括処理）
-      handleDataUpdate(data)
-    } else {
-      realtimeMonitoring.addDebugLog('error', `最新データ取得失敗: ${response.status}`)
-    }
+    // handleDataUpdateを使用（updateMonitoringData + updateChartData + データ履歴追加を一括処理）
+    handleDataUpdate(data)
   } catch (error) {
     console.error('最新データ取得エラー:', error)
     realtimeMonitoring.addDebugLog('error', `最新データ取得エラー: ${error.message}`)

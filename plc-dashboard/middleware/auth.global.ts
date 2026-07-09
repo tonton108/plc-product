@@ -1,18 +1,14 @@
 /**
- * 認証ミドルウェア
+ * 認証ミドルウェア（グローバル・Phase 1で全ページ適用に変更）
  *
- * ログインしていないユーザーをログインページにリダイレクトします。
- *
- * 使用方法:
- *   ページコンポーネントで以下を追加:
- *   definePageMeta({
- *     middleware: 'auth'
- *   })
+ * ログインしていないユーザーを全ページでログインページにリダイレクトします。
+ * （旧実装は definePageMeta({ middleware: 'auth' }) を書いた2ページのみ保護で、
+ *   errors-alarms / logs / equipment 詳細がURL直打ちで素通しだった）
  */
 
-export default defineNuxtRouteMiddleware((to, from) => {
+export default defineNuxtRouteMiddleware((to) => {
   // サーバーサイドでは実行しない（クライアントサイドのみ）
-  if (process.server) {
+  if (import.meta.server) {
     return
   }
 
@@ -29,6 +25,5 @@ export default defineNuxtRouteMiddleware((to, from) => {
     return navigateTo('/login')
   }
 
-  // 認証済みの場合は通過
   return
 })
