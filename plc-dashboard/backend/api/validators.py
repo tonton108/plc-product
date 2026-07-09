@@ -22,7 +22,20 @@ from functools import wraps
 from typing import Union, Tuple, Callable, Any, Dict
 from flask import request, jsonify, Response
 
+from db.models.logs import LOG_META_FIELDS
+
 logger = logging.getLogger(__name__)
+
+# 動的データ項目名として使えない予約語（Phase 2）
+# 固定カラム名（production_count等）は data_type として正当に使え、受信時に
+# 固定カラムへ振り分けられるだけなので許可する。禁止すべきは:
+# - equipment_id / timestamp（メタキー）: 衝突すると別設備への誤紐付けや
+#   timestampパース失敗（500）でログ収集が丸ごと止まる
+# - status: リアルタイム配信で normal/error に握り潰され、REST APIと値が食い違う
+RESERVED_DATA_TYPE_NAMES = set(LOG_META_FIELDS) | {"status"}
+
+# 有効な word_order 値
+VALID_WORD_ORDERS = ("high_first", "low_first")
 
 
 def validate_equipment_id(equipment_id: str) -> bool:
@@ -139,23 +152,25 @@ def validate_protocol(protocol: str) -> bool:
 
 def validate_data_type(data_type: str) -> bool:
     """
-    PLCデータタイプを検証
+    PLCデータ項目名（data_type）を検証
+
+    Phase 2: ホワイトリスト方式（固定6種のみ許可）から形式検証に変更。
+    「設備ごとに任意のデータ項目を定義できる」仕様のため、項目名は
+    固定リストではなく文字種・長さで検証する。
 
     Args:
-        data_type: 検証するデータタイプ
+        data_type: 検証するデータ項目名
 
     Returns:
         bool: 有効な場合はTrue、無効な場合はFalse
+
+    検証ルール:
+        - 1〜50文字
+        - 英数字、アンダースコア、ハイフンのみ許可
     """
-    valid_types = [
-        'production_count',
-        'current',
-        'temperature',
-        'pressure',
-        'cycle_time',
-        'error_code'
-    ]
-    return data_type in valid_types
+    if not data_type:
+        return False
+    return bool(re.match(r'^[A-Za-z0-9_-]{1,50}$', data_type))
 
 
 def require_json(f: Callable[..., Any]) -> Callable[..., Any]:
@@ -239,8 +254,16 @@ def validate_plc_config(config: Dict[str, Any]) -> Tuple[bool, str]:
         tuple[bool, str]: (検証結果, エラーメッセージ)
     """
     # data_typeのチェック
-    if "data_type" in config and config["data_type"] and not validate_data_type(config["data_type"]):
-        return False, f"Invalid data_type: {config['data_type']}"
+    if "data_type" in config and config["data_type"]:
+        if not validate_data_type(config["data_type"]):
+            return False, f"Invalid data_type: {config['data_type']}"
+        # 予約語（固定カラム・メタキー）は項目名に使えない
+        if config["data_type"] in RESERVED_DATA_TYPE_NAMES:
+            return False, f"data_type '{config['data_type']}' is reserved and cannot be used as an item name"
+
+    # word_orderのチェック（不正値は無言でhigh_first扱いになり32bit値が化けるため弾く）
+    if "word_order" in config and config["word_order"] not in VALID_WORD_ORDERS:
+        return False, f"Invalid word_order: {config['word_order']} (must be one of {VALID_WORD_ORDERS})"
 
     # addressのチェック（空でないことを確認）
     if "address" in config and config.get("enabled", False):

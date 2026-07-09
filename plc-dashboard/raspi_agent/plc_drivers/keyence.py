@@ -124,7 +124,9 @@ def keyence_address_to_modbus(address, data_type="word"):
         raise ValueError(f"不明なキーエンスアドレス形式: {address}")
 
 
-def read_keyence_modbus(client, address, data_type="word", scale=1):
+def read_keyence_modbus(
+    client, address, data_type="word", scale=1, word_order="low_first"
+):
     """
     キーエンスPLCからModbus経由でデータ読み取り
 
@@ -133,6 +135,7 @@ def read_keyence_modbus(client, address, data_type="word", scale=1):
         address: キーエンスアドレス
         data_type: データ型
         scale: スケール係数
+        word_order: 32bit値のワード間順序（"high_first" / "low_first"）
 
     Returns:
         読み取った値、エラー時はNone
@@ -158,9 +161,9 @@ def read_keyence_modbus(client, address, data_type="word", scale=1):
             if register_type == "holding":
                 result = client.read_holding_registers(modbus_addr, 2)
                 if not result.isError():
-                    # 共通関数でfloat32/dwordに変換（Big-Endian）
+                    # 共通関数でfloat32/dwordに変換（word_orderで順序を指定）
                     return convert_words_to_value(
-                        result.registers[0], result.registers[1], data_type
+                        result.registers[0], result.registers[1], data_type, word_order
                     )
                 else:
                     raise Exception(f"Holding Register読み取りエラー: {result}")
@@ -273,13 +276,17 @@ def read_keyence_plc(client, data_points, modbus_port=DEFAULT_MODBUS_PORT):
             address = setting.get("address")
             scale = setting.get("scale", 1)
             data_type = setting.get("data_type", "word")  # デフォルト: word
+            # 32bitワード順序（Phase 2）
+            word_order = setting.get("word_order", "low_first")
 
             # バッチ読み取り済みのデータはスキップ
             if key in data:
                 continue
 
             if address:
-                raw_value = read_keyence_modbus(client, address, data_type, scale)
+                raw_value = read_keyence_modbus(
+                    client, address, data_type, scale, word_order
+                )
                 if raw_value is not None:
                     if data_type == "bit":
                         data[key] = int(raw_value)

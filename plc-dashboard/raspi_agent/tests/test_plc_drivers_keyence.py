@@ -214,13 +214,17 @@ class TestKeyencePLCReadWithMock:
             pytest.skip(f"テスト実行エラー（実環境依存）: {e}")
 
     @pytest.mark.unit
-    def test_read_float32_with_correct_endianness(self):
-        """float32読み取り時のエンディアン処理テスト"""
+    def test_read_float32_high_first_word_order(self):
+        """float32読み取り時のワード順序処理テスト（high_first）
+
+        Phase 2: ワード順序はword_orderで指定する。ここでは先頭ワードが上位
+        （high_first）のデータを、word_order='high_first'で正しく復元できるか検証。
+        """
         mock_client = Mock()
 
-        # IEEE754 float32のビッグエンディアン表現
+        # IEEE754 float32のhigh_first表現
         # 例: 3.14 ≈ 0x40490FDB
-        # word1 = 0x4049, word2 = 0x0FDB
+        # word1 = 0x4049（上位）, word2 = 0x0FDB（下位）
         mock_result = Mock()
         mock_result.isError.return_value = False
         mock_result.registers = [0x4049, 0x0FDB]
@@ -229,17 +233,13 @@ class TestKeyencePLCReadWithMock:
 
         from plc_drivers.keyence import read_keyence_modbus
 
-        try:
-            value = read_keyence_modbus(mock_client, "DM100", "float32", scale=1)
+        value = read_keyence_modbus(
+            mock_client, "DM100", "float32", scale=1, word_order="high_first"
+        )
 
-            # 3.14に近い値であることを確認
-            assert value is not None, "float32値がNone"
-            assert (
-                abs(value - 3.14) < 0.01
-            ), f"float32値が不正: expected ~3.14, got {value}"
-
-        except Exception as e:
-            pytest.skip(f"テスト実行エラー（実環境依存）: {e}")
+        # 3.14に近い値であることを確認
+        assert value is not None, "float32値がNone"
+        assert abs(value - 3.14) < 0.01, f"float32値が不正: expected ~3.14, got {value}"
 
 
 class TestKeyenceModbusStandardCompliance:
@@ -392,35 +392,34 @@ class TestKeyenceDwordFloat32Handling:
         assert modbus_addr == 300
 
     @pytest.mark.unit
-    def test_big_endian_float32_conversion(self):
+    def test_high_first_float32_conversion(self):
         """
-        ビッグエンディアンfloat32変換の検証
+        high_firstワード順序のfloat32変換の検証
 
-        全てのPLCメーカー（キーエンス含む）はビッグエンディアンで通信
+        Phase 2: 旧版は「全PLCがBig-Endian」を前提にしていたが、ワード順序は
+        メーカー・機種依存（三菱はlow_first）。ここでは先頭ワードが上位である
+        high_firstデータを word_order='high_first' で復元できるか検証する。
         """
-        import struct
         from plc_drivers.keyence import read_keyence_modbus
 
         mock_client = Mock()
         mock_result = Mock()
         mock_result.isError.return_value = False
 
-        # 100.5のIEEE754ビッグエンディアン表現
-        # 0x42C90000 → word1=0x42C9, word2=0x0000
+        # 100.5のIEEE754 high_first表現
+        # 0x42C90000 → word1=0x42C9（上位）, word2=0x0000（下位）
         mock_result.registers = [0x42C9, 0x0000]
         mock_client.read_holding_registers.return_value = mock_result
 
-        try:
-            value = read_keyence_modbus(mock_client, "DM100", "float32", scale=1)
+        value = read_keyence_modbus(
+            mock_client, "DM100", "float32", scale=1, word_order="high_first"
+        )
 
-            # 100.5に近い値であることを確認
-            assert value is not None
-            assert (
-                abs(value - 100.5) < 0.01
-            ), f"ビッグエンディアンfloat32変換が不正: expected ~100.5, got {value}"
-
-        except Exception as e:
-            pytest.skip(f"テスト実行エラー: {e}")
+        # 100.5に近い値であることを確認
+        assert value is not None
+        assert (
+            abs(value - 100.5) < 0.01
+        ), f"high_first float32変換が不正: expected ~100.5, got {value}"
 
 
 if __name__ == "__main__":

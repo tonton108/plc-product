@@ -387,7 +387,8 @@ def save_plc_data_configs(equipment_id: str) -> Tuple[Response, int]:
                 address=config_data.get("address", ""),
                 scale_factor=config_data.get("scale_factor", 1),
                 plc_data_type=config_data.get("plc_data_type", "word"),
-                unit=config_data.get("unit", "")
+                unit=config_data.get("unit", ""),
+                word_order=config_data.get("word_order", "low_first")
             )
             db.session.add(new_config)
 

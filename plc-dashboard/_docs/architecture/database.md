@@ -57,17 +57,32 @@ class Equipment(db.Model):
 class PLCDataConfig(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     equipment_id = db.Column(db.String(50))
-    data_type = db.Column(db.String(50))        # temperature, pressure, etc.
+    data_type = db.Column(db.String(50))        # 項目名（任意。temperature等の固定名も可）
     address = db.Column(db.String(50))          # D100, M10, etc.
     scale_factor = db.Column(db.Float)          # スケール係数（0.1など）
-    plc_data_type = db.Column(db.String(20))    # word16, dword32, float32
+    plc_data_type = db.Column(db.String(20))    # word, dword, float32, bit
     unit = db.Column(db.String(20))             # ℃, kPa, etc.
+    word_order = db.Column(db.String(20))       # high_first / low_first（Phase 2追加）
 ```
 
 **データ型:**
-- `word16`: 16ビット整数
-- `dword32`: 32ビット整数
+- `word`: 16ビット整数
+- `dword`: 32ビット整数
 - `float32`: 32ビット浮動小数点数
+- `bit`: ビット
+
+**word_order（Phase 2・マイグレーション j1k2l3m4n5o6）:**
+- 32bit値（dword/float32）のワード間順序。既定 `low_first`（三菱MELSEC）
+- `low_first`: 先頭アドレス=下位ワード（三菱）/ `high_first`: 先頭アドレス=上位（シーメンス）
+- 詳細は `_docs/plc-knowledge/endianness.md`
+
+**data_type（Phase 2）:**
+- ホワイトリスト（固定6種）から形式検証（英数字・_・-、1〜50字）に変更し、任意項目名を許可
+- `equipment_id` / `timestamp` / `status` は予約語で使用不可
+
+**動的データ項目（Phase 2）:** 固定カラム以外の項目は `Log.data`(JSON) に保存され、
+日次/月次集計では `DailyLogSummary.data_summary` / `MonthlyLogSummary.data_summary`(JSON)に
+`<項目名>_avg/_max/_min` の形で集約される。
 
 ### Log（詳細ログデータ）
 

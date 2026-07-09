@@ -41,22 +41,23 @@
 
 ## 実装方針（SPEC.md §5.3）
 
-固定ルールでは対応できないため、**ワード順序（word_order）を設備または項目ごとに設定可能にする**:
+固定ルールでは対応できないため、**ワード順序（word_order）を項目ごとに設定可能にした**（Phase 2で実装済み）:
 
-- `PLCDataConfig` に `word_order` 設定を追加（`high_first` / `low_first`）
-- デフォルト値はメーカープロファイルから導出（三菱→`low_first`、シーメンス→`high_first` 等）
-- 導入は動的データ項目の一気通貫実装（Phase 2）と同時に行う
+- `PLCDataConfig.word_order`（`high_first` / `low_first`、既定 `low_first`）— DB・API・エージェント設定に一気通貫
+- 変換は `raspi_agent/plc_drivers/converters.py` の `convert_words_to_value(word1, word2, data_type, word_order)`。`low_first` なら `(word2 << 16) | word1`、`high_first` なら `(word1 << 16) | word2`
+- 各ドライバ（mitsubishi/omron/keyence）は設定の `word_order` を変換に渡す。既定は三菱を想定して `low_first`
+- 回帰防止テスト: `raspi_agent/tests/test_word_order.py`（三菱の実数0.75の例を含む）
 
-### 現行実装の既知の問題
+### 実装状況（Phase 2で解消済み）
 
-`plc-dashboard/raspi_agent/plc_agent.py` の `convert_plc_data` は全メーカーに対して `(word1 << 16) | word2` 固定で処理しており、**三菱の実PLCに接続すると32bit値（dword/float32）がすべて化ける**。Phase 2 の word_order 設定導入と同時に修正する（現在はダミーPLC運用のため実害は未顕在）。
+旧版は `converters.py` が全メーカー `(word1 << 16) | word2` 固定で、**三菱の実PLCでは32bit値が化ける**状態だった。word_order 導入により項目ごとに順序を選べるようになり解消。
 
 ```python
-# 現行実装（三菱では誤り）
-value = (word1 << 16) | word2
+# 三菱（既定 low_first）: 先頭アドレス=下位ワード
+value = convert_words_to_value(word1, word2, "float32", "low_first")
 
-# 三菱の正しい処理（word_order='low_first'）
-value = (word2 << 16) | word1
+# シーメンス等（high_first）: 先頭アドレス=上位ワード
+value = convert_words_to_value(word1, word2, "float32", "high_first")
 ```
 
 ## struct.packのフォーマット文字
