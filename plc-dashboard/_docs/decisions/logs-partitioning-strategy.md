@@ -1,8 +1,22 @@
-# logsテーブルのパーティショニング戦略（Phase 3・実装保留）
+# logsテーブルのパーティショニング戦略（Phase 3）
 
 **作成日:** 2026-07-10
-**ステータス:** 設計のみ・実装は保留（本ドキュメントで手順と前提を確定させ、着手判断は別途）
-**関連:** SPEC.md §5.2、`api/scheduler.py`（クリーンアップ統合）、`db/models/logs.py`
+**ステータス:** コア実装済み（Phase 3-A1）。Docker/PostgreSQL導入により実機検証が可能になり着手
+**関連:** SPEC.md §5.2、`migrations/versions/k1l2m3n4o5p6_partition_logs_by_month.py`、`api/partitions.py`、`api/scheduler.py`、`db/models/logs.py`
+
+## 実装状況（2026-07-10）
+
+**実装済み（PR: logsパーティション化）:**
+- マイグレーション `k1l2m3n4o5p6`: logs を月次RANGEパーティション（実PK `(id, timestamp)`）へ変換。既存データ保全（`INSERT ... SELECT`、NULL timestampは`now()`補正）。Postgres限定（dialectガード）。downgradeで非パーティションへ復帰。**実Postgresでupgrade↔downgradeラウンドトリップ・データ保全・pruning・新規INSERT採番を検証済み**
+- `api/partitions.ensure_log_partitions()`: 現在月+3ヶ月のパーティションを先回り作成（冪等）。スケジューラ起動時＋日次で実行。SQLiteではno-op
+- モデル: `Log.timestamp` を NOT NULL 化。PKはSQLite都合で id単独のまま（複合PK・パーティション化はPostgresマイグレーションのみ）
+
+**未実装（フォローアップ候補・本文書の方針どおり）:**
+- クリーンアップの `DELETE`→古いパーティション`DROP`最適化（現状は`batch_cleanup`のDELETEがパーティション表でも正しく動く。DROP化は高速化の追加施策）
+- 読み取りパスの`timestamp`基準化（現状`ORDER BY id`。動作はするがpartition pruningは効かない）
+- 大規模既存データの無停止移行手順（下記「データ移行」。開発/新規環境ではマイグレーションが直接変換）
+
+**テストの範囲:** パーティションのDDL・pruning・ルーティング・DROP削除はPostgres専用のため、SQLite単体テストでは検証できない。ガードのno-op（`tests/test_partitions.py`）のみ単体化し、実挙動はローカル実Postgres＋CIの空Postgres `flask db upgrade` で確認する。
 
 ## 背景と目的
 

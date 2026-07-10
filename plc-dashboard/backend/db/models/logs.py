@@ -27,7 +27,14 @@ LOG_META_FIELDS = ("equipment_id", "timestamp")
 
 
 class Log(db.Model):
-    """ログテーブル（全データ項目対応版 + 動的JSON対応）"""
+    """ログテーブル（全データ項目対応版 + 動的JSON対応）
+
+    Phase 3: Postgresでは timestamp による月次RANGEパーティションを採用（実PKは
+    (id, timestamp)）。ただしSQLiteは複合PKのオートインクリメントを非対応のため、
+    モデル上のPKは id 単独のまま維持し、複合PK・パーティション化はPostgres側の
+    マイグレーションでのみ適用する（単体テストはSQLiteの非パーティションtableで実行）。
+    timestamp はパーティションキーのため NOT NULL（既定値で自動補完）。
+    """
     __tablename__ = 'logs'
     id = db.Column(db.Integer, primary_key=True)
     equipment_id = db.Column(db.Integer, db.ForeignKey('equipments.id'))
@@ -46,7 +53,10 @@ class Log(db.Model):
     # 例: {"temp_a": 25.5, "pressure_b": 100.2, "custom_sensor": 42}
     data = db.Column(db.JSON, nullable=True)
 
-    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    # パーティションキー。NOT NULL（未指定時は既定値で補完）。
+    timestamp = db.Column(
+        db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
 
 
 class DailyLogSummary(db.Model):
