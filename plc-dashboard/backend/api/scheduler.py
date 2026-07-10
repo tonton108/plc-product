@@ -19,7 +19,11 @@ import threading
 import time
 
 from api.aggregation import summarize_dynamic_from_logs, summarize_dynamic_from_daily
-from api.partitions import ensure_log_partitions
+from api.partitions import (
+    ensure_log_partitions,
+    logs_is_partitioned,
+    drop_old_log_partitions,
+)
 
 # モジュール用ロガー
 logger = logging.getLogger(__name__)
@@ -126,17 +130,30 @@ def cleanup_old_logs(retention_days=None):
 
     Phase 10: batch_cleanup()を使用してシンプル化
     Phase 3: 保持日数を任意で上書き可能にし、CLI(log_manager)・管理API(admin)の
-    削除本体をこの関数（batch_cleanup）に一本化した。retention_days省略時は
+    削除本体をこの関数に一本化した。retention_days省略時は
     DATA_RETENTION_CONFIG['raw_data_days']（既定30日）を使用する。
+
+    Phase 3（パーティション最適化）: logsがパーティション化されている場合は、
+    完全に古い月次パーティションを丸ごとDROPし（メタデータ操作で高速）、
+    境界月とDEFAULTに残る古い行のみ従来のバッチDELETEで掃除する。
+    非パーティション（SQLite等）では従来どおり全量バッチDELETE。
 
     Args:
         retention_days: 保持日数の上書き（Noneなら設定値を使用）
 
     Returns:
-        int: 削除された件数
+        int: DELETEで削除した行数（DROPしたパーティション分は含まない）
     """
     if retention_days is None:
         retention_days = DATA_RETENTION_CONFIG['raw_data_days']
+
+    # パーティション化されていれば、古い月はDROPで高速に落とす
+    if logs_is_partitioned():
+        dropped = drop_old_log_partitions(retention_days)
+        if dropped:
+            logger.info(f"古いログパーティションを{dropped}件DROPしました")
+
+    # 残り（境界月・DEFAULT、または非パーティション表の全古い行）をバッチDELETE
     return batch_cleanup(
         model=Log,
         date_column=Log.timestamp,
