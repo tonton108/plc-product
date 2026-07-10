@@ -19,6 +19,7 @@ import threading
 import time
 
 from api.aggregation import summarize_dynamic_from_logs, summarize_dynamic_from_daily
+from api.partitions import ensure_log_partitions
 
 # モジュール用ロガー
 logger = logging.getLogger(__name__)
@@ -422,6 +423,10 @@ def start_cleanup_scheduler(app):
 
                 # Flaskアプリケーションコンテキストを設定
                 with app.app_context():
+                    # logsの月次パーティションを先回りして用意（Postgresのみ）。
+                    # パーティション欠落月へのINSERT失敗を防ぐため日次で確認する
+                    ensure_log_partitions()
+
                     # 前日の日次集計を作成
                     yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).date()
                     create_daily_summary(yesterday)
@@ -439,6 +444,13 @@ def start_cleanup_scheduler(app):
 
             except Exception as e:
                 logger.error(f"スケジューラーエラー: {e}", exc_info=True)
+
+    # 起動時にもパーティションを確認（日次を待たずに現在月+数ヶ月を確保）
+    try:
+        with app.app_context():
+            ensure_log_partitions()
+    except Exception as e:
+        logger.error(f"起動時パーティション確認エラー: {e}", exc_info=True)
 
     # バックグラウンドスレッドで実行
     cleanup_thread = threading.Thread(target=cleanup_job, daemon=True)
