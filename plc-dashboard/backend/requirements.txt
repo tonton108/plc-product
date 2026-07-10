@@ -12,3 +12,7 @@ requests==2.31.0
 gunicorn==21.2.0
 gevent==23.9.1
 gevent-websocket==0.10.1
+# 本番サービング（Phase 4）: WaitressでFlask-SocketIO(threading)をserve。
+# redisはSocketIOのmessage_queue（ingest分離: 複数プロセス間のemit共有）に使用。
+waitress==3.0.2
+redis==5.0.1
