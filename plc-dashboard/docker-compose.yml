@@ -16,6 +16,19 @@ services:
       - plc-network
     restart: unless-stopped
 
+  # Redis（Socket.IOのmessage_queue用・Phase 4 ingest分離）
+  # 本番は serve_production.py を ingest/viewer の2プロセスで起動し、
+  # SOCKETIO_MESSAGE_QUEUE=redis://redis:6379/0 を共有して配信を橋渡しする。
+  # 開発の単一プロセス（flask run）では未使用でも動く。
+  redis:
+    image: redis:7-alpine
+    container_name: plc-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - plc-network
+    restart: unless-stopped
+
   # Flaskバックエンド（中央サーバーモード）
   backend:
     build:

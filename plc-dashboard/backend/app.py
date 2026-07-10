@@ -77,12 +77,22 @@ def create_app():
 
     db.init_app(app)
     migrate.init_app(app, db)
-    
+
     # Socket.IO初期化（threading modeでgreenletエラーを回避）
+    #
+    # message_queue（Redis等）を指定すると、複数プロセス間でSocketIOのemitを
+    # 共有できる（Phase 4: ingest分離）。ingest用プロセス（閲覧接続を持たない）で
+    # emitした配信を、viewer用プロセス（long-polling接続を捌く）が受け取って
+    # クライアントへ届ける。閲覧のlong-pollingがingestのPOSTを巻き込む
+    # スループット崩壊（_docs/decisions/wsgi-serving-load-verification.md）を、
+    # プロセス分離で回避するための構成。
+    # 環境変数 SOCKETIO_MESSAGE_QUEUE 未設定なら単一プロセス動作（従来どおり）。
+    message_queue = os.getenv('SOCKETIO_MESSAGE_QUEUE') or None
     socketio.init_app(
         app,
         cors_allowed_origins=allowed_origins,
         async_mode='threading',
+        message_queue=message_queue,
         logger=False,
         engineio_logger=False
     )
