@@ -1,8 +1,8 @@
 # 本番WSGIサービング方式の負荷検証（Phase 4 着手ゲート）
 
 **作成日:** 2026-07-10
-**ステータス:** 調査完了・**方式は要判断**（本文書の選択肢からの決定待ち）
-**関連:** SPEC.md §3.1/§10（「Waitress+long-polling を第一候補・要追加調査」）、`app.py`（`async_mode='threading'`）
+**ステータス:** **方式決定＝C（ingest分離）を採用・実機検証済み**（下記「検証: C の結果」）
+**関連:** SPEC.md §3.1/§10、`app.py`（`SOCKETIO_MESSAGE_QUEUE`対応）、`serve_production.py`、`docker-compose.yml`（redis）
 
 ## 背景
 
@@ -76,12 +76,44 @@ Waitress は全ソケットI/Oを**単一のasyncore selectループ**で捌く�
 - **D. Waitressの深掘りチューニング**
   pingInterval短縮・I/Oスレッド構成等。64スレッドで無改善だったことから効果は不透明。
 
-## 推奨（暫定）
+## 検証: C（ingest分離）の結果 → **採用**
 
-long-polling を固定プール/単一I/Oスレッドのサーバで捌くのは高頻度ingestと本質的に相性が悪い。
-**C（ingest分離）で threading方針を保ちつつ崩壊を回避** するか、**A（eventlet/geventでWebSocket化）を
-別途検証** するのが筋。いずれも Phase 4 の配布・サービス化に着手する前に方式を確定させる必要がある。
-（本文書は事実の記録と選択肢提示まで。どれを採るかは未決。）
+C を実機検証した。**同じアプリを2プロセスで起動し、`SOCKETIO_MESSAGE_QUEUE`（Redis）を共有**する:
+- ingestプロセス: エージェントの `POST /api/logs` を受ける（閲覧接続を持たない）
+- viewerプロセス: 閲覧クライアントの Socket.IO(long-polling) を捌く
+- ingest側の `socketio.emit()` は Redis に publish され、viewer側がローカルクライアントへ配信
+
+検証環境: 実PostgreSQL + Redis 5.0.1 + Waitress(threads=16) 2プロセス、
+`python-socketio` polling クライアント8個を viewer に接続、ingest へ 8×40=320 POST。
+
+| 構成 | ingest POST スループット | p95 | 配信完全性 |
+|---|---|---|---|
+| 単一プロセス（分離なし） | 14 req/s | **22,000ms** | 100% |
+| **ingest分離（Redis message_queue）** | **279 req/s** | **74ms** | **100%（8/8完全受信）** |
+
+- **プロセス分離により、閲覧クライアント接続中でも ingest の崩壊が解消**（14→279 req/s、p95 22秒→74ms）。
+- 配信は Redis 経由で 100%（全クライアントが全イベント受信）。
+- **threadingモード（CLAUDE.md必須方針）を維持**したまま解決できる。A（eventlet/gevent）への
+  変更は不要。
+
+### 実装（本PRで導入）
+- `app.py`: `SOCKETIO_MESSAGE_QUEUE` 環境変数を `socketio.init_app(message_queue=...)` に接続。
+  未設定なら従来どおり単一プロセス動作。
+- `requirements.txt`: `waitress`, `redis` を追加。
+- `serve_production.py`: Waitress本番サービング。ingest/viewer の2プロセス起動方法を記載。
+- `docker-compose.yml`: `redis` サービスを追加。
+
+### 残作業（Phase 4 本体）
+- 配布時（Windowsサービス化）で ingest/viewer 2プロセス + Redis を NSSM 等でどう束ねるか。
+  Redis を Windows配布にどう同梱するか（Memurai等のWindows対応Redis互換 or WSL/コンテナ同梱）。
+- リバースプロキシ or ポート振り分け（エージェント→ingest、閲覧→viewer）の設定。
+- 単一サーバ・小規模（閲覧数台）なら単一プロセスでも可（`SOCKETIO_MESSAGE_QUEUE`未設定）。
+
+## 補足: 見送った選択肢
+- **A（eventlet/gevent WebSocket化）**: Cで解決したため不要。将来ネイティブWebSocketが
+  必要になれば再検討（threading方針の見直しを伴う）。
+- **B（gunicorn等）**: gunicornはWindows非対応で配布ターゲットに合わない。
+- **D（Waitressチューニング）**: 64スレッドで無改善だったため見送り。
 
 ## 再現方法
 
