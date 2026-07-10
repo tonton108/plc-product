@@ -108,7 +108,7 @@ class Log(db.Model):
     data = db.Column(db.JSON)  # PLCデータ（JSON形式）
 ```
 
-**保存期間:** 90日間
+**保存期間:** 30日間（SPEC §5.2。旧90日）
 
 #### DailyLogSummary（日次集計）
 
@@ -127,7 +127,7 @@ class Log(db.Model):
 **自動実行タスク:**
 
 1. **24時間間隔でクリーンアップ実行**
-   - 90日以上前の詳細ログ（`logs`テーブル）を削除
+   - 30日以上前の詳細ログ（`logs`テーブル）を削除
    - 365日以上前の日次集計（`daily_log_summaries`テーブル）を削除
    - 実行時刻: 起動後24時間ごと
 
@@ -144,9 +144,9 @@ class Log(db.Model):
 **設定:**
 
 ```python
-# routes.py
+# api/scheduler.py
 DATA_RETENTION_CONFIG = {
-    'raw_data_days': 90,          # 詳細データ保持期間
+    'raw_data_days': 30,          # 詳細データ保持期間（SPEC §5.2。旧90日）
     'daily_data_days': 365,       # 日次集計保持期間
     'cleanup_interval_hours': 24  # クリーンアップ実行間隔
 }

@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 # データ保存期間設定
 DATA_RETENTION_CONFIG = {
-    'raw_data_days': 90,              # 詳細データ保持期間（日）
+    'raw_data_days': 30,              # 詳細データ保持期間（日）- SPEC §5.2（旧90日）
     'daily_data_days': 365,           # 日次集計データ保持期間（日）
     'error_log_days': 30,             # エラーログ保持期間（日）- Phase 2
     'alarm_history_days': 30,         # アラーム履歴保持期間（日、解除済みのみ）- Phase 2
@@ -38,7 +38,7 @@ DATA_RETENTION_CONFIG = {
 # Phase 10: 汎用クリーンアップ関数
 # ==========================================
 
-def batch_cleanup(model, date_column, retention_days, extra_filter=None, data_name="データ", batch_size=10000):
+def batch_cleanup(model, date_column, retention_days, extra_filter=None, data_name="データ", batch_size=10000, cutoff_date=None):
     """汎用バッチクリーンアップ関数
 
     Phase 10で導入: 3つのクリーンアップ関数の共通ロジックを統一
@@ -46,10 +46,14 @@ def batch_cleanup(model, date_column, retention_days, extra_filter=None, data_na
     Args:
         model: SQLAlchemyモデルクラス（Log, CommunicationErrorLog, AlarmHistory等）
         date_column: 日付カラム（model.timestamp, model.occurred_at等）
-        retention_days: 保持日数
+        retention_days: 保持日数（cutoff_date省略時のカットオフ計算とログ表示に使用）
         extra_filter: 追加のフィルタ条件（オプション）- 例: AlarmHistory.cleared_at.isnot(None)
         data_name: ログ出力用のデータ名
         batch_size: バッチサイズ（デフォルト10000）
+        cutoff_date: カットオフ日時の明示指定（オプション）。呼び出し側で
+            事前に件数表示した際のカットオフを固定して渡すことで、対話確認等の
+            待ち時間中に基準がずれる（表示件数と実削除件数の乖離）のを防ぐ。
+            省略時は `now - retention_days` を都度計算する。
 
     Returns:
         int: 削除された件数
@@ -57,7 +61,8 @@ def batch_cleanup(model, date_column, retention_days, extra_filter=None, data_na
     try:
         logger.info(f"クリーンアップ開始: {retention_days}日以上古い{data_name}を削除")
 
-        cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
+        if cutoff_date is None:
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
 
         # 基本クエリを構築
         base_query = model.query.filter(date_column < cutoff_date)
@@ -115,15 +120,26 @@ def batch_cleanup(model, date_column, retention_days, extra_filter=None, data_na
 # クリーンアップ関数（汎用関数を使用）
 # ==========================================
 
-def cleanup_old_logs():
+def cleanup_old_logs(retention_days=None):
     """古いログデータのクリーンアップ（app_context内で実行すること）
 
     Phase 10: batch_cleanup()を使用してシンプル化
+    Phase 3: 保持日数を任意で上書き可能にし、CLI(log_manager)・管理API(admin)の
+    削除本体をこの関数（batch_cleanup）に一本化した。retention_days省略時は
+    DATA_RETENTION_CONFIG['raw_data_days']（既定30日）を使用する。
+
+    Args:
+        retention_days: 保持日数の上書き（Noneなら設定値を使用）
+
+    Returns:
+        int: 削除された件数
     """
+    if retention_days is None:
+        retention_days = DATA_RETENTION_CONFIG['raw_data_days']
     return batch_cleanup(
         model=Log,
         date_column=Log.timestamp,
-        retention_days=DATA_RETENTION_CONFIG['raw_data_days'],
+        retention_days=retention_days,
         data_name="ログ"
     )
 

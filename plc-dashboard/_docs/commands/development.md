@@ -59,8 +59,8 @@ flask --app manage.py db history
 # 統計表示
 python log_manager.py stats
 
-# 90日以上前のログをクリーンアップ
-python log_manager.py cleanup --days 90
+# 古いログをクリーンアップ（--days省略時は既定30日。SPEC §5.2）
+python log_manager.py cleanup --days 30
 
 # 特定日の日次集計作成
 python log_manager.py daily 2025-01-15

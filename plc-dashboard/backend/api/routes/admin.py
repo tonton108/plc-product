@@ -5,7 +5,7 @@
 管理機能に関するエンドポイントを提供します。
 """
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from sqlalchemy import func
 from datetime import datetime, timedelta, timezone
 import threading
@@ -41,8 +41,16 @@ def manual_cleanup():
         if old_logs_count == 0:
             return jsonify({"message": "削除対象のログはありません", "deleted_count": 0}), 200
 
-        # バックグラウンドでクリーンアップ実行
-        threading.Thread(target=cleanup_old_logs, daemon=True).start()
+        # バックグラウンドでクリーンアップ実行。
+        # リクエストのdaysを削除本体にも渡す（旧実装はcountはdays基準・削除は
+        # 設定値raw_data_days基準で不整合だった。Phase 3で統一）。
+        app = current_app._get_current_object()
+
+        def _run_cleanup():
+            with app.app_context():
+                cleanup_old_logs(retention_days=days)
+
+        threading.Thread(target=_run_cleanup, daemon=True).start()
 
         return jsonify({
             "message": f"クリーンアップを開始しました ({old_logs_count}件対象)",
@@ -106,6 +114,10 @@ def manual_create_summary():
         data = request.get_json() or {}
         summary_type = data.get('type', 'daily')  # 'daily' or 'monthly'
 
+        # 別スレッドではアプリコンテキストが無いためDBアクセスできない。
+        # current_appを取り出して各スレッドでapp_contextを張る（Phase 3）。
+        app = current_app._get_current_object()
+
         if summary_type == 'daily':
             target_date = data.get('date')
             if target_date:
@@ -113,14 +125,22 @@ def manual_create_summary():
             else:
                 target_date = (datetime.now(timezone.utc) - timedelta(days=1)).date()
 
-            threading.Thread(target=create_daily_summary, args=(target_date,), daemon=True).start()
+            def _run_daily():
+                with app.app_context():
+                    create_daily_summary(target_date)
+
+            threading.Thread(target=_run_daily, daemon=True).start()
             return jsonify({"message": f"{target_date}の日次集計を開始しました"}), 200
 
         elif summary_type == 'monthly':
             year = data.get('year', datetime.now(timezone.utc).year)
             month = data.get('month', datetime.now(timezone.utc).month)
 
-            threading.Thread(target=create_monthly_summary, args=(year, month), daemon=True).start()
+            def _run_monthly():
+                with app.app_context():
+                    create_monthly_summary(year, month)
+
+            threading.Thread(target=_run_monthly, daemon=True).start()
             return jsonify({"message": f"{year}年{month}月の月次集計を開始しました"}), 200
 
         else:
