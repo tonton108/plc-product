@@ -196,6 +196,30 @@ def require_json(f: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
+def validate_required_fields(data: Dict[str, Any], required_keys) -> Tuple[bool, str]:
+    """必須キーの存在検証
+
+    DBのNOT NULL制約（デフォルト無し）に対応するキーが欠落していると、
+    `data.get(...)` が None を渡し、commit時にIntegrityError→500になる。
+    その前段でキーの有無を検証し、欠落時は欠落キー名を添えて400を返せるようにする。
+
+    Args:
+        data: リクエストデータ
+        required_keys: 必須キー名の列挙（リクエスト側のキー名）
+
+    Returns:
+        tuple[bool, str]: (検証結果, エラーメッセージ)。
+            キー欠落/None を「欠落」として扱う。空文字("")は欠落としない
+            （NOT NULL制約は満たすため500にならず、ラズパイ自己登録
+            [register_equipment.py]が実値未確定の項目を""で送るプレースホルダ
+            運用を壊さないため）。
+    """
+    missing = [key for key in required_keys if data.get(key) is None]
+    if missing:
+        return False, f"Missing required fields: {', '.join(missing)}"
+    return True, ""
+
+
 def validate_equipment_config(data: Dict[str, Any]) -> Tuple[bool, str]:
     """
     設備設定データを一括検証
