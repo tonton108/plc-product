@@ -48,7 +48,7 @@ def upgrade():
         'plc_data_configs',
         ['equipment_id']
     )
-    print("[MIGRATION] ✅ idx_plc_configs_equipment 作成完了")
+    print("[MIGRATION] [OK] idx_plc_configs_equipment 作成完了")
 
     # enabled フラグのインデックス（有効な設定のみ取得）
     op.create_index(
@@ -56,7 +56,7 @@ def upgrade():
         'plc_data_configs',
         ['enabled']
     )
-    print("[MIGRATION] ✅ idx_plc_configs_enabled 作成完了")
+    print("[MIGRATION] [OK] idx_plc_configs_enabled 作成完了")
 
     # 3. daily_log_summariesテーブルの最適化
     print("[MIGRATION] daily_log_summariesテーブルにインデックスを作成中...")
@@ -69,7 +69,7 @@ def upgrade():
         ['equipment_id', sa.text('date DESC')],
         postgresql_ops={'date': 'DESC'}
     )
-    print("[MIGRATION] ✅ idx_daily_summary_equipment_date_desc 作成完了")
+    print("[MIGRATION] [OK] idx_daily_summary_equipment_date_desc 作成完了")
 
     # 4. monthly_log_summariesテーブルの最適化
     print("[MIGRATION] monthly_log_summariesテーブルにインデックスを作成中...")
@@ -81,7 +81,7 @@ def upgrade():
         ['equipment_id', sa.text('year DESC'), sa.text('month DESC')],
         postgresql_ops={'year': 'DESC', 'month': 'DESC'}
     )
-    print("[MIGRATION] ✅ idx_monthly_summary_equipment_year_month_desc 作成完了")
+    print("[MIGRATION] [OK] idx_monthly_summary_equipment_year_month_desc 作成完了")
 
     # カラムコメント追加
     connection = op.get_bind()
