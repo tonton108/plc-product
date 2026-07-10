@@ -37,6 +37,22 @@
       </v-card-title>
       <v-divider class="mb-6"></v-divider>
 
+      <!-- 期間選択（7d/30dは日次集計ビュー） -->
+      <v-btn-toggle
+        v-model="selectedPeriod"
+        color="primary"
+        mandatory
+        density="comfortable"
+        class="mb-4"
+        data-testid="period-toggle"
+      >
+        <v-btn value="1h">1時間</v-btn>
+        <v-btn value="6h">6時間</v-btn>
+        <v-btn value="24h">24時間</v-btn>
+        <v-btn value="7d">7日</v-btn>
+        <v-btn value="30d">30日</v-btn>
+      </v-btn-toggle>
+
       <v-tabs v-model="tab" color="primary" class="mb-4" height="60">
         <v-tab value="0" class="text-h6">
           <v-icon class="mr-2">mdi-chart-line</v-icon>
@@ -199,6 +215,9 @@ const tab = ref(0)
 const chartData = ref(null)
 const chartOptions = ref({})
 const logsRaw = ref([])
+// 履歴データの種別: 'raw_logs'（生ログ・1h/6h/24h）or 'daily_summaries'（日次集計・7d/30d）。
+// 日次集計は値が <項目名>_avg 等の集計キーになるため、参照キーを切り替える。
+const dataSource = ref('raw_logs')
 const selectedPeriod = ref('24h')
 const equipment = ref(null)
 
@@ -245,6 +264,11 @@ const initializeDynamicHeaders = () => {
 }
 
 const filteredLogs = computed(() => {
+  // 日次集計（7d/30d）はAPI側で期間フィルタ済み。かつtimestampを持たない
+  // （dateキー）ため、クライアント側の時間フィルタは行わずそのまま使う。
+  if (dataSource.value === 'daily_summaries') {
+    return logsRaw.value
+  }
   const now = new Date()
   const rangeMs = {
     '1h': 60 * 60 * 1000,
@@ -254,20 +278,33 @@ const filteredLogs = computed(() => {
   return logsRaw.value.filter(log => now - new Date(log.timestamp) <= rangeMs)
 })
 
+// 履歴データ種別に応じて、1つのログ/集計から config の値を取り出す。
+// 生ログは素のキー（例 temp_a）、日次集計は平均キー（例 temp_a_avg）を参照する。
+const logValue = (log, config) => {
+  if (dataSource.value === 'daily_summaries') {
+    return log[`${config.data_type}_avg`] ?? null
+  }
+  return log[config.data_type] ?? null
+}
+
 // 動的チャートデータ生成
 const updateChart = () => {
+  const isDaily = dataSource.value === 'daily_summaries'
   const labels = filteredLogs.value.map(log =>
-    formatDateTime(log.timestamp, {
-      month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
-    })
+    isDaily
+      ? log.date
+      : formatDateTime(log.timestamp, {
+          month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+        })
   )
 
   const datasets = []
   plcConfigs.value.forEach((config, index) => {
     if (config.enabled) {
+      const suffix = isDaily ? ' (avg)' : ''
       datasets.push({
-        label: `${config.name}${config.unit ? '(' + config.unit + ')' : ''}`,
-        data: filteredLogs.value.map(log => log[config.data_type] ?? null),
+        label: `${config.name}${suffix}${config.unit ? '(' + config.unit + ')' : ''}`,
+        data: filteredLogs.value.map(log => logValue(log, config)),
         borderColor: getChartColor(index),
         backgroundColor: 'transparent',
         tension: 0.2,
@@ -301,11 +338,13 @@ const downloadCSV = () => {
     const header = headerFields.join(',') + '\n'
 
     // データ行を動的生成
+    const isDaily = dataSource.value === 'daily_summaries'
     const rows = logsRaw.value.map(log => {
-      const values = [log.timestamp]
+      // 生ログはtimestamp、日次集計はdateを1列目に出す
+      const values = [isDaily ? log.date : log.timestamp]
       plcConfigs.value.forEach(config => {
         if (config.enabled) {
-          values.push(log[config.data_type] ?? '')
+          values.push(logValue(log, config) ?? '')
         }
       })
       return values.join(',')
@@ -334,7 +373,10 @@ let intervalId = null
 const fetchLogs = async () => {
   try {
     const data = await apiFetch(`/api/logs/${equipmentId}/history_optimized?period=${selectedPeriod.value}`)
-    logsRaw.value = data.logs || []
+    // APIは配列を `data` キーで返す（旧実装は `data.logs` を読んでおり常に空だった）。
+    // data_source で生ログ/日次集計を判別し、値の参照キーを切り替える。
+    logsRaw.value = data.data || []
+    dataSource.value = data.data_source || 'raw_logs'
     updateChart()
   } catch (err) {
     console.error('ログ取得失敗:', err)
@@ -391,7 +433,9 @@ watch(tab, (newTab) => {
   }
 })
 
-watch([selectedPeriod], updateChart)
+// 期間切替時は再fetch（生ログ/日次集計で参照先APIが変わるため）。
+// fetchLogs内でupdateChartも呼ばれる。
+watch(selectedPeriod, fetchLogs)
 </script>
 
 <style scoped>
