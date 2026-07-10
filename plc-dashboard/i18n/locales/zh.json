@@ -7,7 +7,9 @@
     "loading": "加载中...",
     "noData": "无数据",
     "status": "状态",
-    "actions": "操作"
+    "actions": "操作",
+    "cancel": "取消",
+    "ok": "确定"
   },
   "nav": {
     "errorsAlarms": "错误与报警"
@@ -51,6 +53,46 @@
     "csvDownloaded": "已下载CSV文件（{count}条记录）",
     "csvDownloadError": "CSV下载失败",
     "noExportData": "没有可导出的数据"
+  },
+  "plcConfigEdit": {
+    "tab": "PLC设置",
+    "title": "PLC数据项设置",
+    "addItem": "添加项目",
+    "editItem": "编辑项目",
+    "deleteItem": "删除项目",
+    "save": "保存设置",
+    "saved": "PLC设置已保存",
+    "saveError": "PLC设置保存失败",
+    "forbidden": "修改PLC设置需要管理员权限",
+    "readOnlyNotice": "PLC设置为只读。修改需要管理员权限。",
+    "empty": "尚未注册PLC数据项",
+    "fields": {
+      "enabled": "启用",
+      "name": "项目名称",
+      "dataType": "内部键",
+      "address": "地址",
+      "plcDataType": "数据类型",
+      "wordOrder": "字顺序",
+      "scaleFactor": "倍率",
+      "unit": "单位",
+      "icon": "图标",
+      "actions": "操作"
+    },
+    "hints": {
+      "dataType": "仅限字母数字、下划线和连字符（1-50字符）。用于CSV/API的内部键",
+      "address": "例如：D100, D101。启用时必填",
+      "wordOrder": "32位值的字顺序。三菱=low_first / 西门子=high_first"
+    },
+    "wordOrder": {
+      "lowFirst": "low_first（首地址=低字，三菱MELSEC等）",
+      "highFirst": "high_first（首地址=高字，西门子等）"
+    },
+    "rules": {
+      "required": "此项为必填项",
+      "dataType": "仅限字母数字、下划线和连字符（1-50字符）",
+      "number": "请输入数字",
+      "duplicate": "内部键「{key}」已被使用"
+    }
   },
   "plcStatus": {
     "title": "PLC通信状态",

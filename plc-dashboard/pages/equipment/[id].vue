@@ -66,6 +66,10 @@
           <v-icon class="mr-2">mdi-alert-circle</v-icon>
           {{ $t('equipmentDetail.tabs.errorsAlarms') }}
         </v-tab>
+        <v-tab value="3" class="text-h6">
+          <v-icon class="mr-2">mdi-cog</v-icon>
+          {{ $t('plcConfigEdit.tab') }}
+        </v-tab>
       </v-tabs>
 
       <v-card-text class="pa-6">
@@ -131,9 +135,108 @@
               </v-col>
             </v-row>
           </v-window-item>
+
+          <!-- PLC設定タブ（データ項目のCRUD編集） -->
+          <v-window-item value="3">
+            <v-alert
+              v-if="!isAdmin"
+              type="info"
+              variant="tonal"
+              density="comfortable"
+              class="mb-4"
+            >
+              {{ $t('plcConfigEdit.readOnlyNotice') }}
+            </v-alert>
+
+            <div class="d-flex align-center mb-4">
+              <div class="text-h6">{{ $t('plcConfigEdit.title') }}</div>
+              <v-spacer></v-spacer>
+              <v-btn
+                v-if="isAdmin"
+                color="primary"
+                variant="tonal"
+                prepend-icon="mdi-plus"
+                data-testid="add-plc-config"
+                @click="openAddConfig"
+              >
+                {{ $t('plcConfigEdit.addItem') }}
+              </v-btn>
+            </div>
+
+            <v-card variant="outlined">
+              <v-table density="comfortable" data-testid="plc-config-table">
+                <thead>
+                  <tr>
+                    <th>{{ $t('plcConfigEdit.fields.enabled') }}</th>
+                    <th>{{ $t('plcConfigEdit.fields.name') }}</th>
+                    <th>{{ $t('plcConfigEdit.fields.dataType') }}</th>
+                    <th>{{ $t('plcConfigEdit.fields.address') }}</th>
+                    <th>{{ $t('plcConfigEdit.fields.plcDataType') }}</th>
+                    <th>{{ $t('plcConfigEdit.fields.wordOrder') }}</th>
+                    <th class="text-right">{{ $t('plcConfigEdit.fields.scaleFactor') }}</th>
+                    <th>{{ $t('plcConfigEdit.fields.unit') }}</th>
+                    <th v-if="isAdmin" class="text-right">{{ $t('plcConfigEdit.fields.actions') }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-if="editConfigs.length === 0">
+                    <td :colspan="isAdmin ? 9 : 8" class="text-center text-grey py-6">
+                      {{ $t('plcConfigEdit.empty') }}
+                    </td>
+                  </tr>
+                  <tr v-for="(cfg, i) in editConfigs" :key="i">
+                    <td>
+                      <v-icon :color="cfg.enabled ? 'success' : 'grey'">
+                        {{ cfg.enabled ? 'mdi-check-circle' : 'mdi-circle-outline' }}
+                      </v-icon>
+                    </td>
+                    <td>{{ cfg.icon }} {{ cfg.name }}</td>
+                    <td><code>{{ cfg.data_type }}</code></td>
+                    <td>{{ cfg.address }}</td>
+                    <td>{{ cfg.plc_data_type }}</td>
+                    <td>{{ is32bit(cfg.plc_data_type) ? cfg.word_order : '—' }}</td>
+                    <td class="text-right">{{ cfg.scale_factor }}</td>
+                    <td>{{ cfg.unit }}</td>
+                    <td v-if="isAdmin" class="text-right">
+                      <v-btn
+                        icon="mdi-pencil"
+                        size="small"
+                        variant="text"
+                        :aria-label="$t('plcConfigEdit.editItem')"
+                        @click="openEditConfig(i)"
+                      ></v-btn>
+                      <v-btn
+                        icon="mdi-delete"
+                        size="small"
+                        variant="text"
+                        color="error"
+                        :aria-label="$t('plcConfigEdit.deleteItem')"
+                        @click="removeConfig(i)"
+                      ></v-btn>
+                    </td>
+                  </tr>
+                </tbody>
+              </v-table>
+            </v-card>
+
+            <v-btn
+              v-if="isAdmin"
+              class="mt-6"
+              color="success"
+              variant="elevated"
+              size="large"
+              :loading="savingConfigs"
+              prepend-icon="mdi-content-save"
+              data-testid="save-plc-config"
+              @click="savePLCConfigs"
+            >
+              {{ $t('plcConfigEdit.save') }}
+            </v-btn>
+          </v-window-item>
         </v-window>
 
         <v-btn
+          v-if="tab !== '3'"
           class="mt-6"
           color="primary"
           variant="elevated"
@@ -147,6 +250,106 @@
         </v-btn>
       </v-card-text>
     </v-card>
+
+    <!-- PLCデータ項目 追加/編集ダイアログ -->
+    <v-dialog v-model="configDialog" max-width="620" persistent>
+      <v-card>
+        <v-card-title class="text-h6">
+          {{ editingIndex === null ? $t('plcConfigEdit.addItem') : $t('plcConfigEdit.editItem') }}
+        </v-card-title>
+        <v-card-text>
+          <v-form ref="configForm">
+            <v-text-field
+              v-model="configDraft.name"
+              :label="$t('plcConfigEdit.fields.name')"
+              maxlength="100"
+              variant="outlined"
+              density="comfortable"
+            ></v-text-field>
+            <v-text-field
+              v-model="configDraft.data_type"
+              :label="$t('plcConfigEdit.fields.dataType')"
+              :hint="$t('plcConfigEdit.hints.dataType')"
+              persistent-hint
+              maxlength="50"
+              :rules="[rules.required, rules.dataType]"
+              variant="outlined"
+              density="comfortable"
+              class="mb-2"
+            ></v-text-field>
+            <v-text-field
+              v-model="configDraft.address"
+              :label="$t('plcConfigEdit.fields.address')"
+              :hint="$t('plcConfigEdit.hints.address')"
+              persistent-hint
+              maxlength="20"
+              :rules="configDraft.enabled ? [rules.required] : []"
+              variant="outlined"
+              density="comfortable"
+              class="mb-2"
+            ></v-text-field>
+            <v-select
+              v-model="configDraft.plc_data_type"
+              :items="plcDataTypeOptions"
+              :label="$t('plcConfigEdit.fields.plcDataType')"
+              variant="outlined"
+              density="comfortable"
+            ></v-select>
+            <v-select
+              v-if="is32bit(configDraft.plc_data_type)"
+              v-model="configDraft.word_order"
+              :items="wordOrderOptions"
+              :label="$t('plcConfigEdit.fields.wordOrder')"
+              :hint="$t('plcConfigEdit.hints.wordOrder')"
+              persistent-hint
+              variant="outlined"
+              density="comfortable"
+              class="mb-2"
+            ></v-select>
+            <v-text-field
+              v-model.number="configDraft.scale_factor"
+              type="number"
+              :label="$t('plcConfigEdit.fields.scaleFactor')"
+              :rules="[rules.number]"
+              variant="outlined"
+              density="comfortable"
+            ></v-text-field>
+            <v-row>
+              <v-col cols="6">
+                <v-text-field
+                  v-model="configDraft.unit"
+                  :label="$t('plcConfigEdit.fields.unit')"
+                  maxlength="20"
+                  variant="outlined"
+                  density="comfortable"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="6">
+                <v-text-field
+                  v-model="configDraft.icon"
+                  :label="$t('plcConfigEdit.fields.icon')"
+                  maxlength="10"
+                  variant="outlined"
+                  density="comfortable"
+                ></v-text-field>
+              </v-col>
+            </v-row>
+            <v-switch
+              v-model="configDraft.enabled"
+              :label="$t('plcConfigEdit.fields.enabled')"
+              color="success"
+              density="comfortable"
+              hide-details
+            ></v-switch>
+          </v-form>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="configDialog = false">{{ $t('common.cancel') }}</v-btn>
+          <v-btn color="primary" variant="elevated" @click="applyConfigDraft">{{ $t('common.ok') }}</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -184,6 +387,7 @@ ChartJS.register(
 const route = useRoute()
 const router = useRouter()
 const { apiFetch } = useApi()
+const { isAdmin } = useAuth()
 const equipmentId = route.params.id
 const toast = useToast()
 const { t } = useI18n()
@@ -242,8 +446,131 @@ const fetchPLCConfigs = async () => {
     plcConfigs.value = await apiFetch(`/api/equipment/${equipmentId}/plc_configs`)
     console.log('📋 PLC設定取得成功:', plcConfigs.value)
     initializeDynamicHeaders()
+    syncEditConfigs()
   } catch (error) {
     console.error('PLC設定取得エラー:', error)
+  }
+}
+
+// --- PLCデータ項目 編集UI（Issue #14に続くIssue #15対応） ---
+// 編集はローカルコピー(editConfigs)に対して行い、保存時にPUTで全件置換する
+// （APIが配列を受け取り既存設定を全削除→再作成する仕様のため）。
+const editConfigs = ref([])
+const configDialog = ref(false)
+const editingIndex = ref(null)   // null=新規追加, 数値=既存行の編集
+const configForm = ref(null)
+const savingConfigs = ref(false)
+
+// PLCデータ型の選択肢（bit/word=16bit/dword・float32=32bit）
+const plcDataTypeOptions = [
+  { title: 'bit', value: 'bit' },
+  { title: 'word (16bit)', value: 'word' },
+  { title: 'dword (32bit)', value: 'dword' },
+  { title: 'float32 (32bit)', value: 'float32' },
+]
+// ワード順序の選択肢（32bit値のみ有効）。既定はlow_first（三菱MELSEC想定）。
+const wordOrderOptions = computed(() => [
+  { title: t('plcConfigEdit.wordOrder.lowFirst'), value: 'low_first' },
+  { title: t('plcConfigEdit.wordOrder.highFirst'), value: 'high_first' },
+])
+
+// 32bit値（word_orderが意味を持つ型）か判定
+const is32bit = (dataType) => dataType === 'dword' || dataType === 'float32'
+
+// 入力バリデーション（バックエンドvalidate_plc_configと整合）
+const rules = {
+  required: (v) => (v !== null && v !== undefined && String(v).trim() !== '') || t('plcConfigEdit.rules.required'),
+  // data_type: 英数字・アンダースコア・ハイフンのみ1〜50文字（validators.py:173と同一）
+  dataType: (v) => /^[A-Za-z0-9_-]{1,50}$/.test(v || '') || t('plcConfigEdit.rules.dataType'),
+  number: (v) => !isNaN(parseFloat(v)) || t('plcConfigEdit.rules.number'),
+}
+
+// 新規項目の初期値（DB既定に合わせる）
+const defaultDraft = () => ({
+  name: '', data_type: '', icon: '', unit: '',
+  address: '', scale_factor: 1, plc_data_type: 'word',
+  word_order: 'low_first', enabled: true,
+})
+const configDraft = ref(defaultDraft())
+
+// 取得済みplcConfigsを編集用ローカルコピーに反映（保存/再取得のたびに同期）
+const syncEditConfigs = () => {
+  editConfigs.value = plcConfigs.value.map((c) => ({ ...c }))
+}
+
+const openAddConfig = () => {
+  editingIndex.value = null
+  configDraft.value = defaultDraft()
+  configDialog.value = true
+}
+
+const openEditConfig = (i) => {
+  editingIndex.value = i
+  configDraft.value = { ...editConfigs.value[i] }
+  configDialog.value = true
+}
+
+// ダイアログのOK: バリデーション後にローカルコピーへ反映（この時点では未保存）
+const applyConfigDraft = async () => {
+  const result = await configForm.value?.validate()
+  if (result && result.valid === false) return
+
+  // 内部キー(data_type)の重複を防止（重複すると動的ヘッダ/CSVの列キーが衝突する。
+  // バックエンドに重複検知がないためクライアント側で弾く）。編集中の行自身は除外。
+  const key = (configDraft.value.data_type || '').trim()
+  const dup = editConfigs.value.some((c, idx) => idx !== editingIndex.value && c.data_type === key)
+  if (dup) {
+    toast.error(t('plcConfigEdit.rules.duplicate', { key }))
+    return
+  }
+
+  // scale_factorは数値化。NaNのときのみ既定1（0や負値はそのまま保持）
+  const sf = Number(configDraft.value.scale_factor)
+  const draft = {
+    ...configDraft.value,
+    // 項目名が空ならバックエンド同様に内部キーで補完（表示の即時整合）
+    name: (configDraft.value.name || '').trim() || key,
+    scale_factor: Number.isFinite(sf) ? sf : 1,
+  }
+  if (editingIndex.value === null) {
+    editConfigs.value.push(draft)
+  } else {
+    editConfigs.value[editingIndex.value] = draft
+  }
+  configDialog.value = false
+}
+
+const removeConfig = (i) => {
+  editConfigs.value.splice(i, 1)
+}
+
+// 保存: 編集後の全項目をPUTで送信（サーバ側で全件置換）
+const savePLCConfigs = async () => {
+  savingConfigs.value = true
+  try {
+    await apiFetch(`/api/equipment/${equipmentId}/plc_configs`, {
+      method: 'PUT',
+      body: editConfigs.value,
+    })
+    toast.success(t('plcConfigEdit.saved'))
+    // 再取得して動的ヘッダ/チャート/編集コピーを最新化
+    await fetchPLCConfigs()
+    await fetchLogs()
+  } catch (error) {
+    console.error('PLC設定保存エラー:', error)
+    const status = error?.response?.status || error?.status
+    // 400: バックエンドの検証エラー詳細（例「Config 0: Invalid data_type」）を表示
+    // 403: 非管理者、それ以外は汎用エラー
+    const detail = error?.data?.error || error?.response?._data?.error
+    if (status === 403) {
+      toast.error(t('plcConfigEdit.forbidden'))
+    } else if (status === 400 && detail) {
+      toast.error(detail)
+    } else {
+      toast.error(t('plcConfigEdit.saveError'))
+    }
+  } finally {
+    savingConfigs.value = false
   }
 }
 
