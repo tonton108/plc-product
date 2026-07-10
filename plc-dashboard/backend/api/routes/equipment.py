@@ -21,6 +21,7 @@ from api.validators import (
     validate_equipment_id,
     validate_equipment_config,
     validate_plc_config,
+    validate_required_fields,
     require_json
 )
 from api.serializers import EquipmentSerializer, PLCDataConfigSerializer
@@ -49,6 +50,19 @@ def api_register() -> Tuple[Response, int]:
 
     if not equipment_id or not mac_address:
         return jsonify({"error": "equipment_id and mac_address are required"}), 400
+
+    # 必須キーの存在検証（DBのNOT NULL制約に対応）。
+    # 登録は新規/既存いずれの分岐でもこれらを data.get(...) で無条件に上書きするため、
+    # キー欠落やNoneだとNOT NULL列にNoneが入りIntegrityError→500になる。ここで400にする（Issue #11）。
+    # manufacturerは data.get("manufacturer","") の既定はキー欠落時のみ効き、
+    # agent_app.py がキーを付けてNoneを転送する経路では効かず500になるため必須に含める。
+    # 空文字("")はNOT NULLを満たすため許容（ラズパイ自己登録のプレースホルダ運用）。
+    is_valid, error_msg = validate_required_fields(
+        data, ["manufacturer", "series", "plc_ip", "cpu_serial_number", "port", "interval"]
+    )
+    if not is_valid:
+        logger.warning(f"設備登録の必須キー欠落: {error_msg}")
+        return jsonify({"error": error_msg}), 400
 
     # 入力バリデーション
     is_valid, error_msg = validate_equipment_config(data)
@@ -208,6 +222,17 @@ def save_equipment_config(equipment_id: str) -> Tuple[Response, int]:
 
         # 既存設備が見つからない場合は新規作成
         if not equipment:
+            # 新規作成時のみ必須キーを検証（更新は data.get(key, 既存値) で
+            # 欠落キーを保持するため必須ではない）。欠落するとNOT NULL列に
+            # Noneが入りIntegrityError→500になるので、ここで400にする（Issue #11）。
+            is_valid, error_msg = validate_required_fields(
+                data,
+                ["manufacturer", "series", "plc_ip", "cpu_serial_number", "plc_port", "interval"],
+            )
+            if not is_valid:
+                logger.warning(f"設備新規作成の必須キー欠落: {error_msg}")
+                return jsonify({"error": error_msg}), 400
+
             logger.info(f"新規設備を作成します: {equipment_id}")
             equipment = Equipment(
                 equipment_id=equipment_id,
