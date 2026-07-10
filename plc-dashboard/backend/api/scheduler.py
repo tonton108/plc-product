@@ -144,6 +144,33 @@ def cleanup_old_logs(retention_days=None):
     )
 
 
+def cleanup_old_daily_summaries():
+    """古い日次集計のクリーンアップ（app_context内で実行すること）
+
+    Phase 3: これまで DATA_RETENTION_CONFIG['daily_data_days'] は設定だけ存在し、
+    対応する削除処理が無かった（デッドコンフィグ）。日次集計テーブルが
+    無制限に増え続けていたため、保持日数を過ぎた日次集計を削除する処理を追加。
+    365日より前のトレンドは月次集計（永続保存）でカバーされる。
+
+    dateはDate型のため、cutoff_dateも日付で明示指定する（Date < datetime の
+    型混在比較を避ける）。
+
+    Returns:
+        int: 削除された件数
+    """
+    cutoff_date = (
+        datetime.now(timezone.utc)
+        - timedelta(days=DATA_RETENTION_CONFIG['daily_data_days'])
+    ).date()
+    return batch_cleanup(
+        model=DailyLogSummary,
+        date_column=DailyLogSummary.date,
+        retention_days=DATA_RETENTION_CONFIG['daily_data_days'],
+        data_name="日次集計",
+        cutoff_date=cutoff_date
+    )
+
+
 def cleanup_old_error_logs():
     """古いエラーログのクリーンアップ（Phase 2）
 
@@ -406,6 +433,7 @@ def start_cleanup_scheduler(app):
 
                     # 古いデータのクリーンアップ
                     cleanup_old_logs()
+                    cleanup_old_daily_summaries()
                     cleanup_old_error_logs()
                     cleanup_old_alarm_history()
 

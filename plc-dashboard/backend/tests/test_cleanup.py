@@ -14,10 +14,11 @@ import threading
 from datetime import datetime, timedelta, timezone
 
 from db import db
-from db.models import Log
+from db.models import Log, DailyLogSummary
 from api.scheduler import (
     batch_cleanup,
     cleanup_old_logs,
+    cleanup_old_daily_summaries,
     DATA_RETENTION_CONFIG,
 )
 
@@ -30,6 +31,17 @@ def _add_log(equipment_pk, age_days):
     log.temperature = 25.0
     db.session.add(log)
     return log
+
+
+def _add_daily_summary(equipment_pk, age_days):
+    """age_days日前の日付で日次集計を1件作成"""
+    summary = DailyLogSummary(
+        equipment_id=equipment_pk,
+        date=(datetime.now(timezone.utc) - timedelta(days=age_days)).date(),
+        data_count=1,
+    )
+    db.session.add(summary)
+    return summary
 
 
 class TestSchedulerCleanup:
@@ -105,6 +117,33 @@ class TestSchedulerCleanup:
 
         assert deleted == 1
         assert Log.query.count() == 1
+
+
+class TestDailySummaryCleanup:
+    def test_daily_retention_is_365_days(self):
+        """日次集計の保持期間は365日"""
+        assert DATA_RETENTION_CONFIG["daily_data_days"] == 365
+
+    def test_deletes_only_older_than_retention(self, session, sample_equipment):
+        """365日より古い日次集計だけ削除し、新しいものは残す"""
+        _add_daily_summary(sample_equipment.id, age_days=400)  # 削除対象
+        _add_daily_summary(sample_equipment.id, age_days=366)  # 削除対象
+        _add_daily_summary(sample_equipment.id, age_days=100)  # 保持
+        _add_daily_summary(sample_equipment.id, age_days=1)  # 保持
+        session.commit()
+
+        deleted = cleanup_old_daily_summaries()
+
+        assert deleted == 2
+        assert DailyLogSummary.query.count() == 2
+
+    def test_no_target_returns_zero(self, session, sample_equipment):
+        """削除対象が無ければ0件"""
+        _add_daily_summary(sample_equipment.id, age_days=30)
+        session.commit()
+
+        assert cleanup_old_daily_summaries() == 0
+        assert DailyLogSummary.query.count() == 1
 
 
 class TestAdminCleanupEndpoint:
