@@ -220,3 +220,13 @@ class TestAdminCleanupEndpoint:
             content_type="application/json",
         )
         assert resp.status_code == 403
+
+    def test_cleanup_rejects_nonpositive_days(self, client, session, sample_equipment):
+        """days=0・負値・非整数は400（パーティション化環境での誤DROP防止）"""
+        for bad in [0, -30, "30", 1.5]:
+            resp = client.post(
+                "/api/admin/cleanup",
+                data=json.dumps({"days": bad}),
+                content_type="application/json",
+            )
+            assert resp.status_code == 400, f"days={bad!r} は400であるべき"

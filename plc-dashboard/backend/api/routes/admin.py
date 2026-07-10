@@ -35,6 +35,12 @@ def manual_cleanup():
         data = request.get_json() or {}
         days = data.get('days', DATA_RETENTION_CONFIG['raw_data_days'])
 
+        # daysの入力検証。非正値/非整数は不可（パーティション化環境では
+        # cutoffが未来になり保持期間内のパーティションを不可逆にDROPしうるため、
+        # 危険な入力は400で弾く）。
+        if not isinstance(days, int) or isinstance(days, bool) or days < 1:
+            return jsonify({"error": "days must be a positive integer"}), 400
+
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
         old_logs_count = Log.query.filter(Log.timestamp < cutoff_date).count()
 

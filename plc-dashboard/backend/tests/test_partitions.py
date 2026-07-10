@@ -9,7 +9,13 @@ logsパーティション管理のテスト（Phase 3）
 
 from datetime import date
 
-from api.partitions import ensure_log_partitions, _add_months, _month_start
+from api.partitions import (
+    ensure_log_partitions,
+    logs_is_partitioned,
+    drop_old_log_partitions,
+    _add_months,
+    _month_start,
+)
 
 
 class TestEnsureLogPartitionsGuard:
@@ -18,6 +24,18 @@ class TestEnsureLogPartitionsGuard:
         with app.app_context():
             assert ensure_log_partitions() == 0
             assert ensure_log_partitions(months_ahead=6) == 0
+
+
+class TestPartitionCleanupGuard:
+    def test_not_partitioned_on_sqlite(self, app):
+        """SQLiteではlogsはパーティションでない（DROP最適化は使わない）"""
+        with app.app_context():
+            assert logs_is_partitioned() is False
+
+    def test_drop_old_partitions_noop_on_sqlite(self, app):
+        """SQLiteではパーティションDROPを行わず0を返す"""
+        with app.app_context():
+            assert drop_old_log_partitions(30) == 0
 
 
 class TestMonthArithmetic:
