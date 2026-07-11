@@ -80,14 +80,6 @@ python scripts/test_db_connection.py
 python scripts/quick_verify.py
 ```
 
-## アーカイブ
-
-### `archive/old_tests/`
-開発中に使用した古いテストスクリプト
-
-### `archive/screenshots/`
-テスト実行時に生成されたスクリーンショット
-
 ## 前提条件
 
 ### Playwright
