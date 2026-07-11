@@ -94,7 +94,7 @@ jobs:
           name: backend-api-coverage
         if: always()
 
-      - name: Check coverage threshold (SPEC Phase 5: 60%)
+      - name: "Check coverage threshold (SPEC Phase 5: 60%)"
         # backend/ のカバレッジをCIで固定化（SPEC.md Phase 5「カバレッジ60%」）。
         # 実測62%（90テスト）。60%を割ったら失敗させ、テストなしのコード増加を防ぐ。
         run: |
