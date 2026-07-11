@@ -76,15 +76,30 @@ jobs:
           cd plc-dashboard/backend
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest
+          pip install pytest pytest-cov
 
-      - name: Run backend API tests
+      - name: Run backend API tests with coverage
         # Phase 1で発覚: 従来「Backend Tests」はraspi_agentのテストのみで、
         # backend/tests/（API・認証テスト）はどのCIでも未実行だった。
         # テストはインメモリSQLite（conftest.pyが設定）のためDBサービス不要
         run: |
           cd plc-dashboard/backend
-          python -m pytest tests/ -v
+          python -m pytest tests/ -v --cov=. --cov-report=term --cov-report=xml
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./plc-dashboard/backend/coverage.xml
+          flags: backend-api
+          name: backend-api-coverage
+        if: always()
+
+      - name: "Check coverage threshold (SPEC Phase 5: 60%)"
+        # backend/ のカバレッジをCIで固定化（SPEC.md Phase 5「カバレッジ60%」）。
+        # 実測62%（90テスト）。60%を割ったら失敗させ、テストなしのコード増加を防ぐ。
+        run: |
+          cd plc-dashboard/backend
+          coverage report --fail-under=60
 
   lint-backend:
     name: Backend Linting (Python)
