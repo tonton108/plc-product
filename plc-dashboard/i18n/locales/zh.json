@@ -165,7 +165,12 @@
     "title": "实时监控",
     "dataHistory": "最新数据日志",
     "exportCsv": "导出CSV",
-    "debugMode": "调试模式"
+    "debugMode": "调试模式",
+    "realtimeMonitoring": "实时监控",
+    "historyData": "历史数据",
+    "connected": "已连接",
+    "disconnected": "已断开",
+    "open": "打开",
+    "openEquipment": "开始设备监控"
   }
 }
-
