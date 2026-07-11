@@ -7,7 +7,9 @@
     "loading": "Loading...",
     "noData": "No data available",
     "status": "Status",
-    "actions": "Actions"
+    "actions": "Actions",
+    "cancel": "Cancel",
+    "ok": "OK"
   },
   "nav": {
     "errorsAlarms": "Errors & Alarms"
@@ -51,6 +53,46 @@
     "csvDownloaded": "CSV file downloaded ({count} records)",
     "csvDownloadError": "Failed to download CSV",
     "noExportData": "No data to export"
+  },
+  "plcConfigEdit": {
+    "tab": "PLC Config",
+    "title": "PLC Data Item Configuration",
+    "addItem": "Add Item",
+    "editItem": "Edit Item",
+    "deleteItem": "Delete Item",
+    "save": "Save Configuration",
+    "saved": "PLC configuration saved",
+    "saveError": "Failed to save PLC configuration",
+    "forbidden": "Admin privileges are required to change PLC configuration",
+    "readOnlyNotice": "PLC configuration is read-only. Admin privileges are required to make changes.",
+    "empty": "No PLC data items registered yet",
+    "fields": {
+      "enabled": "Enabled",
+      "name": "Name",
+      "dataType": "Internal Key",
+      "address": "Address",
+      "plcDataType": "Data Type",
+      "wordOrder": "Word Order",
+      "scaleFactor": "Scale",
+      "unit": "Unit",
+      "icon": "Icon",
+      "actions": "Actions"
+    },
+    "hints": {
+      "dataType": "Alphanumeric, underscore and hyphen only (1-50 chars). Internal key used in CSV/API",
+      "address": "e.g. D100, D101. Required when enabled",
+      "wordOrder": "Word order for 32-bit values. Mitsubishi=low_first / Siemens=high_first"
+    },
+    "wordOrder": {
+      "lowFirst": "low_first (head=low word, Mitsubishi MELSEC etc.)",
+      "highFirst": "high_first (head=high word, Siemens etc.)"
+    },
+    "rules": {
+      "required": "This field is required",
+      "dataType": "Alphanumeric, underscore and hyphen only (1-50 chars)",
+      "number": "Please enter a number",
+      "duplicate": "Internal key \"{key}\" is already in use"
+    }
   },
   "plcStatus": {
     "title": "PLC Communication Status",

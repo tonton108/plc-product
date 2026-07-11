@@ -7,7 +7,9 @@
     "loading": "読み込み中...",
     "noData": "データがありません",
     "status": "ステータス",
-    "actions": "操作"
+    "actions": "操作",
+    "cancel": "キャンセル",
+    "ok": "OK"
   },
   "nav": {
     "errorsAlarms": "エラー・アラーム"
@@ -51,6 +53,46 @@
     "csvDownloaded": "CSVファイルをダウンロードしました（{count}件）",
     "csvDownloadError": "CSVのダウンロードに失敗しました",
     "noExportData": "エクスポートするデータがありません"
+  },
+  "plcConfigEdit": {
+    "tab": "PLC設定",
+    "title": "PLCデータ項目設定",
+    "addItem": "項目を追加",
+    "editItem": "項目を編集",
+    "deleteItem": "項目を削除",
+    "save": "設定を保存",
+    "saved": "PLC設定を保存しました",
+    "saveError": "PLC設定の保存に失敗しました",
+    "forbidden": "PLC設定の変更には管理者権限が必要です",
+    "readOnlyNotice": "PLC設定の閲覧のみ可能です。変更するには管理者権限が必要です。",
+    "empty": "PLCデータ項目がまだ登録されていません",
+    "fields": {
+      "enabled": "有効",
+      "name": "項目名",
+      "dataType": "内部キー",
+      "address": "アドレス",
+      "plcDataType": "データ型",
+      "wordOrder": "ワード順序",
+      "scaleFactor": "倍率",
+      "unit": "単位",
+      "icon": "アイコン",
+      "actions": "操作"
+    },
+    "hints": {
+      "dataType": "英数字・アンダースコア・ハイフンのみ（1〜50文字）。CSV/APIで使う内部キー",
+      "address": "例: D100, D101。有効時は必須",
+      "wordOrder": "32bit値のワード順序。三菱=low_first / シーメンス=high_first"
+    },
+    "wordOrder": {
+      "lowFirst": "low_first（先頭=下位・三菱MELSEC等）",
+      "highFirst": "high_first（先頭=上位・シーメンス等）"
+    },
+    "rules": {
+      "required": "必須項目です",
+      "dataType": "英数字・アンダースコア・ハイフンのみ（1〜50文字）",
+      "number": "数値を入力してください",
+      "duplicate": "内部キー「{key}」は既に使われています"
+    }
   },
   "plcStatus": {
     "title": "PLC通信状態",
