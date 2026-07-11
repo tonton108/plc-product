@@ -23,8 +23,7 @@ plc-dashboard/pages/
 │   └── [id].vue          # リアルタイムモニタリング
 ├── equipment/
 │   └── [id].vue          # 設備詳細・ログ履歴
-├── errors-alarms.vue      # エラー・アラーム管理
-└── logs.vue               # ロググラフ（従来型）
+└── errors-alarms.vue      # エラー・アラーム管理
 ```
 
 ---
@@ -151,21 +150,6 @@ socket.on('plc_data_update', (data) => {
 - `GET /api/equipment/{id}/plc_status` - PLC状態
 - `GET /api/equipment/{id}/alarms` - アラーム履歴
 - `GET /api/equipment/{id}/error_logs` - エラーログ
-
----
-
-### 6. `pages/logs.vue` - ロググラフ（従来型）
-
-**役割:** シンプルなログ表示ページ
-
-**機能:**
-- 設備選択
-- グラフ/テーブル切り替え
-- テーマカラー選択（blue, green, red）
-- 期間選択: 1h, 6h, 24h
-- 異常値検出（110以下 or 130以上でAlert）
-- 5秒ごとの自動更新
-- CSVエクスポート
 
 ---
 
