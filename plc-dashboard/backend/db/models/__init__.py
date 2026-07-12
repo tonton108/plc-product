@@ -24,7 +24,7 @@ from .equipment import Equipment, PLCDataConfig
 from .logs import Log, DailyLogSummary, MonthlyLogSummary
 
 # エラー・アラームモデル
-from .errors import CommunicationErrorLog, AlarmHistory, PLCStatus
+from .errors import CommunicationErrorLog, AlarmHistory, PLCStatus, IncidentContext
 
 # 認証モデル（Phase 1）
 from .auth import User, AuthToken, AgentApiKey, UserRoles
@@ -57,6 +57,7 @@ __all__ = [
     'CommunicationErrorLog',
     'AlarmHistory',
     'PLCStatus',
+    'IncidentContext',
     # 認証モデル（Phase 1）
     'User',
     'AuthToken',

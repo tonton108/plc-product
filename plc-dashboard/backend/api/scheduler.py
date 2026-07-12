@@ -9,7 +9,7 @@ from flask import current_app
 from db import db
 from db.models import (
     Equipment, Log, DailyLogSummary, MonthlyLogSummary,
-    CommunicationErrorLog, AlarmHistory, PLCStatus
+    CommunicationErrorLog, AlarmHistory, PLCStatus, IncidentContext
 )
 from sqlalchemy import func
 from collections import defaultdict
@@ -31,10 +31,13 @@ logger = logging.getLogger(__name__)
 
 # データ保存期間設定
 DATA_RETENTION_CONFIG = {
-    'raw_data_days': 30,              # 詳細データ保持期間（日）- SPEC §5.2（旧90日）
+    'raw_data_days': 30,              # 詳細データ保持期間（日）- SPEC §5.2
     'daily_data_days': 365,           # 日次集計データ保持期間（日）
-    'error_log_days': 30,             # エラーログ保持期間（日）- Phase 2
-    'alarm_history_days': 30,         # アラーム履歴保持期間（日、解除済みのみ）- Phase 2
+    # インシデント追跡用途（SPEC §5.2）: エラー/アラームと文脈は1年保持（旧30日）。
+    # 稀なイベントのため長期保存してもストレージ負荷は小さい。
+    'error_log_days': 365,            # エラーログ保持期間（日）
+    'alarm_history_days': 365,        # アラーム履歴保持期間（日、解除済みのみ）
+    'incident_context_days': 365,     # インシデント文脈(incident_context)保持期間（日）
     'cleanup_interval_hours': 24      # クリーンアップ実行間隔（時間）
 }
 
@@ -229,6 +232,26 @@ def cleanup_old_alarm_history():
         logger.error(f"未解除アラーム件数取得エラー: {e}")
 
     return deleted
+
+
+def cleanup_old_incident_context():
+    """古いインシデント文脈のクリーンアップ（SPEC §5.2）
+
+    created_at 基準で保持期間(既定1年)を過ぎたものを削除する。生ログ本体は30日で
+    消えるが、この文脈はエラー/アラーム記録と同期した長期保存領域。
+
+    既知の制限: 未解除アラーム(cleared_at=NULL)はcleanup_old_alarm_historyで
+    無期限保持されるが、その文脈は本関数のcreated_at基準で1年後に削除される。
+    1年以上未解決のアラームでは履歴のみ残り文脈が先に消える非対称が生じ得る。
+    実運用上は稀なため現状は許容し、必要なら参照元アラームの未解除判定を
+    加えることで対称化できる。
+    """
+    return batch_cleanup(
+        model=IncidentContext,
+        date_column=IncidentContext.created_at,
+        retention_days=DATA_RETENTION_CONFIG['incident_context_days'],
+        data_name="インシデント文脈"
+    )
 
 
 # ==========================================
@@ -458,6 +481,7 @@ def start_cleanup_scheduler(app):
                     cleanup_old_daily_summaries()
                     cleanup_old_error_logs()
                     cleanup_old_alarm_history()
+                    cleanup_old_incident_context()
 
             except Exception as e:
                 logger.error(f"スケジューラーエラー: {e}", exc_info=True)
