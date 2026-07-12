@@ -94,12 +94,13 @@ jobs:
           name: backend-api-coverage
         if: always()
 
-      - name: "Check coverage threshold (SPEC Phase 5: 60%)"
-        # backend/ のカバレッジをCIで固定化（SPEC.md Phase 5「カバレッジ60%」）。
-        # 実測62%（90テスト）。60%を割ったら失敗させ、テストなしのコード増加を防ぐ。
+      - name: "Check coverage threshold (SPEC Phase 5: 65%)"
+        # backend/ のカバレッジをCIで固定化（SPEC.md Phase 5「カバレッジ」）。
+        # errors_alarms等のテスト追加で実測67%（111テスト）まで向上したため
+        # ratchetを60→65%に引き上げ。65%を割ったら失敗させ回帰を防ぐ。
         run: |
           cd plc-dashboard/backend
-          coverage report --fail-under=60
+          coverage report --fail-under=65
 
   lint-backend:
     name: Backend Linting (Python)
