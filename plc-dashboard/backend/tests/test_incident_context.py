@@ -10,7 +10,11 @@ from datetime import datetime, timedelta, timezone
 
 from db import db
 from db.models import Log, IncidentContext, CommunicationErrorLog
-from api.scheduler import cleanup_old_logs, cleanup_old_incident_context
+from api.scheduler import (
+    cleanup_old_logs,
+    cleanup_old_incident_context,
+    backfill_incident_aftermath,
+)
 
 EQ = "TEST_001"
 
@@ -123,6 +127,109 @@ class TestSurvivesRawCleanup:
         inc = IncidentContext.query.first()
         assert inc is not None and inc.log_count == 1     # 文脈は残る
         assert inc.context_data[0]["current"] == 42       # 生の値も残る
+
+
+def _incident(eq_id, event_minutes_ago, after_minutes):
+    """テスト用にIncidentContextを直接作成する。
+
+    event_time = now - event_minutes_ago、after_window_end = event_time + after_minutes。
+    after_minutes を負にすれば after_window_end を過去（backfill対象）にできる。
+    """
+    now = datetime.now(timezone.utc)
+    event_time = now - timedelta(minutes=event_minutes_ago)
+    return IncidentContext(
+        equipment_id=eq_id,
+        event_type="error",
+        event_ref_id=1,
+        event_time=event_time,
+        window_start=event_time - timedelta(minutes=5),
+        window_end=event_time,
+        context_data=[],
+        log_count=0,
+        after_window_end=event_time + timedelta(minutes=after_minutes),
+    )
+
+
+class TestAftermathBackfill:
+    def test_capture_sets_pending_after_window(self, client, session, sample_equipment):
+        """捕捉直後は after_window_end が設定され、after_captured_at は未設定（保留）"""
+        resp = client.post(f"/api/equipment/{EQ}/error_logs", json={
+            "error_type": "TIMEOUT", "plc_ip": "1", "protocol": "MC",
+        })
+        assert resp.status_code == 200
+        inc = IncidentContext.query.filter_by(equipment_id=sample_equipment.id).first()
+        assert inc.after_window_end is not None
+        assert inc.after_captured_at is None       # 発生後はまだ未捕捉
+        assert inc.after_log_count == 0
+
+    def test_backfill_captures_post_event_logs(self, session, sample_equipment):
+        """after_window_endを過ぎたインシデントの発生後ログのみが後追い保存される"""
+        # 発生10分前、発生後ウィンドウ+5分（=5分前、過去なのでbackfill対象）
+        inc = _incident(sample_equipment.id, event_minutes_ago=10, after_minutes=5)
+        session.add(inc)
+        # event_time は now-10分。発生後ウィンドウは (now-10) 〜 (now-5)
+        session.add_all([
+            _log(sample_equipment.id, 8, current=1),    # 発生後ウィンドウ内(now-8)
+            _log(sample_equipment.id, 12, current=2),   # 発生前(now-12) → 除外
+            _log(sample_equipment.id, 2, current=3),    # ウィンドウ後(now-2) → 除外
+        ])
+        session.commit()
+
+        filled = backfill_incident_aftermath()
+        assert filled == 1
+        session.refresh(inc)
+        assert inc.after_captured_at is not None
+        assert inc.after_log_count == 1
+        assert inc.after_context_data[0]["current"] == 1
+
+        # 冪等: 再実行しても再捕捉しない
+        assert backfill_incident_aftermath() == 0
+        session.refresh(inc)
+        assert inc.after_log_count == 1
+
+    def test_backfill_skips_future_window(self, session, sample_equipment):
+        """after_window_endが未来のインシデントはbackfillされない（保留のまま）"""
+        inc = _incident(sample_equipment.id, event_minutes_ago=1, after_minutes=5)  # 未来
+        session.add(inc)
+        session.commit()
+
+        assert backfill_incident_aftermath() == 0
+        session.refresh(inc)
+        assert inc.after_captured_at is None
+
+    def test_legacy_row_without_after_window_is_ignored(
+        self, client, session, sample_equipment
+    ):
+        """移行前の既存行(after_window_end=None)はbackfill対象外・APIで判別可能"""
+        now = datetime.now(timezone.utc)
+        legacy = IncidentContext(
+            equipment_id=sample_equipment.id, event_type="error", event_ref_id=1,
+            event_time=now, window_start=now, window_end=now,
+            context_data=[], log_count=0,  # after_window_end 未指定=None
+        )
+        session.add(legacy)
+        session.commit()
+
+        assert backfill_incident_aftermath() == 0   # 対象外
+        body = client.get(f"/api/equipment/{EQ}/incidents").get_json()
+        assert body[0]["after_window_end"] is None
+        assert body[0]["after_captured"] is False
+
+    def test_retrieval_includes_aftermath(self, client, session, sample_equipment):
+        """取得APIに発生後の捕捉状況・データが含まれる"""
+        inc = _incident(sample_equipment.id, event_minutes_ago=10, after_minutes=5)
+        session.add(inc)
+        session.add(_log(sample_equipment.id, 8, current=42))
+        session.commit()
+        backfill_incident_aftermath()
+
+        lst = client.get(f"/api/equipment/{EQ}/incidents").get_json()
+        assert lst[0]["after_captured"] is True
+        assert lst[0]["after_log_count"] == 1
+
+        detail = client.get(
+            f"/api/equipment/{EQ}/incidents/{inc.id}/context").get_json()
+        assert detail["after_context_data"][0]["current"] == 42
 
 
 class TestCleanup:

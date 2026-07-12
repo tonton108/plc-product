@@ -108,8 +108,13 @@ class IncidentContext(db.Model):
     パーティションDROPされるが、この文脈は長期（既定1年・設定で延長可）保持され、
     過去のインシデントを後から再現・調査できる（用途: インシデント追跡）。
 
-    v1は「発生時点までのリードアップ」を捕捉する（発生後のデータは記録時点では
-    まだ存在しないため）。発生後ウィンドウの追加捕捉は将来拡張。
+    捕捉は2段階で行う:
+    - リードアップ（発生前）: 記録時点で存在する `window_start`〜`event_time` の生ログを
+      即時に `context_data` へ保存する。
+    - 発生後（アフターマス）: 記録時点ではまだ存在しないため、`after_window_end` を
+      過ぎた後にスケジューラの backfill が `event_time`〜`after_window_end` の生ログを
+      `after_context_data` へ後追い保存する。`after_captured_at` がNULLの間は未捕捉。
+      生ログは30日保持されるため、日次backfillでも取りこぼさない。
     """
     __tablename__ = 'incident_context'
     id = db.Column(db.Integer, primary_key=True)
@@ -122,6 +127,11 @@ class IncidentContext(db.Model):
     log_count = db.Column(db.Integer, nullable=False, default=0)
     # 生ログのスナップショット配列（生バルク消去後も残す自己完結データ）
     context_data = db.Column(db.JSON, nullable=True)
+    # 発生後ウィンドウ（アフターマス）。after_window_end を過ぎたらbackfill対象。
+    after_window_end = db.Column(db.DateTime, nullable=True)
+    after_captured_at = db.Column(db.DateTime, nullable=True)  # NULL=未捕捉（backfill待ち）
+    after_log_count = db.Column(db.Integer, nullable=False, default=0)
+    after_context_data = db.Column(db.JSON, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False,
                            default=lambda: datetime.now(timezone.utc), index=True)
 
@@ -135,6 +145,7 @@ class IncidentContext(db.Model):
         window_end: datetime,
         context_data: Optional[list] = None,
         log_count: int = 0,
+        after_window_end: Optional[datetime] = None,
     ):
         self.equipment_id = equipment_id
         self.event_type = event_type
@@ -144,3 +155,4 @@ class IncidentContext(db.Model):
         self.window_end = window_end
         self.context_data = context_data
         self.log_count = log_count
+        self.after_window_end = after_window_end
