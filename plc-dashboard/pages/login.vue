@@ -25,7 +25,7 @@
                     class="mb-4"
                     rounded="lg"
                     color="primary"
-                  ></v-text-field>
+                  />
 
                   <v-text-field
                     v-model="password"
@@ -37,7 +37,7 @@
                     class="mb-4"
                     rounded="lg"
                     color="primary"
-                  ></v-text-field>
+                  />
 
                   <v-alert
                     v-if="errorMessage"
@@ -63,7 +63,7 @@
                   </v-btn>
                 </v-form>
 
-                <v-divider class="my-6"></v-divider>
+                <v-divider class="my-6"/>
 
                 <div class="text-center text-caption">
                   <v-chip size="small" variant="text" class="mb-2">
@@ -124,7 +124,7 @@ const login = async () => {
     await auth.login(username.value, password.value)
     // ダッシュボードにリダイレクト
     router.push('/')
-  } catch (error) {
+  } catch {
     errorMessage.value = t('login.error')
   } finally {
     loading.value = false

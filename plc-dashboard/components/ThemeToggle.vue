@@ -4,11 +4,11 @@
       <v-btn
         v-bind="props"
         :icon="isDark ? 'mdi-white-balance-sunny' : 'mdi-weather-night'"
-        @click="toggleTheme"
         :disabled="isTransitioning"
         variant="text"
         size="large"
-      ></v-btn>
+        @click="toggleTheme"
+      />
     </template>
     <span>{{ isDark ? 'ライトモードに切り替え' : 'ダークモードに切り替え' }}</span>
   </v-tooltip>

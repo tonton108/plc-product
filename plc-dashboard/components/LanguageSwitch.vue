@@ -1,6 +1,6 @@
 <template>
   <v-menu>
-    <template v-slot:activator="{ props }">
+    <template #activator="{ props }">
       <v-btn
         v-bind="props"
         color="white"
@@ -16,8 +16,8 @@
       <v-list-item
         v-for="locale in availableLocales"
         :key="locale.code"
-        @click="switchLocale(locale.code)"
         :active="locale.code === currentLocale"
+        @click="switchLocale(locale.code)"
       >
         <v-list-item-title>{{ locale.name }}</v-list-item-title>
       </v-list-item>
@@ -43,7 +43,7 @@ const currentLocaleName = computed(() => {
 
 const switchLocale = async (code) => {
   await setLocale(code)
-  if (process.client) {
+  if (import.meta.client) {
     localStorage.setItem('preferred_locale', code)
   }
 }

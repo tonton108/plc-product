@@ -3,7 +3,7 @@
     <v-card-title class="bg-error text-white">
       <v-icon class="mr-2">mdi-alarm-light</v-icon>
       {{ $t('alarms.title') }}
-      <v-spacer></v-spacer>
+      <v-spacer/>
       <v-chip color="white" variant="outlined" size="small">
         {{ $t('alarms.count', { count: alarms.length }) }}
       </v-chip>
@@ -17,7 +17,7 @@
         :items-per-page="itemsPerPage"
       >
         <!-- アラームレベル -->
-        <template v-slot:item.alarm_level="{ item }">
+        <template #item.alarm_level="{ item }">
           <v-chip
             :color="getAlarmLevelColor(item.alarm_level)"
             size="small"
@@ -28,12 +28,12 @@
         </template>
 
         <!-- 発生日時 -->
-        <template v-slot:item.occurred_at="{ item }">
+        <template #item.occurred_at="{ item }">
           {{ formatDateTime(item.occurred_at) }}
         </template>
 
         <!-- 解除状態 -->
-        <template v-slot:item.cleared_at="{ item }">
+        <template #item.cleared_at="{ item }">
           <v-chip
             v-if="item.cleared_at"
             color="success"
@@ -53,7 +53,7 @@
         </template>
 
         <!-- 確認状態 -->
-        <template v-slot:item.acknowledged="{ item }">
+        <template #item.acknowledged="{ item }">
           <v-icon v-if="item.acknowledged" color="success">
             mdi-check-circle
           </v-icon>
@@ -63,13 +63,13 @@
         </template>
 
         <!-- アクションボタン -->
-        <template v-slot:item.actions="{ item }">
+        <template #item.actions="{ item }">
           <v-btn
             v-if="!item.acknowledged"
             color="primary"
             size="small"
-            @click="$emit('acknowledge', item.id)"
             class="mr-2"
+            @click="$emit('acknowledge', item.id)"
           >
             {{ $t('alarms.acknowledge') }}
           </v-btn>
@@ -102,7 +102,7 @@
  * />
  */
 
-const props = defineProps({
+defineProps({
   /**
    * アラームリスト
    */

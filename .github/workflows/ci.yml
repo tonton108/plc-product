@@ -151,9 +151,12 @@ jobs:
           npm ci
 
       - name: Run ESLint
+        # `|| true` を外して本物のゲート化（SPEC Phase 5「ESLintゲート化」）。
+        # eslint設定は @nuxt/eslint が postinstall(nuxt prepare)で .nuxt/ に生成する。
+        # error で失敗、warning は許容（既存コードの段階導入のため）。
         run: |
           cd plc-dashboard
-          npm run lint || true
+          npm run lint
 
       - name: Build frontend
         run: |

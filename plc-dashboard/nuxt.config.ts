@@ -1,5 +1,4 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
-import { createVuetify } from 'vuetify'
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-05-15',
@@ -27,7 +26,8 @@ export default defineNuxtConfig({
   },
 
   modules: [
-    '@nuxtjs/i18n'
+    '@nuxtjs/i18n',
+    '@nuxt/eslint'
   ],
 
   i18n: {

@@ -1,4 +1,4 @@
-import { ref, nextTick } from 'vue'
+import { ref } from 'vue'
 
 /**
  * チャート管理用コンポーザブル

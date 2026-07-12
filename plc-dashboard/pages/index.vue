@@ -58,7 +58,7 @@
 
     <v-row v-if="loading">
       <v-col class="text-center">
-        <v-progress-circular indeterminate color="primary" size="50"></v-progress-circular>
+        <v-progress-circular indeterminate color="primary" size="50"/>
         <p class="mt-3">設備データを読み込み中...</p>
       </v-col>
     </v-row>
@@ -94,7 +94,7 @@
               {{ equipment.status }}
             </v-chip>
           </v-card-title>
-          <v-divider opacity="0.2"></v-divider>
+          <v-divider opacity="0.2"/>
           <v-card-subtitle class="pt-3 pb-2 d-flex align-center">
             <v-icon size="small" class="mr-2" color="primary">mdi-factory</v-icon>
             <span class="font-weight-medium">{{ equipment.manufacturer }} - {{ equipment.series }}</span>
@@ -135,7 +135,7 @@
               </v-list-item>
             </v-list>
           </v-card-text>
-          <v-divider opacity="0.2"></v-divider>
+          <v-divider opacity="0.2"/>
           <v-card-actions class="pa-4">
             <v-tooltip location="bottom" content-class="tooltip-custom">
               <template #activator="{ props }">
@@ -314,7 +314,7 @@ const logout = async () => {
 
 // localStorageから表示モードを復元
 onMounted(() => {
-  if (process.client) {
+  if (import.meta.client) {
     const savedViewMode = localStorage.getItem('equipmentListViewMode')
     if (savedViewMode) {
       viewMode.value = savedViewMode
@@ -325,7 +325,7 @@ onMounted(() => {
 
 // 表示モードをlocalStorageに保存
 watch(viewMode, (newMode) => {
-  if (process.client) {
+  if (import.meta.client) {
     localStorage.setItem('equipmentListViewMode', newMode)
   }
 })

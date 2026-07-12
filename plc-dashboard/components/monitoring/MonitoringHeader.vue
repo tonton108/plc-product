@@ -30,19 +30,19 @@
             <LanguageSwitch />
             <ThemeToggle />
             <v-btn
-              @click="router.push(`/equipment/${equipmentInfo?.equipment_id}`)"
               variant="elevated"
               color="secondary"
               size="x-large"
               class="ml-3 modern-btn"
+              @click="router.push(`/equipment/${equipmentInfo?.equipment_id}`)"
             >
-              <template v-slot:prepend>
+              <template #prepend>
                 <v-icon>mdi-chart-line</v-icon>
               </template>
               {{ $t('monitoring.historyData') }}
             </v-btn>
-            <v-btn @click="$emit('go-back')" variant="elevated" color="white" size="x-large" class="ml-3 modern-btn">
-              <template v-slot:prepend>
+            <v-btn variant="elevated" color="white" size="x-large" class="ml-3 modern-btn" @click="$emit('go-back')">
+              <template #prepend>
                 <v-icon>mdi-arrow-left</v-icon>
               </template>
               {{ $t('common.back') }}

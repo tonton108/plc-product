@@ -8,12 +8,12 @@
         size="large"
         @click="goBack"
       >
-        <template v-slot:prepend>
+        <template #prepend>
           <v-icon>mdi-arrow-left</v-icon>
         </template>
         {{ $t('common.back') }}
       </v-btn>
-      <v-spacer></v-spacer>
+      <v-spacer/>
       <v-btn
         color="success"
         variant="elevated"
@@ -21,7 +21,7 @@
         class="mr-3"
         @click="$router.push(`/monitoring/${$route.params.id}`)"
       >
-        <template v-slot:prepend>
+        <template #prepend>
           <v-icon>mdi-monitor-dashboard</v-icon>
         </template>
         {{ $t('monitoring.realtimeMonitoring') }}
@@ -35,7 +35,7 @@
         <v-icon size="large" class="mr-3" color="primary">mdi-chart-box-outline</v-icon>
         {{ $t('equipmentDetail.logGraph', { name: equipment?.name || '', manufacturer: equipment?.manufacturer || '' }) }}
       </v-card-title>
-      <v-divider class="mb-6"></v-divider>
+      <v-divider class="mb-6"/>
 
       <!-- 期間選択（7d/30dは日次集計ビュー） -->
       <v-btn-toggle
@@ -150,7 +150,7 @@
 
             <div class="d-flex align-center mb-4">
               <div class="text-h6">{{ $t('plcConfigEdit.title') }}</div>
-              <v-spacer></v-spacer>
+              <v-spacer/>
               <v-btn
                 v-if="isAdmin"
                 color="primary"
@@ -204,7 +204,7 @@
                         variant="text"
                         :aria-label="$t('plcConfigEdit.editItem')"
                         @click="openEditConfig(i)"
-                      ></v-btn>
+                      />
                       <v-btn
                         icon="mdi-delete"
                         size="small"
@@ -212,7 +212,7 @@
                         color="error"
                         :aria-label="$t('plcConfigEdit.deleteItem')"
                         @click="removeConfig(i)"
-                      ></v-btn>
+                      />
                     </td>
                   </tr>
                 </tbody>
@@ -243,7 +243,7 @@
           size="large"
           @click="downloadCSV"
         >
-          <template v-slot:prepend>
+          <template #prepend>
             <v-icon>mdi-download</v-icon>
           </template>
           {{ $t('equipmentDetail.csvDownload') }}
@@ -265,7 +265,7 @@
               maxlength="100"
               variant="outlined"
               density="comfortable"
-            ></v-text-field>
+            />
             <v-text-field
               v-model="configDraft.data_type"
               :label="$t('plcConfigEdit.fields.dataType')"
@@ -276,7 +276,7 @@
               variant="outlined"
               density="comfortable"
               class="mb-2"
-            ></v-text-field>
+            />
             <v-text-field
               v-model="configDraft.address"
               :label="$t('plcConfigEdit.fields.address')"
@@ -287,14 +287,14 @@
               variant="outlined"
               density="comfortable"
               class="mb-2"
-            ></v-text-field>
+            />
             <v-select
               v-model="configDraft.plc_data_type"
               :items="plcDataTypeOptions"
               :label="$t('plcConfigEdit.fields.plcDataType')"
               variant="outlined"
               density="comfortable"
-            ></v-select>
+            />
             <v-select
               v-if="is32bit(configDraft.plc_data_type)"
               v-model="configDraft.word_order"
@@ -305,7 +305,7 @@
               variant="outlined"
               density="comfortable"
               class="mb-2"
-            ></v-select>
+            />
             <v-text-field
               v-model.number="configDraft.scale_factor"
               type="number"
@@ -313,7 +313,7 @@
               :rules="[rules.number]"
               variant="outlined"
               density="comfortable"
-            ></v-text-field>
+            />
             <v-row>
               <v-col cols="6">
                 <v-text-field
@@ -322,7 +322,7 @@
                   maxlength="20"
                   variant="outlined"
                   density="comfortable"
-                ></v-text-field>
+                />
               </v-col>
               <v-col cols="6">
                 <v-text-field
@@ -331,7 +331,7 @@
                   maxlength="10"
                   variant="outlined"
                   density="comfortable"
-                ></v-text-field>
+                />
               </v-col>
             </v-row>
             <v-switch
@@ -340,11 +340,11 @@
               color="success"
               density="comfortable"
               hide-details
-            ></v-switch>
+            />
           </v-form>
         </v-card-text>
         <v-card-actions>
-          <v-spacer></v-spacer>
+          <v-spacer/>
           <v-btn variant="text" @click="configDialog = false">{{ $t('common.cancel') }}</v-btn>
           <v-btn color="primary" variant="elevated" @click="applyConfigDraft">{{ $t('common.ok') }}</v-btn>
         </v-card-actions>

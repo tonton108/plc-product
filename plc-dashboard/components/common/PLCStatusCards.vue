@@ -54,7 +54,7 @@
  * <PLCStatusCards :plc-status="plcStatus" />
  */
 
-const props = defineProps({
+defineProps({
   /**
    * PLC状態オブジェクト
    * @type {{ is_online: boolean, consecutive_errors: number, last_communication_at: string|null, last_error_type: string|null }}

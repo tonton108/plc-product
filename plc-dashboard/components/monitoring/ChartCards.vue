@@ -1,28 +1,28 @@
 <template>
-  <v-row class="mb-6" v-if="chartConfigs && chartConfigs.length > 0">
+  <v-row v-if="chartConfigs && chartConfigs.length > 0" class="mb-6">
     <v-col
+      v-for="chart in chartConfigs"
+      :key="chart.id"
+      v-memo="[chart.id, chart.title]"
       cols="12"
       md="6"
-      v-for="(chart, index) in chartConfigs"
-      :key="chart.id"
       class="card-grid-item"
-      v-memo="[chart.id, chart.title]"
     >
       <v-card class="glass-card pa-6">
         <v-card-title class="text-h5 mb-4 d-flex align-center">
           <v-icon size="large" class="mr-3" color="primary">{{ chart.icon }}</v-icon>
           {{ chart.title }}
           <v-chip
+            v-if="debugMode"
             size="x-small"
             color="info"
             class="ml-2"
             variant="flat"
-            v-if="debugMode"
           >
             {{ chart.data?.datasets?.[0]?.data?.length || 0 }}点
           </v-chip>
         </v-card-title>
-        <v-divider class="mb-4"></v-divider>
+        <v-divider class="mb-4"/>
         <div class="chart-container" style="height: 350px;">
           <!-- デバッグ用情報 -->
           <div v-if="debugMode" class="text-caption mb-2">
@@ -41,7 +41,7 @@
             <div class="text-center">
               <v-icon size="80" color="grey-lighten-1">mdi-chart-line</v-icon>
               <div class="text-h6 text-grey mt-4">データ待機中...</div>
-              <v-progress-circular indeterminate color="primary" size="40" class="mt-4"></v-progress-circular>
+              <v-progress-circular indeterminate color="primary" size="40" class="mt-4"/>
               <div class="text-caption text-grey mt-2">
                 data: {{ !!chart.data }}, datasets: {{ !!chart.data?.datasets }}, options: {{ !!chart.options }}
               </div>

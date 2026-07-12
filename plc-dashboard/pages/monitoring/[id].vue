@@ -32,7 +32,7 @@
     />
 
     <!-- デバッグパネル -->
-    <v-row class="mb-6" v-if="debugMode">
+    <v-row v-if="debugMode" class="mb-6">
       <v-col cols="12">
         <MonitoringDebugPanel
           :connection-status="realtimeMonitoring.connectionStatus.value"
@@ -53,8 +53,8 @@
       location="bottom right"
       size="large"
       :color="debugMode ? 'success' : 'info'"
-      @click="debugMode = !debugMode"
       elevation="8"
+      @click="debugMode = !debugMode"
     >
       <v-icon size="large">{{ debugMode ? 'mdi-bug-check' : 'mdi-bug' }}</v-icon>
     </v-fab>
@@ -72,7 +72,7 @@ import {
   LinearScale,
   PointElement,
 } from 'chart.js'
-import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from '~/composables/useToast'
 import { useRealtimeMonitoring } from '~/composables/useRealtimeMonitoring'
@@ -292,7 +292,7 @@ const initializeDynamicStructures = async () => {
     realtimeMonitoring.addDebugLog('info', '動的データ構造を初期化中...')
 
     // アイコンマッピング（データ型や名前に基づいて適切なアイコンを選択）
-    const getIcon = (name, dataType) => {
+    const getIcon = (name, _dataType) => {
       const nameLower = name.toLowerCase()
       if (nameLower.includes('温度') || nameLower.includes('temp')) return 'mdi-thermometer'
       if (nameLower.includes('圧力') || nameLower.includes('press')) return 'mdi-gauge'

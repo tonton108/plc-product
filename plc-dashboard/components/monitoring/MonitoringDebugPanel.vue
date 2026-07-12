@@ -3,21 +3,21 @@
     <v-card-title class="text-h5 mb-4 d-flex align-center">
       <v-icon size="large" class="mr-3" color="info">mdi-bug</v-icon>
       デバッグ情報
-      <v-spacer></v-spacer>
-      <v-btn @click="$emit('test-api')" size="small" color="primary" variant="elevated" class="mr-2">
+      <v-spacer/>
+      <v-btn size="small" color="primary" variant="elevated" class="mr-2" @click="$emit('test-api')">
         <template #prepend>
           <v-icon>mdi-api</v-icon>
         </template>
         API テスト
       </v-btn>
-      <v-btn @click="$emit('clear-log')" size="small" color="warning" variant="elevated">
+      <v-btn size="small" color="warning" variant="elevated" @click="$emit('clear-log')">
         <template #prepend>
           <v-icon>mdi-delete</v-icon>
         </template>
         ログクリア
       </v-btn>
     </v-card-title>
-    <v-divider class="mb-4"></v-divider>
+    <v-divider class="mb-4"/>
 
     <v-row>
       <v-col cols="12" md="6">
@@ -64,7 +64,7 @@
 </template>
 
 <script setup>
-const props = defineProps({
+defineProps({
   connectionStatus: {
     type: Boolean,
     required: true

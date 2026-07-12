@@ -8,7 +8,7 @@
           <v-chip size="small" color="info" class="ml-3" variant="flat">
             {{ dataHistory.length }}件
           </v-chip>
-          <v-spacer></v-spacer>
+          <v-spacer/>
           <v-btn
             color="primary"
             variant="elevated"
@@ -21,7 +21,7 @@
             CSV出力
           </v-btn>
         </v-card-title>
-        <v-divider class="mb-4"></v-divider>
+        <v-divider class="mb-4"/>
         <v-data-table
           :headers="tableHeaders"
           :items="dataHistory"

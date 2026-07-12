@@ -1,7 +1,7 @@
 import { io } from 'socket.io-client'
 import { TOKEN_KEY } from '~/composables/useAuth'
 
-export default defineNuxtPlugin((nuxtApp) => {
+export default defineNuxtPlugin(() => {
   // クライアントサイドでのみ実行
   if (import.meta.client) {
     // runtimeConfigからAPIベースURLを取得

@@ -3,7 +3,7 @@
     <v-card-title class="bg-warning text-white">
       <v-icon class="mr-2">mdi-alert</v-icon>
       {{ $t('errorLogs.title') }}
-      <v-spacer></v-spacer>
+      <v-spacer/>
       <v-chip color="white" variant="outlined" size="small">
         {{ $t('errorLogs.count', { count: errorLogs.length }) }}
       </v-chip>
@@ -17,7 +17,7 @@
         :items-per-page="itemsPerPage"
       >
         <!-- エラー種別 -->
-        <template v-slot:item.error_type="{ item }">
+        <template #item.error_type="{ item }">
           <v-chip
             :color="getErrorTypeColor(item.error_type)"
             size="small"
@@ -28,12 +28,12 @@
         </template>
 
         <!-- 発生日時 -->
-        <template v-slot:item.occurred_at="{ item }">
+        <template #item.occurred_at="{ item }">
           {{ formatDateTime(item.occurred_at) }}
         </template>
 
         <!-- 解決状態 -->
-        <template v-slot:item.resolved_at="{ item }">
+        <template #item.resolved_at="{ item }">
           <v-chip
             v-if="item.resolved_at"
             color="success"
@@ -53,12 +53,12 @@
         </template>
 
         <!-- リトライ回数 -->
-        <template v-slot:item.retry_count="{ item }">
+        <template #item.retry_count="{ item }">
           {{ item.retry_count || 0 }}
         </template>
 
         <!-- アクションボタン -->
-        <template v-slot:item.actions="{ item }">
+        <template #item.actions="{ item }">
           <v-btn
             v-if="!item.resolved_at"
             color="success"
@@ -87,7 +87,7 @@
  * />
  */
 
-const props = defineProps({
+defineProps({
   /**
    * エラーログリスト
    */

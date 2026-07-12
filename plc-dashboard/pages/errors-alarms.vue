@@ -53,7 +53,7 @@
           variant="outlined"
           prepend-icon="mdi-factory"
           @update:model-value="onEquipmentChange"
-        ></v-select>
+        />
       </v-col>
     </v-row>
 

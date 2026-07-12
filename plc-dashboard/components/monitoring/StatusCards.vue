@@ -2,13 +2,13 @@
   <div>
     <!-- ステータスカード -->
     <v-row class="mb-6">
-      <v-col cols="12" sm="6" md="2" v-for="(item, key) in monitoringData" :key="key" class="card-grid-item">
+      <v-col v-for="(item, key) in monitoringData" :key="key" cols="12" sm="6" md="2" class="card-grid-item">
         <v-card :color="getCardColor(item.status)" class="status-card text-center pa-4" dark>
           <v-icon size="48" class="mb-3">{{ item.icon }}</v-icon>
           <div
+            :key="`value-${key}-${item.value}`"
             class="text-h3 font-weight-bold mb-2"
             :class="getValueAnimationClass(key)"
-            :key="`value-${key}-${item.value}`"
           >
             {{ item.value || 'N/A' }}
           </div>
@@ -44,7 +44,7 @@
         >
           <v-alert-title>{{ alert.title }}</v-alert-title>
           {{ alert.message }}
-          <template v-slot:append>
+          <template #append>
             <div class="text-caption">{{ alert.timestamp }}</div>
           </template>
         </v-alert>
