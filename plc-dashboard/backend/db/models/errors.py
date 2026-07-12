@@ -98,3 +98,49 @@ class PLCStatus(db.Model):
         self.is_online = False
         self.consecutive_errors = 0
         self.uptime_seconds = 0
+
+
+class IncidentContext(db.Model):
+    """インシデント文脈保全テーブル（SPEC §5.2）
+
+    エラー/アラーム発生時に、該当設備の発生時刻の直前ウィンドウ（既定±5分の
+    リードアップ）の生ログを切り出してJSONで保存する。生ログ本体は30日で
+    パーティションDROPされるが、この文脈は長期（既定1年・設定で延長可）保持され、
+    過去のインシデントを後から再現・調査できる（用途: インシデント追跡）。
+
+    v1は「発生時点までのリードアップ」を捕捉する（発生後のデータは記録時点では
+    まだ存在しないため）。発生後ウィンドウの追加捕捉は将来拡張。
+    """
+    __tablename__ = 'incident_context'
+    id = db.Column(db.Integer, primary_key=True)
+    equipment_id = db.Column(db.Integer, db.ForeignKey('equipments.id'), nullable=False, index=True)
+    event_type = db.Column(db.String(20), nullable=False)   # 'error' | 'alarm'
+    event_ref_id = db.Column(db.Integer, nullable=False)     # CommunicationErrorLog.id または AlarmHistory.id
+    event_time = db.Column(db.DateTime, nullable=False)
+    window_start = db.Column(db.DateTime, nullable=False)
+    window_end = db.Column(db.DateTime, nullable=False)
+    log_count = db.Column(db.Integer, nullable=False, default=0)
+    # 生ログのスナップショット配列（生バルク消去後も残す自己完結データ）
+    context_data = db.Column(db.JSON, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False,
+                           default=lambda: datetime.now(timezone.utc), index=True)
+
+    def __init__(
+        self,
+        equipment_id: int,
+        event_type: str,
+        event_ref_id: int,
+        event_time: datetime,
+        window_start: datetime,
+        window_end: datetime,
+        context_data: Optional[list] = None,
+        log_count: int = 0,
+    ):
+        self.equipment_id = equipment_id
+        self.event_type = event_type
+        self.event_ref_id = event_ref_id
+        self.event_time = event_time
+        self.window_start = window_start
+        self.window_end = window_end
+        self.context_data = context_data
+        self.log_count = log_count
