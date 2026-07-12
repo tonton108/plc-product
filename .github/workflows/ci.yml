@@ -141,7 +141,9 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # @nuxt/eslint(eslint 10 / eslint-flat-config-utils)がObject.groupBy等
+          # Node 21+ の機能を使うため、フロントジョブは Node 22 (現行LTS) を使う
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: plc-dashboard/package-lock.json
 
