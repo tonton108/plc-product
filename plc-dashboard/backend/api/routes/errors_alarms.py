@@ -28,6 +28,8 @@ errors_alarms_bp = Blueprint('errors_alarms', __name__, url_prefix='/api')
 
 # インシデント文脈として保全する発生前ウィンドウ（分）。SPEC §5.2。設定で延長可
 INCIDENT_WINDOW_MINUTES = int(os.getenv('INCIDENT_WINDOW_MINUTES', '5'))
+# 発生後（アフターマス）ウィンドウ（分）。発生時点では未来のため後追いbackfillで捕捉
+INCIDENT_AFTER_MINUTES = int(os.getenv('INCIDENT_AFTER_MINUTES', '5'))
 
 
 def capture_incident_context(equipment, event_type, event_ref_id, event_time):
@@ -47,6 +49,8 @@ def capture_incident_context(equipment, event_type, event_ref_id, event_time):
         ).order_by(Log.timestamp.asc()).all()
 
         snapshots = LogSerializer.to_list(logs)
+        # 発生後ウィンドウ終端。backfillがこの時刻を過ぎたら発生後の生ログを後追い保存
+        after_window_end = event_time + timedelta(minutes=INCIDENT_AFTER_MINUTES)
         ctx = IncidentContext(
             equipment_id=equipment.id,
             event_type=event_type,
@@ -56,6 +60,7 @@ def capture_incident_context(equipment, event_type, event_ref_id, event_time):
             window_end=window_end,
             context_data=snapshots,
             log_count=len(snapshots),
+            after_window_end=after_window_end,
         )
         # SAVEPOINTで囲み、文脈INSERTが失敗しても外側のエラー/アラーム記録は守る。
         # add()だけでは実INSERTが外側commit時まで遅延し、失敗が呼び出し側の
@@ -351,9 +356,14 @@ def _incident_to_dict(inc, include_context=False):
         "window_start": inc.window_start.isoformat() if inc.window_start else None,
         "window_end": inc.window_end.isoformat() if inc.window_end else None,
         "log_count": inc.log_count,
+        # 発生後（アフターマス）ウィンドウの捕捉状況
+        "after_window_end": inc.after_window_end.isoformat() if inc.after_window_end else None,
+        "after_captured": inc.after_captured_at is not None,
+        "after_log_count": inc.after_log_count or 0,
     }
     if include_context:
         d["context_data"] = inc.context_data
+        d["after_context_data"] = inc.after_context_data
     return d
 
 

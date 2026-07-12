@@ -15,6 +15,7 @@ from db import db
 from db.models import Equipment, Log, DailyLogSummary, MonthlyLogSummary
 from api.scheduler import (
     cleanup_old_logs,
+    backfill_incident_aftermath,
     create_daily_summary,
     create_monthly_summary,
     DATA_RETENTION_CONFIG
@@ -54,6 +55,10 @@ def manual_cleanup():
 
         def _run_cleanup():
             with app.app_context():
+                # 生ログ削除前にインシデントの発生後ウィンドウを後追い保存する。
+                # スケジューラの定期実行を待たずに手動削除する場合でも、未捕捉の
+                # 発生後ログを取りこぼさないため（SPEC §5.2）。
+                backfill_incident_aftermath()
                 cleanup_old_logs(retention_days=days)
 
         threading.Thread(target=_run_cleanup, daemon=True).start()

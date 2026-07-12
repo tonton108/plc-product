@@ -19,6 +19,7 @@ import threading
 import time
 
 from api.aggregation import summarize_dynamic_from_logs, summarize_dynamic_from_daily
+from api.serializers import LogSerializer
 from api.partitions import (
     ensure_log_partitions,
     logs_is_partitioned,
@@ -254,6 +255,61 @@ def cleanup_old_incident_context():
     )
 
 
+def backfill_incident_aftermath(batch_size=500):
+    """インシデントの発生後（アフターマス）ウィンドウを後追い保存する（SPEC §5.2）
+
+    発生時点では発生後の生ログはまだ存在しないため、after_window_end を過ぎた
+    未捕捉インシデント（after_captured_at IS NULL）について、event_time〜
+    after_window_end の生ログを after_context_data へ保存する。生ログは30日
+    保持されるため、日次実行でも取りこぼさない。
+
+    Returns:
+        int: backfillしたインシデント件数
+    """
+    try:
+        now = datetime.now(timezone.utc)
+        pending = IncidentContext.query.filter(
+            IncidentContext.after_captured_at.is_(None),
+            IncidentContext.after_window_end.isnot(None),
+            IncidentContext.after_window_end <= now,
+        ).limit(batch_size).all()
+
+        if not pending:
+            return 0
+
+        filled = 0
+        for inc in pending:
+            # 1件の失敗（例: 不正データのJSON化失敗）が他インシデントの捕捉を
+            # 巻き込まないよう、SAVEPOINTで囲んで個別に隔離する
+            try:
+                # event_time より後〜after_window_end 以内（発生前ウィンドウとは重複させない）
+                logs = Log.query.filter(
+                    Log.equipment_id == inc.equipment_id,
+                    Log.timestamp > inc.event_time,
+                    Log.timestamp <= inc.after_window_end,
+                ).order_by(Log.timestamp.asc()).all()
+
+                snapshots = LogSerializer.to_list(logs)
+                with db.session.begin_nested():
+                    inc.after_context_data = snapshots
+                    inc.after_log_count = len(snapshots)
+                    inc.after_captured_at = now
+                filled += 1
+            except Exception as e:
+                logger.error(
+                    f"インシデント発生後backfill個別エラー id={inc.id}: {e}", exc_info=True
+                )
+
+        db.session.commit()
+        logger.info(f"インシデント発生後文脈をbackfill: {filled}件")
+        return filled
+
+    except Exception as e:
+        logger.error(f"インシデント発生後backfillエラー: {e}", exc_info=True)
+        db.session.rollback()
+        return 0
+
+
 # ==========================================
 # 集計作成関数
 # ==========================================
@@ -475,6 +531,9 @@ def start_cleanup_scheduler(app):
                     if datetime.now(timezone.utc).day == 1:
                         last_month = datetime.now(timezone.utc) - timedelta(days=1)
                         create_monthly_summary(last_month.year, last_month.month)
+
+                    # インシデントの発生後ウィンドウを後追い保存（生ログ削除前に実行）
+                    backfill_incident_aftermath()
 
                     # 古いデータのクリーンアップ
                     cleanup_old_logs()
