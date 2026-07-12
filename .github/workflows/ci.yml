@@ -94,14 +94,14 @@ jobs:
           name: backend-api-coverage
         if: always()
 
-      - name: "Check coverage threshold (SPEC Phase 5: 72%)"
+      - name: "Check coverage threshold (SPEC Phase 5: 73%)"
         # backend/ のカバレッジをCIで固定化（SPEC.md Phase 5「カバレッジ」）。
-        # 設備API等のテスト追加で実測74%（135テスト）まで向上。ratchetを70→72%へ。
-        # 残る低カバレッジ(websocket/partitions/起動スクリプト)は専用ハーネスが必要で
-        # 費用対効果が下がるため、当面72%を回帰防御の下限とする。
+        # WebSocketハンドラ(認証ハンドシェイク)のテスト追加で実測75%（142テスト）。
+        # ratchetを72→73%へ。残る低カバレッジは partitions.py（Postgres専用でSQLite不可）と
+        # 起動スクリプト（manage.py/wsgi.py等）で、当面73%を回帰防御の下限とする。
         run: |
           cd plc-dashboard/backend
-          coverage report --fail-under=72
+          coverage report --fail-under=73
 
   lint-backend:
     name: Backend Linting (Python)
