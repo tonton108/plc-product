@@ -44,8 +44,8 @@ fix_*.py
 
 # Test screenshots
 scripts/*.png
-# テスト失敗時に生成されるスクショ（scripts/test_i18n.py がCWD直下に出力）
-test_i18n_error.png
+# テスト失敗時に生成されるスクショ（scripts/test_i18n.py 等がCWD直下に出力）
+test_*.png
 # Claude Code settings
 .claude/
 
