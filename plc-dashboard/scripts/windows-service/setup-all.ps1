@@ -118,7 +118,14 @@ Ok 'Memurai を起動（既に起動済みなら無視）'
 # ---- 3. Postgres role/db ----
 $env:PGPASSWORD = $PgSuperPassword
 function Psql($sql, $db = 'postgres') {
-  & $psql -U $PgSuperUser -h 127.0.0.1 -p $PgPort -d $db -tAc $sql
+  # -w: パスワードの対話プロンプトを出さず、認証失敗なら即エラーにする
+  $out = & $psql -U $PgSuperUser -w -h 127.0.0.1 -p $PgPort -d $db -tAc $sql 2>&1
+  if ($LASTEXITCODE -ne 0) {
+    Die ("psql接続/実行に失敗:`n  $out`n" +
+         "  → -PgSuperPassword（$PgSuperUser のパスワード）が正しいか確認してください。`n" +
+         "     テスト: & '$psql' -U $PgSuperUser -h 127.0.0.1 -p $PgPort -d postgres -c 'SELECT 1'")
+  }
+  return "$out"
 }
 $roleExists = (Psql "SELECT 1 FROM pg_roles WHERE rolname='plc_user'").Trim()
 if ($roleExists -eq '1') {
