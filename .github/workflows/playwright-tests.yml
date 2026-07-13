@@ -129,6 +129,16 @@ jobs:
         env:
           CI: true
 
+      # 共通コンポーネントの描画健全性ガード（PR #43で修正したサイレント破損の再発防止）。
+      # エラー・アラーム/インシデントの各タブとerrors-alarmsページが実際に描画され、
+      # Failed to resolve component 警告が出ないことを検証する。
+      - name: Run render health regression test
+        run: |
+          cd plc-dashboard
+          python scripts/test_render_health.py
+        env:
+          CI: true
+
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4
