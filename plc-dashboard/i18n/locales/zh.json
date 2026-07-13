@@ -9,7 +9,8 @@
     "status": "状态",
     "actions": "操作",
     "cancel": "取消",
-    "ok": "确定"
+    "ok": "确定",
+    "close": "关闭"
   },
   "nav": {
     "errorsAlarms": "错误与报警"
@@ -46,7 +47,8 @@
     "tabs": {
       "graph": "图表",
       "table": "表格",
-      "errorsAlarms": "错误与报警"
+      "errorsAlarms": "错误与报警",
+      "incidents": "事件追踪"
     },
     "timestamp": "时间戳",
     "csvDownload": "下载CSV",
@@ -160,6 +162,31 @@
     "subtitle": "查看PLC通信错误和报警历史",
     "selectEquipment": "选择设备",
     "noEquipmentSelected": "请选择设备"
+  },
+  "incidents": {
+    "title": "事件追踪",
+    "description": "发生错误/报警时，会长期保全其前后的原始日志。即使原始日志本体被清除，之后仍可复现和调查当时的情况。",
+    "count": "{count} 条",
+    "noData": "暂无事件",
+    "type": "类型",
+    "typeError": "错误",
+    "typeAlarm": "报警",
+    "occurredAt": "发生时间",
+    "leadup": "发生前日志",
+    "logCountValue": "{count} 条",
+    "aftermath": "发生后",
+    "afterCaptured": "已捕获 {count}条",
+    "afterPending": "待捕获",
+    "afterNotApplicable": "不适用",
+    "actions": "操作",
+    "viewContext": "详情",
+    "dialogTitle": "事件上下文（发生前后的原始日志）",
+    "leadupSection": "发生前（前置）",
+    "aftermathSection": "发生后（后续）",
+    "noLogsInWindow": "该时间段内没有原始日志",
+    "loadFailed": "获取事件上下文失败",
+    "afterNotApplicableHint": "此事件不在发生后窗口的追踪范围内（因为它是在此功能添加之前记录的）。",
+    "afterPendingHint": "发生后窗口的原始日志尚未捕获。发生后时段结束后，将由每日回填自动保全。"
   },
   "monitoring": {
     "title": "实时监控",
