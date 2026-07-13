@@ -38,6 +38,17 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+from dotenv import load_dotenv
+
+# 本番の設定ファイルを明示ロードする（Phase 4: Windowsサービス化）。
+# サービス実行時は環境変数の注入が難しいため、`PLC_ENV_FILE`（既定
+# C:\ProgramData\plc-monitor\.env）から SECRET_KEY / DATABASE_URL /
+# SOCKETIO_MESSAGE_QUEUE / FRONTEND_DIST 等を読み込む。override=True で、
+# app.py 側の CWD .env より本番ファイルを優先する。存在しなければ無視（開発時）。
+_env_file = os.environ.get("PLC_ENV_FILE", r"C:\ProgramData\plc-monitor\.env")
+if os.path.isfile(_env_file):
+    load_dotenv(_env_file, override=True)
+
 from waitress import serve
 
 from app import create_app
@@ -46,10 +57,22 @@ app, socketio = create_app()
 
 
 def main():
-    host = os.environ.get("HOST", "0.0.0.0")
-    port = int(os.environ.get("PORT", "5000"))
-    threads = int(os.environ.get("WAITRESS_THREADS", "16"))
-    role = os.environ.get("ROLE", "single")
+    import argparse
+
+    # コマンドライン引数を env より優先する。共有 .env（DB/SECRET/Redis等）は全サービス共通、
+    # PORT/ROLE はサービスごとに引数で分ける（ingest/viewer）。サービスへの環境注入が
+    # 難しいWindowsサービス構成で、役割ごとの差分を確実に渡すため。
+    parser = argparse.ArgumentParser(description="本番サービング（Waitress）")
+    parser.add_argument("--host", default=None)
+    parser.add_argument("--port", type=int, default=None)
+    parser.add_argument("--role", default=None, help="ingest|viewer|single（情報用）")
+    parser.add_argument("--threads", type=int, default=None)
+    args, _ = parser.parse_known_args()
+
+    host = args.host or os.environ.get("HOST", "0.0.0.0")
+    port = args.port or int(os.environ.get("PORT", "5000"))
+    threads = args.threads or int(os.environ.get("WAITRESS_THREADS", "16"))
+    role = args.role or os.environ.get("ROLE", "single")
     mq = os.environ.get("SOCKETIO_MESSAGE_QUEUE")
     manager = type(socketio.server.manager).__name__ if socketio.server else "N/A"
 
