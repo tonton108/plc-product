@@ -3,6 +3,9 @@
 import { createVuetify } from 'vuetify'
 import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
+// Vuetifyの中国語ロケールは zhHans/zhHant 名で提供される（zh は存在しない）。
+// 本アプリのロケールコード 'zh'（簡体字）に zhHans を割り当てる。
+import { ja, en, zhHans as zh } from 'vuetify/locale'
 import 'vuetify/styles'
 import '@mdi/font/css/materialdesignicons.css'
 
@@ -42,6 +45,14 @@ export default defineNuxtPlugin((nuxtApp) => {
   const vuetify = createVuetify({
     components,
     directives,
+    // Vuetify組込み文言（データテーブルのフッター「Items per page」「0-0 of 0」、
+    // 既定のno-dataテキスト等）を日本語化する。既定は英語で、日本語モード固定の
+    // 本UIでは英語が混ざって「雑」に見えるため。既定ロケールは日本語。
+    locale: {
+      locale: 'ja',
+      fallback: 'en',
+      messages: { ja, en, zh },
+    },
     theme: {
       defaultTheme: 'light', // デフォルトはライトモード
       themes: {

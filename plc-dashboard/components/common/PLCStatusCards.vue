@@ -5,11 +5,11 @@
       <v-card :color="plcStatus.is_online ? 'success' : 'error'" dark elevation="4">
         <v-card-text>
           <div class="text-h6">{{ $t('plcStatus.title') }}</div>
-          <div class="text-h3 mt-2">
-            <v-icon size="x-large" class="mr-2">
+          <div class="text-h4 mt-2 d-flex align-center">
+            <v-icon size="large" class="mr-2">
               {{ plcStatus.is_online ? 'mdi-check-circle' : 'mdi-alert-circle' }}
             </v-icon>
-            {{ plcStatus.is_online ? $t('plcStatus.online') : $t('plcStatus.offline') }}
+            <span class="text-no-wrap">{{ plcStatus.is_online ? $t('plcStatus.online') : $t('plcStatus.offline') }}</span>
           </div>
         </v-card-text>
       </v-card>
@@ -20,7 +20,7 @@
       <v-card color="warning" dark elevation="4">
         <v-card-text>
           <div class="text-h6">{{ $t('plcStatus.consecutiveErrors') }}</div>
-          <div class="text-h3 mt-2">
+          <div class="text-h4 mt-2 text-no-wrap">
             {{ $t('plcStatus.consecutiveErrorsValue', { count: plcStatus.consecutive_errors || 0 }) }}
           </div>
         </v-card-text>
