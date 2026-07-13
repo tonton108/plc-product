@@ -5,6 +5,15 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-05-15',
   devtools: { enabled: false }, // 開発ツールを無効化してパフォーマンス向上
 
+  // コンポーネント自動インポートはディレクトリ名プレフィックスを付けない。
+  // 既定では components/common/ErrorLogTable.vue が CommonErrorLogTable として
+  // 登録され、テンプレートの <ErrorLogTable> では解決できず空表示になる
+  // （エラー・アラーム/インシデント各タブで実際に描画されない不具合の原因）。
+  // pathPrefix:false でファイル名基準の名前に統一する（ファイル名の重複なしを確認済み）。
+  components: [
+    { path: '~/components', pathPrefix: false }
+  ],
+
   // Google Fonts（ガイドライン準拠フォント）
   app: {
     head: {
