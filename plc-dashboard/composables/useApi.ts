@@ -12,7 +12,9 @@
 
 export const useApi = () => {
   const config = useRuntimeConfig()
-  const apiBase = config.public.apiBase || 'http://localhost:5000'
+  // 空文字は「同一オリジン相対」を意味する（Phase 4: viewer同梱配信）。
+  // `??` で未設定時のみ既定へフォールバックし、空文字はそのまま保持する。
+  const apiBase = config.public.apiBase ?? 'http://localhost:5000'
   const { getToken, clearSession } = useAuth()
 
   const apiFetch = async <T = any>(path: string, options: any = {}): Promise<T> => {
