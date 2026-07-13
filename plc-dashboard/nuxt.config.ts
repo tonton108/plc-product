@@ -103,9 +103,13 @@ export default defineNuxtConfig({
   // 環境変数設定
   runtimeConfig: {
     public: {
-      // 本番環境では中央サーバーのIPを指定
-      // 例: NUXT_PUBLIC_API_BASE=http://192.168.1.10:5000
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:5000'
+      // APIベースURL。
+      // - 開発（未設定）: http://localhost:5000
+      // - 本番Windowsサービス（viewer同梱配信・Phase 4）: NUXT_PUBLIC_API_BASE='' を明示して
+      //   ビルドし、同一オリジン相対でAPI/Socket.IOへ接続する（LAN IP焼込が不要）。
+      // ※ `??` で「空文字（＝相対指定）」と「未設定（＝既定localhost）」を区別する。
+      //    `||` だと空文字がlocalhostに巻き戻ってしまうため使わない。
+      apiBase: process.env.NUXT_PUBLIC_API_BASE ?? 'http://localhost:5000'
     }
   }
 })

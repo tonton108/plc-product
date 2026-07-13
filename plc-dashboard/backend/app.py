@@ -18,6 +18,28 @@ load_dotenv()
 migrate = Migrate()
 socketio = SocketIO()
 
+
+def _register_frontend(app, dist_dir):
+    """静的SPA（Nuxt generate出力）をFlaskから配信する（Phase 4: viewer同梱配信）。
+
+    実ファイルが存在すればそれを返し、存在しない未知パスは index.html に
+    フォールバックする（SPAクライアントサイドルーティングのため）。
+    /api・/socket.io はそれぞれのハンドラが処理するので除外する（未知の /api/* は404）。
+    """
+    from flask import send_from_directory, abort
+
+    @app.route('/', defaults={'path': ''})
+    @app.route('/<path:path>')
+    def _serve_spa(path):
+        # APIとSocket.IOはブループリント/エンジンが処理済み。ここに来る /api/* は
+        # 未知エンドポイントなのでSPAのindexを返さず404（JSONエラーハンドラに委ねる）。
+        if path.startswith('api/') or path.startswith('socket.io'):
+            abort(404)
+        if path and os.path.isfile(os.path.join(dist_dir, path)):
+            return send_from_directory(dist_dir, path)
+        return send_from_directory(dist_dir, 'index.html')
+
+
 def create_app():
     app = Flask(__name__)
 
@@ -104,6 +126,16 @@ def create_app():
 
     register_routes(app, socketio)  # socketioを渡す
     register_error_handlers(app)
+
+    # フロントエンド静的配信（Phase 4: viewer同梱配信）。
+    # FRONTEND_DIST（Nuxt generate出力=.output/public）が指定され存在する場合のみ有効。
+    # UIとAPI/Socket.IOが同一オリジンになり、フロントはAPIベースを相対パスで叩ける
+    # （中央サーバーのLAN IP焼込が不要になる）。詳細は
+    # _docs/deployment/windows-service-setup.md。
+    frontend_dist = os.getenv('FRONTEND_DIST')
+    if frontend_dist and os.path.isdir(frontend_dist):
+        _register_frontend(app, frontend_dist)
+        logger.info(f"フロントエンド静的配信を有効化: {frontend_dist}")
 
     # 認証管理CLIコマンドを登録（flask auth ...）
     from api.cli import register_cli

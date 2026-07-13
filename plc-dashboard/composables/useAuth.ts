@@ -19,7 +19,9 @@ export const USER_KEY = 'plc_auth_user'
 
 export const useAuth = () => {
   const config = useRuntimeConfig()
-  const apiBase = config.public.apiBase || 'http://localhost:5000'
+  // 空文字は「同一オリジン相対」を意味する（Phase 4: viewer同梱配信）。
+  // `??` で未設定時のみ既定へフォールバックし、空文字はそのまま保持する。
+  const apiBase = config.public.apiBase ?? 'http://localhost:5000'
 
   // タブ内で共有するリアクティブ状態（初期値はlocalStorageから復元）
   const user = useState<AuthUser | null>('auth_user', () => {
