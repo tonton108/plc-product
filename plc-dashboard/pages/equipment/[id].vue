@@ -33,7 +33,7 @@
     <v-card class="pa-6 glass-card" elevation="0">
       <v-card-title class="text-h4 mb-4 d-flex align-center font-weight-bold">
         <v-icon size="large" class="mr-3" color="primary">mdi-chart-box-outline</v-icon>
-        {{ $t('equipmentDetail.logGraph', { name: equipment?.name || '', manufacturer: equipment?.manufacturer || '' }) }}
+        {{ $t('equipmentDetail.logGraph', { name: equipment?.name || equipment?.equipment_id || equipmentId, manufacturer: equipment?.manufacturer || '' }) }}
       </v-card-title>
       <v-divider class="mb-6"></v-divider>
 
@@ -756,6 +756,25 @@ onMounted(async () => {
     responsive: true,
     maintainAspectRatio: false,
     animation: { duration: 500, easing: 'easeInOutQuad' },
+    scales: {
+      // X軸はラベル配列（データと1:1対応）は変更せず、表示だけ間引く。
+      // autoSkip で重なりを防ぎ、maxRotation:0 で水平化、callback で年・秒を落として
+      // 「07/13 19:03」に簡潔化する（ラベル配列を短縮するとデータ整合が崩れるため表示のみ）。
+      x: {
+        ticks: {
+          autoSkip: true,
+          maxTicksLimit: 12,
+          maxRotation: 0,
+          minRotation: 0,
+          callback(value) {
+            const s = this.getLabelForValue(value)
+            return typeof s === 'string'
+              ? s.replace(/^\d{4}\//, '').replace(/:\d{2}$/, '')
+              : s
+          },
+        },
+      },
+    },
     plugins: {
       legend: { position: 'top' },
       title: { display: true, text: t('chart.title') },
