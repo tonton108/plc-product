@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Phase 4 Increment 1: 本番サービング（ingest/viewer + Redis）をこのWindows機に
   ネイティブ・サービスとして構築する。冪等（再実行可）。**管理者PowerShellで実行**。

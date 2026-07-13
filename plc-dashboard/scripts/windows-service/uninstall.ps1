@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Phase 4 Increment 1 のロールバック。**管理者PowerShellで実行**。
 .DESCRIPTION

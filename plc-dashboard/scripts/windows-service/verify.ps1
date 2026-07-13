@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Phase 4 Increment 1 の基本ヘルスチェック（管理者不要）。
 .DESCRIPTION
