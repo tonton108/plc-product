@@ -9,7 +9,8 @@
     "status": "ステータス",
     "actions": "操作",
     "cancel": "キャンセル",
-    "ok": "OK"
+    "ok": "OK",
+    "close": "閉じる"
   },
   "nav": {
     "errorsAlarms": "エラー・アラーム"
@@ -46,7 +47,8 @@
     "tabs": {
       "graph": "グラフ",
       "table": "テーブル",
-      "errorsAlarms": "エラー・アラーム"
+      "errorsAlarms": "エラー・アラーム",
+      "incidents": "インシデント追跡"
     },
     "timestamp": "日時",
     "csvDownload": "CSVダウンロード",
@@ -160,6 +162,31 @@
     "subtitle": "PLC通信エラーとアラームの履歴を確認",
     "selectEquipment": "設備を選択",
     "noEquipmentSelected": "設備を選択してください"
+  },
+  "incidents": {
+    "title": "インシデント追跡",
+    "description": "エラー/アラーム発生時に、その前後の生ログを長期保全します。生ログ本体が消えた後も当時の状況を再現・調査できます。",
+    "count": "{count} 件",
+    "noData": "インシデントはまだありません",
+    "type": "種別",
+    "typeError": "エラー",
+    "typeAlarm": "アラーム",
+    "occurredAt": "発生日時",
+    "leadup": "発生前ログ",
+    "logCountValue": "{count} 件",
+    "aftermath": "発生後",
+    "afterCaptured": "捕捉済み {count}件",
+    "afterPending": "捕捉待ち",
+    "afterNotApplicable": "対象外",
+    "actions": "操作",
+    "viewContext": "詳細",
+    "dialogTitle": "インシデント文脈（発生前後の生ログ）",
+    "leadupSection": "発生前（リードアップ）",
+    "aftermathSection": "発生後（アフターマス）",
+    "noLogsInWindow": "この期間の生ログはありません",
+    "loadFailed": "インシデント文脈の取得に失敗しました",
+    "afterNotApplicableHint": "このインシデントは発生後ウィンドウの追跡対象外です（機能追加前に記録されたため）。",
+    "afterPendingHint": "発生後ウィンドウの生ログはまだ捕捉されていません。発生後の期間が経過した後、日次のバックフィルで自動保全されます。"
   },
   "monitoring": {
     "title": "リアルタイムモニタリング",

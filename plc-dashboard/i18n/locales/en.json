@@ -9,7 +9,8 @@
     "status": "Status",
     "actions": "Actions",
     "cancel": "Cancel",
-    "ok": "OK"
+    "ok": "OK",
+    "close": "Close"
   },
   "nav": {
     "errorsAlarms": "Errors & Alarms"
@@ -46,7 +47,8 @@
     "tabs": {
       "graph": "Graph",
       "table": "Table",
-      "errorsAlarms": "Errors & Alarms"
+      "errorsAlarms": "Errors & Alarms",
+      "incidents": "Incidents"
     },
     "timestamp": "Timestamp",
     "csvDownload": "Download CSV",
@@ -160,6 +162,31 @@
     "subtitle": "Check PLC communication errors and alarm history",
     "selectEquipment": "Select Equipment",
     "noEquipmentSelected": "Please select equipment"
+  },
+  "incidents": {
+    "title": "Incident Tracking",
+    "description": "When an error or alarm occurs, the raw logs before and after it are preserved long-term, so you can reconstruct and investigate the situation even after the raw logs themselves are purged.",
+    "count": "{count} items",
+    "noData": "No incidents yet",
+    "type": "Type",
+    "typeError": "Error",
+    "typeAlarm": "Alarm",
+    "occurredAt": "Occurred At",
+    "leadup": "Lead-up Logs",
+    "logCountValue": "{count}",
+    "aftermath": "Aftermath",
+    "afterCaptured": "Captured ({count})",
+    "afterPending": "Pending",
+    "afterNotApplicable": "N/A",
+    "actions": "Actions",
+    "viewContext": "Details",
+    "dialogTitle": "Incident Context (raw logs before & after)",
+    "leadupSection": "Lead-up (before)",
+    "aftermathSection": "Aftermath (after)",
+    "noLogsInWindow": "No raw logs in this window",
+    "loadFailed": "Failed to load incident context",
+    "afterNotApplicableHint": "This incident is not tracked for the aftermath window (it was recorded before this feature was added).",
+    "afterPendingHint": "The raw logs for the aftermath window have not been captured yet. They will be preserved automatically by the daily backfill once the aftermath period has elapsed."
   },
   "monitoring": {
     "title": "Real-time Monitoring",

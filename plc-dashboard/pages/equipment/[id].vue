@@ -66,6 +66,10 @@
           <v-icon class="mr-2">mdi-alert-circle</v-icon>
           {{ $t('equipmentDetail.tabs.errorsAlarms') }}
         </v-tab>
+        <v-tab value="4" class="text-h6">
+          <v-icon class="mr-2">mdi-history</v-icon>
+          {{ $t('equipmentDetail.tabs.incidents') }}
+        </v-tab>
         <v-tab value="3" class="text-h6">
           <v-icon class="mr-2">mdi-cog</v-icon>
           {{ $t('plcConfigEdit.tab') }}
@@ -134,6 +138,24 @@
                 />
               </v-col>
             </v-row>
+          </v-window-item>
+
+          <!-- インシデント追跡タブ（SPEC §5.2・発生前/発生後の文脈保全） -->
+          <v-window-item value="4">
+            <v-row>
+              <v-col cols="12">
+                <IncidentTable
+                  :incidents="incidents"
+                  :loading="loadingIncidents"
+                  @view="openIncidentContext"
+                />
+              </v-col>
+            </v-row>
+            <IncidentContextDialog
+              v-model="contextDialog"
+              :context="selectedContext"
+              :loading="contextLoading"
+            />
           </v-window-item>
 
           <!-- PLC設定タブ（データ項目のCRUD編集） -->
@@ -236,7 +258,7 @@
         </v-window>
 
         <v-btn
-          v-if="tab !== '3'"
+          v-if="tab !== '3' && tab !== '4'"
           class="mt-6"
           color="primary"
           variant="elevated"
@@ -373,6 +395,11 @@ import {
 import { Chart } from 'vue-chartjs'
 import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+// components/common 配下は Nuxt 自動インポートだと Common* プレフィックス名で登録され、
+// テンプレートの <IncidentTable> 等では解決できないため明示importする
+// （monitoring/[id].vue が StatusCards 等で採る方式と同じ）。
+import IncidentTable from '~/components/common/IncidentTable.vue'
+import IncidentContextDialog from '~/components/common/IncidentContextDialog.vue'
 
 ChartJS.register(
   Title,
@@ -405,6 +432,17 @@ const {
   clearAlarm,
   resolveErrorLog
 } = useErrorsAlarms(equipmentId)
+
+// useIncidents composableを使用（インシデント追跡タブ用・SPEC §5.2）
+const {
+  incidents,
+  loading: loadingIncidents,
+  contextDialog,
+  selectedContext,
+  contextLoading,
+  loadIncidents,
+  openIncidentContext
+} = useIncidents(equipmentId)
 
 // 戻るボタンのハンドラー
 const goBack = () => {
@@ -753,10 +791,12 @@ onBeforeUnmount(() => {
   clearInterval(intervalId)
 })
 
-// タブが切り替わったときにエラー・アラームデータを再読み込み
+// タブが切り替わったときに該当タブのデータを再読み込み
 watch(tab, (newTab) => {
   if (newTab === '2') {
     loadErrorsAndAlarms()
+  } else if (newTab === '4') {
+    loadIncidents()
   }
 })
 
