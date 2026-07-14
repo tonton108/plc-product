@@ -66,6 +66,18 @@ def main():
             except PlaywrightTimeout:
                 return False
 
+        # Vuetifyのv-tabsは、ページ初期化直後の「最初のタブクリック」がコンポーネントの
+        # 対話準備完了前だとv-modelに反映されず、対象タブ内容が非アクティブ(display:none)の
+        # ままになることがある（本テストのフレーキーの主因。standaloneページのErrorLogTableは
+        # 可視なのに詳細タブ側だけ不可視になる現象で確認）。クリック→内容の可視化を待ち、
+        # 反映されなければ再クリックする。
+        def open_tab(tab_text, content_selector, attempts=3, timeout=8000):
+            for _ in range(attempts):
+                page.click(f'.v-tab:has-text("{tab_text}")')
+                if wait_visible(content_selector, timeout=timeout):
+                    return True
+            return False
+
         try:
             # --- ログイン ---
             print("\n[1] login")
@@ -81,10 +93,9 @@ def main():
             print("\n[2] equipment detail -> errors/alarms tab")
             page.goto(f"{BASE}/equipment/{EQUIPMENT_ID}", timeout=20000)
             page.wait_for_selector('.v-tab', timeout=15000)
-            page.click('.v-tab:has-text("エラー・アラーム")')
-            # タブ内容は遅延マウントされるため、最初のカードの出現を待ってから各カードを判定する。
-            check("PLC通信状態カード描画（PLCStatusCards）",
-                  wait_visible('text=PLC通信状態'))
+            # タブを開いて内容(先頭カード)の可視化を待つ（クリック未反映なら再クリック）。
+            opened = open_tab("エラー・アラーム", 'text=PLC通信状態')
+            check("PLC通信状態カード描画（PLCStatusCards）", opened)
             check("アラーム履歴カード描画（AlarmHistoryTable）",
                   wait_visible('text=アラーム履歴'))
             check("エラーログカード描画（ErrorLogTable）",
@@ -92,9 +103,8 @@ def main():
 
             # --- 設備詳細: インシデント追跡タブ ---
             print("\n[3] equipment detail -> incidents tab")
-            page.click('.v-tab:has-text("インシデント追跡")')
             check("インシデント一覧カード描画（IncidentTable）",
-                  wait_visible('.v-card-title:has-text("インシデント追跡")'))
+                  open_tab("インシデント追跡", '.v-card-title:has-text("インシデント追跡")'))
 
             # --- /errors-alarms 単体ページ ---
             print("\n[4] /errors-alarms standalone page")
