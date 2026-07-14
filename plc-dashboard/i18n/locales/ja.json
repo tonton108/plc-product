@@ -199,5 +199,50 @@
     "disconnected": "切断",
     "open": "開く",
     "openEquipment": "設備モニタリングを開始"
+  },
+  "userManagement": {
+    "title": "ユーザー管理",
+    "subtitle": "ログインユーザーの作成・パスワード再設定・有効/無効化（管理者専用）",
+    "openButton": "ユーザー管理",
+    "columns": {
+      "username": "ユーザー名",
+      "role": "ロール",
+      "status": "状態",
+      "createdAt": "作成日時",
+      "actions": "操作"
+    },
+    "roles": { "admin": "管理者", "operator": "オペレーター" },
+    "statusActive": "有効",
+    "statusInactive": "無効",
+    "create": "ユーザー作成",
+    "resetPassword": "パスワード再設定",
+    "deactivate": "無効化",
+    "activate": "有効化",
+    "createDialog": {
+      "title": "ユーザー作成",
+      "username": "ユーザー名",
+      "role": "ロール",
+      "password": "パスワード（空欄で自動生成）",
+      "submit": "作成"
+    },
+    "generated": {
+      "title": "パスワードを控えてください",
+      "message": "この値は再表示できません。本人に伝え、初回ログイン後に変更してもらってください。",
+      "label": "パスワード"
+    },
+    "confirm": {
+      "deactivate": "「{name}」を無効化します。ログイン中のトークンも失効します。よろしいですか？",
+      "activate": "「{name}」を有効化します。よろしいですか？",
+      "resetPassword": "「{name}」のパスワードを再設定します。既存のログインは無効になります。よろしいですか？"
+    },
+    "messages": {
+      "created": "ユーザーを作成しました",
+      "deactivated": "無効化しました",
+      "activated": "有効化しました",
+      "passwordReset": "パスワードを再設定しました",
+      "loadError": "ユーザー一覧の取得に失敗しました",
+      "actionError": "操作に失敗しました",
+      "usernameRequired": "ユーザー名を入力してください"
+    }
   }
 }
