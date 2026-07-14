@@ -169,6 +169,8 @@ def require_user(role=None):
                 return jsonify({"error": "認証が必要です"}), 401
             if role is not None and user.role != role:
                 return jsonify({"error": "この操作を行う権限がありません"}), 403
+            # ビュー側で認証済みユーザーを参照できるようにする（自己操作ガード等）
+            g.current_user = user
             return f(*args, **kwargs)
         return wrapper
     return decorator
@@ -207,6 +209,7 @@ def require_user_or_api_key(role=None):
                 return jsonify({"error": "認証が必要です"}), 401
             if role is not None and user.role != role:
                 return jsonify({"error": "この操作を行う権限がありません"}), 403
+            g.current_user = user
             return f(*args, **kwargs)
         return wrapper
     return decorator

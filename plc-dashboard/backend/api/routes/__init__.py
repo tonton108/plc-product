@@ -23,6 +23,7 @@ from api.routes.auth import auth_bp
 from api.routes.equipment import equipment_bp
 from api.routes.logs import logs_bp
 from api.routes.admin import admin_bp
+from api.routes.users import users_bp
 from api.routes.errors_alarms import errors_alarms_bp
 from api.routes.health import health_bp
 from api.routes.websocket import register_websocket_handlers
@@ -44,6 +45,7 @@ def register_all_routes(app, socketio=None):
     app.register_blueprint(equipment_bp)
     app.register_blueprint(logs_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(users_bp)
     app.register_blueprint(errors_alarms_bp)
     app.register_blueprint(health_bp)
 
@@ -91,6 +93,7 @@ __all__ = [
     'equipment_bp',
     'logs_bp',
     'admin_bp',
+    'users_bp',
     'errors_alarms_bp',
     'health_bp',
     'register_websocket_handlers'
