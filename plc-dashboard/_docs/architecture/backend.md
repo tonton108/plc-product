@@ -44,6 +44,11 @@ socketio.init_app(app, async_mode='threading', cors_allowed_origins="*")
 | `/api/admin/cleanup` | POST | 手動クリーンアップ実行 | routes.py |
 | `/api/admin/stats` | GET | データベース統計取得 | routes.py |
 | `/api/admin/create_summary` | POST | 集計データ作成 | routes.py |
+| `/api/admin/users` | GET | ユーザー一覧（admin専用） | api/routes/users.py |
+| `/api/admin/users` | POST | ユーザー作成（admin専用・自動生成PWは発行時のみ返却） | api/routes/users.py |
+| `/api/admin/users/<id>/reset-password` | POST | パスワード再設定（既存トークン全失効） | api/routes/users.py |
+| `/api/admin/users/<id>/deactivate` | POST | ユーザー無効化（自己/最後のadmin保護） | api/routes/users.py |
+| `/api/admin/users/<id>/activate` | POST | ユーザー再有効化 | api/routes/users.py |
 | `/api/auth/login` | POST | ログイン（Bearerトークン発行） | api/routes/auth.py |
 | `/api/auth/logout` | POST | ログアウト（トークン失効） | api/routes/auth.py |
 | `/api/auth/me` | GET | ログイン中ユーザー情報取得 | api/routes/auth.py |
