@@ -1,8 +1,10 @@
 """
 認証管理CLIコマンド（Phase 1）
 
-トレイアプリのadmin画面（Phase 4）が完成するまでの間、ユーザー管理は
-中央サーバーPC上でこのCLIを使って行う（SPEC.md §4.1）。
+ユーザー管理は Phase 4 で **admin画面（/admin/users）＋API（/api/admin/users）** が
+実装済み（PR #52/#53）。このCLIは主に初期ブートストラップ用途で残す
+（最初のadminユーザーを作る＝画面ログインが成立する前段階、CI/E2Eの `seed`、
+サーバーPC上での緊急のパスワードリセット等。SPEC.md §4.1）。
 
 使い方（backend ディレクトリで実行）:
     flask --app manage.py auth create-user 佐藤 --role operator

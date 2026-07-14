@@ -201,6 +201,15 @@
 ## 9. 現実装との差分ロードマップ
 
 > **【2026-07-12 現況】** Phase 0-3は完了、Phase 4はサービング方式確定＋ingest分離まで完了（残: Windowsサービス実体/インストーラ/トレイアプリ=実環境依存）、Phase 5はpytest CI・カバレッジ(75%)完了（残: Siemens/キーエンス実機・ESLint保留）。マージ実績 #8〜#37。詳細な完了状況は `MEMORY`（spec-rework-progress）と各PRを参照。以下は当初計画の原文。
+>
+> **【2026-07-14 更新】** Phase 4 の実機非依存項目がほぼ完了（マージ実績 #45〜#54）:
+> Windowsサービス実体化（Shawl・既存/自動導入Postgres＋Memurai＋ingest/viewer, #45）、
+> UIポリッシュ（#46）、Electronトレイアプリ＝サービス管理GUI（#47）、`.exe`インストーラ化（NSIS, #48）、
+> インストーラへのサーバー資産同梱（backend/Nuxt静的/setup, #49）、`desktop-app/`廃止（#50）、
+> render-healthフレーキー根治（#51）、**ユーザー管理admin画面**＝API（#52）＋UI（#53）、
+> setup-all.ps1のwinget前提自動導入＋`-CheckOnly`（#54）。
+> **残（Phase 4）**: ①フル同梱インストーラ＝ポータブルPostgres/Python埋め込み（`installer-runtime-bundling.md` 参照。クリーン環境での実インストール検証待ち。当面はwinget前提導入で代替）、②ラズパイSDイメージ＋死活一覧（#17・未着手）、③wsgi.py一本化は `serve_production.py` で実装済み。
+> **残（Phase 5）**: Siemens/キーエンス実機（ハード必須でブロック）、ESLintゲート（棚上げ）。
 
 ### Phase 0: 実害バグの修正（仕様変更なし・即着手可）
 1. 収集ループの一本化（`agent_app.py` の wrapper 廃止 → `plc_agent.py:main_loop` に統合。WebUI起動時に再送が動かない実害の解消）
