@@ -1,111 +1,67 @@
-# PLC Dashboard - Electronアプリ
+# PLC監視 中央サーバー管理トレイアプリ（Electron）
 
-中央サーバーPC用のデスクトップ管理アプリケーションです。
+中央サーバーPC用の常駐トレイアプリです。**Phase 4 でネイティブWindowsサービス構成へ移行**したため、
+旧Docker Compose管理から刷新しました（`_docs/deployment/windows-service-setup.md` 参照）。
 
 ## 機能
 
-- ✅ Docker Composeサービスの起動/停止/再起動
-- ✅ システムトレイ常駐
-- ✅ サーバー状態のリアルタイム監視
+- ✅ ネイティブサービス（Memurai / plc-ingest / plc-viewer）の状態監視（10秒ポーリング）
+- ✅ サービスの起動 / 停止 / 再起動（UAC昇格して実行）
+- ✅ システムトレイ常駐（状態を 🟢/🔴 で表示）
+- ✅ ダッシュボード(viewer:5001)をウィンドウに直接表示（SPA再バンドル不要）
+- ✅ 「ブラウザで開く」「ログフォルダを開く」
 - ✅ デスクトップ通知
-- ✅ Nuxt.jsダッシュボードの埋め込み表示
 
-## 開発環境セットアップ
+> PostgreSQL(`postgresql-x64-18`) は別管理のため、状態表示のみ（起動/停止対象外）。
 
-### 1. 依存関係のインストール
+## 前提
 
-```bash
-cd electron
-npm install
-```
+- `setup-all.ps1` でサービス（Memurai/plc-ingest/plc-viewer）が導入済みであること。
+- Node.js 18以上（開発・ビルド時）。
 
-### 2. Nuxt.jsの静的ファイル生成
-
-```bash
-cd ..  # plc-dashboardディレクトリに戻る
-npm run generate
-```
-
-生成されたファイルが`electron/renderer/`にコピーされます。
-
-### 3. 開発モードで起動
+## セットアップと起動
 
 ```bash
 cd electron
-npm start
+npm install     # 依存インストール（初回のみ）
+npm start       # 起動（= electron .）
 ```
 
-開発モード時は、Nuxt.jsの開発サーバー（http://localhost:3000）に接続します。
+- ウィンドウは既定で `http://127.0.0.1:5001`（viewer）をロードする。viewerが未起動なら
+  接続エラー画面と「再試行」ボタンを表示する。
+- ウィンドウを閉じてもトレイに常駐する（`minimizeToTray`）。トレイアイコンのダブルクリックで再表示。
 
-## ビルド
-
-### macOS
+## ビルド（配布用パッケージ）
 
 ```bash
-npm run build:mac
+npm run build:win     # Windows(nsis)。dist/ に出力
+# 参考: build:mac / build:linux も定義あり
 ```
 
-### Windows
-
-```bash
-npm run build:win
-```
-
-### Linux
-
-```bash
-npm run build:linux
-```
-
-ビルドされたアプリは`electron/dist/`に出力されます。
-
-## アイコンの配置
-
-以下のアイコンファイルを`electron/assets/`に配置してください：
-
-- `icon.png` - アプリケーションアイコン（512x512px推奨）
-- `tray-icon.png` - システムトレイアイコン（16x16px or 32x32px推奨）
-- `icon.icns` - macOS用アイコン
-- `icon.ico` - Windows用アイコン
+> ウィンドウは viewer(5001) をリモートロードするため、Nuxtの静的生成（`npm run generate`）の
+> 同梱は不要。本アプリのパッケージには `main.js` / `preload.js` / `assets/` のみを含む。
 
 ## 設定
 
-アプリケーション設定は以下に保存されます：
-
-- **macOS**: `~/Library/Application Support/plc-dashboard-electron/config.json`
-- **Windows**: `%APPDATA%\plc-dashboard-electron\config.json`
-- **Linux**: `~/.config/plc-dashboard-electron/config.json`
-
-### 設定項目
+`%APPDATA%\plc-dashboard-electron\config.json` に保存される。
 
 ```json
 {
-  "dockerComposePath": "/path/to/plc-product",
-  "autoStartDocker": true,
+  "viewerUrl": "http://127.0.0.1:5001",
+  "logDir": "C:\\ProgramData\\plc-monitor\\logs",
   "minimizeToTray": true,
   "startMinimized": false
 }
 ```
 
-## システム要件
+## アイコン
 
-- Node.js 18以上
-- Docker & Docker Compose
-- macOS 10.13+ / Windows 10+ / Linux (Ubuntu 18.04+推奨)
+`electron/assets/` に配置：`icon.png`（アプリ・512px推奨）、`tray-icon.png`（トレイ・16/32px）、
+`icon.ico`（Windowsビルド用）。未配置時はフォールバックする。
 
 ## トラブルシューティング
 
-### Docker起動エラー
-
-- Docker Desktopが起動しているか確認
-- `docker compose`コマンドが利用可能か確認
-
-### ウィンドウが表示されない
-
-- システムトレイのアイコンをダブルクリック
-- または右クリック → 「ダッシュボードを表示」
-
-### アイコンが表示されない
-
-- `electron/assets/`にアイコンファイルが配置されているか確認
-- デフォルトでは空のアイコンが表示されます
+- **ウィンドウが接続エラー**: `plc-viewer` サービスが Running か確認（トレイの状態表示 / `Get-Service plc-viewer`）。
+- **起動/停止が効かない**: UAC（管理者許可）を拒否していないか確認。SCM操作には昇格が必要。
+- **状態が「不明/⚫」**: サービス名が異なる可能性（既定: `postgresql-x64-18`/`Memurai`/`plc-ingest`/`plc-viewer`）。
+- **ウィンドウが表示されない**: トレイアイコンをダブルクリック、または右クリック →「ダッシュボードを表示」。

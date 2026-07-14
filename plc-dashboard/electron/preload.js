@@ -1,18 +1,20 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-// セキュアなIPC通信用APIをレンダラープロセスに公開
+// セキュアなIPC通信用APIをレンダラー（viewer:5001のSPA）に公開する。
+// Phase 4でDocker管理からネイティブサービス管理へ刷新（service:*）。
 contextBridge.exposeInMainWorld('electronAPI', {
-  // Docker管理
-  dockerStart: () => ipcRenderer.invoke('docker:start'),
-  dockerStop: () => ipcRenderer.invoke('docker:stop'),
-  dockerRestart: () => ipcRenderer.invoke('docker:restart'),
-  dockerStatus: () => ipcRenderer.invoke('docker:status'),
-
-  // ログ管理
-  getLogs: (service) => ipcRenderer.invoke('logs:get', service),
-  onLogUpdate: (callback) => {
-    ipcRenderer.on('logs:update', (event, data) => callback(data));
+  // サービス管理（plc-ingest / plc-viewer / Memurai）
+  serviceStatus: () => ipcRenderer.invoke('service:status'),
+  serviceStart: () => ipcRenderer.invoke('service:start'),
+  serviceStop: () => ipcRenderer.invoke('service:stop'),
+  serviceRestart: () => ipcRenderer.invoke('service:restart'),
+  serviceRefresh: () => ipcRenderer.invoke('service:refresh'),
+  onServiceStatusUpdate: (callback) => {
+    ipcRenderer.on('service:status-update', (_e, data) => callback(data));
   },
+
+  // ログ取得（C:\ProgramData\plc-monitor\logs）
+  getLogs: (serviceKey) => ipcRenderer.invoke('logs:get', serviceKey),
 
   // システム情報
   getSystemInfo: () => ipcRenderer.invoke('system:info'),
@@ -27,5 +29,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveConfig: (config) => ipcRenderer.invoke('config:save', config),
 
   // 通知
-  showNotification: (title, body) => ipcRenderer.send('notification:show', { title, body })
+  showNotification: (title, body) => ipcRenderer.send('notification:show', { title, body }),
 });
