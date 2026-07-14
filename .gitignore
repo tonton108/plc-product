@@ -168,5 +168,4 @@ test-results/
 *.code-workspace
 nul
 PLC Monitoring/
-desktop-app/
 plc-dashboard/backend/postgres-portable/

@@ -72,10 +72,10 @@ export default defineNuxtConfig({
   ],
   ssr: false, // Socket.IOクライアントはクライアントサイドのみで動作
 
-  // 静的生成設定（Electronアプリ用）
+  // 静的生成設定。出力先 .output/public は viewer(plc-viewer) が同一オリジンで配信し、
+  // 配布時は electron/ のインストーラが extraResources として同梱する。
   nitro: {
     preset: 'static'
-    // デフォルトの出力先(.output/public)を使用し、後でdesktop-app/nuxt-distにコピーする
   },
 
   // イントラネット環境でアクセスを許可

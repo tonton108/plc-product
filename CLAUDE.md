@@ -82,10 +82,9 @@ python scripts/test_monitoring_chart.py
 - ✅ **Electronテスト**: Dockerを停止してから起動
 
 ```bash
-# Electronでテストする場合
+# Electronでテストする場合（トレイアプリ = plc-dashboard/electron/）
 docker compose stop frontend
-cd desktop-app
-npm run electron:dev
+npm run electron:dev   # = cd electron && npm start
 ```
 
 #### b. Flask Backend変更時
