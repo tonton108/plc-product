@@ -118,6 +118,19 @@ def main():
             check("errors-alarmsページでエラーログ描画",
                   wait_visible('text=エラーログ'))
 
+            # --- admin: ユーザー管理ページ（admin専用・CIはadminでログイン） ---
+            print("\n[5] admin user management page")
+            page.goto(f"{BASE}/admin/users", timeout=20000)
+            check("ユーザー管理テーブル描画（UserManagement）",
+                  wait_visible('[data-testid="users-table"]'))
+            # seedのadminユーザーが一覧に出る（一覧API＋描画が通っている証拠）
+            check("adminユーザー行の表示",
+                  wait_visible('text=admin'))
+            # 作成ダイアログが開く（ボタン→ダイアログの配線確認・作成はしない）
+            page.click('button:has-text("ユーザー作成")')
+            check("ユーザー作成ダイアログ表示",
+                  wait_visible('[data-testid="create-username"]'))
+
         except Exception as e:
             import traceback
             traceback.print_exc()

@@ -25,6 +25,16 @@
                 <span class="ml-2">{{ $t('common.refresh') }}</span>
               </v-btn>
               <v-btn
+                v-if="isAdmin"
+                color="white"
+                size="large"
+                class="mr-3 modern-btn"
+                @click="router.push('/admin/users')"
+              >
+                <v-icon>mdi-account-cog</v-icon>
+                <span class="ml-2">{{ $t('userManagement.openButton') }}</span>
+              </v-btn>
+              <v-btn
                 color="white"
                 size="large"
                 class="mr-3 modern-btn"
@@ -245,6 +255,7 @@ import { useToast } from '~/composables/useToast'
 const router = useRouter()
 const { apiFetch } = useApi()
 const auth = useAuth()
+const { isAdmin } = auth
 const toast = useToast()
 
 const equipmentList = ref([])

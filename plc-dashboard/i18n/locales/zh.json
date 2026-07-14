@@ -199,5 +199,50 @@
     "disconnected": "已断开",
     "open": "打开",
     "openEquipment": "开始设备监控"
+  },
+  "userManagement": {
+    "title": "用户管理",
+    "subtitle": "创建登录用户、重置密码、启用/停用（仅限管理员）",
+    "openButton": "用户管理",
+    "columns": {
+      "username": "用户名",
+      "role": "角色",
+      "status": "状态",
+      "createdAt": "创建时间",
+      "actions": "操作"
+    },
+    "roles": { "admin": "管理员", "operator": "操作员" },
+    "statusActive": "有效",
+    "statusInactive": "已停用",
+    "create": "创建用户",
+    "resetPassword": "重置密码",
+    "deactivate": "停用",
+    "activate": "启用",
+    "createDialog": {
+      "title": "创建用户",
+      "username": "用户名",
+      "role": "角色",
+      "password": "密码（留空则自动生成）",
+      "submit": "创建"
+    },
+    "generated": {
+      "title": "请记下此密码",
+      "message": "此值无法再次显示。请告知本人，并在首次登录后修改。",
+      "label": "密码"
+    },
+    "confirm": {
+      "deactivate": "停用「{name}」？登录中的令牌也将失效。是否继续？",
+      "activate": "启用「{name}」？是否继续？",
+      "resetPassword": "重置「{name}」的密码？现有登录将失效。是否继续？"
+    },
+    "messages": {
+      "created": "已创建用户",
+      "deactivated": "已停用",
+      "activated": "已启用",
+      "passwordReset": "已重置密码",
+      "loadError": "获取用户列表失败",
+      "actionError": "操作失败",
+      "usernameRequired": "请输入用户名"
+    }
   }
 }

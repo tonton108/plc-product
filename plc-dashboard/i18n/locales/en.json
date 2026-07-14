@@ -199,5 +199,50 @@
     "disconnected": "Disconnected",
     "open": "Open",
     "openEquipment": "Start Equipment Monitoring"
+  },
+  "userManagement": {
+    "title": "User Management",
+    "subtitle": "Create login users, reset passwords, enable/disable (admin only)",
+    "openButton": "Users",
+    "columns": {
+      "username": "Username",
+      "role": "Role",
+      "status": "Status",
+      "createdAt": "Created",
+      "actions": "Actions"
+    },
+    "roles": { "admin": "Admin", "operator": "Operator" },
+    "statusActive": "Active",
+    "statusInactive": "Disabled",
+    "create": "Create user",
+    "resetPassword": "Reset password",
+    "deactivate": "Disable",
+    "activate": "Enable",
+    "createDialog": {
+      "title": "Create user",
+      "username": "Username",
+      "role": "Role",
+      "password": "Password (leave blank to auto-generate)",
+      "submit": "Create"
+    },
+    "generated": {
+      "title": "Save this password",
+      "message": "This value cannot be shown again. Share it with the user and have them change it after first login.",
+      "label": "Password"
+    },
+    "confirm": {
+      "deactivate": "Disable \"{name}\"? Active login tokens will also be revoked. Continue?",
+      "activate": "Enable \"{name}\"? Continue?",
+      "resetPassword": "Reset the password for \"{name}\"? Existing logins will be invalidated. Continue?"
+    },
+    "messages": {
+      "created": "User created",
+      "deactivated": "User disabled",
+      "activated": "User enabled",
+      "passwordReset": "Password reset",
+      "loadError": "Failed to load users",
+      "actionError": "Operation failed",
+      "usernameRequired": "Please enter a username"
+    }
   }
 }
