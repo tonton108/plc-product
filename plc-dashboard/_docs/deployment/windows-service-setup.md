@@ -113,10 +113,19 @@ UIとAPIが同一オリジンになるため、`NUXT_PUBLIC_API_BASE=''`（相�
 
 ---
 
-## 6. PostgreSQL（今回は既存ネイティブを利用）
+## 6. PostgreSQL（既存を利用。無ければ winget 自動導入）
 
-- 既存 `postgresql-x64-18`（5432）を使う。将来インストーラは Postgres を**同梱**し
-  `initdb` 時に `--auth`（trust回避）・`--encoding=UTF8`・`--locale` を明示（SPEC §10）。
+- 既存の `postgresql-x64-*`（5432）があればそれを使う。**無ければ `setup-all.ps1` が
+  winget で自動導入**する（`PostgreSQL.PostgreSQL` を unattended 導入し、superuserパスワードに
+  `-PgSuperPassword` を設定）。Python 未検出時も `Python.Python.3.12` を、backend依存が
+  無ければ `pip install -r requirements.txt` を自動実行する（2026-07-14。ユーザー選択＝
+  ポータブル同梱ではなく winget 前提導入）。
+- サービス名はバージョンで変わる（例 `postgresql-x64-17`）ため、`setup-all.ps1` は
+  `postgresql-x64-*` を**動的検出**して Shawl の `depend=` に使う。
+- 事前の下見: `.\setup-all.ps1 -CheckOnly`（副作用なし・管理者不要。何が導入済み/不足かを表示）。
+- 将来のフル同梱（ポータブルPostgres・Python埋め込み）に切り替える場合の initdb 手順・
+  却下した子プロセス方式は `installer-runtime-bundling.md` を参照
+  （`initdb` は `--auth`(trust回避)・`--encoding=UTF8`・`--locale` を明示、SPEC §10）。
 - Increment 1のセットアップ手順（＝将来インストーラが自動化する予行）:
   1. ロール/DB作成: `plc_user` / `plc_monitor`（パスワードは生成。弱いデフォルト禁止）
   2. `DATABASE_URL=postgresql+psycopg2://plc_user:<pw>@127.0.0.1:5432/plc_monitor`
