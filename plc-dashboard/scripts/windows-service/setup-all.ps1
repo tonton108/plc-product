@@ -5,7 +5,8 @@
 
 .DESCRIPTION
   設計は _docs/deployment/windows-service-setup.md を参照。処理:
-   1. 前提確認（管理者/psql/python/既存Postgresサービス）
+   1. 前提確認（管理者/psql/python/backend依存）。**不足は winget で自動導入**
+      （PostgreSQL・Python が無ければ導入、backend依存が無ければ pip install）
    2. Memurai(Redis互換) と Shawl(サービスラッパー) を winget 導入
    3. ネイティブPostgres(5432)に role=plc_user / db=plc_monitor を作成（パスワード生成）
    4. マイグレーション適用（flask db upgrade）
@@ -17,16 +18,29 @@
   生成した認証情報（adminパスワード・APIキー）は最後に表示する。控えること。
 
 .PARAMETER PgSuperPassword
-  既存ネイティブPostgresの superuser(postgres) パスワード。role/db 作成に使う（必須）。
+  PostgreSQL superuser(postgres) のパスワード（必須）。
+  - 既存Postgresがある場合: その superuser パスワード（role/db作成の認証に使う）。
+  - Postgresが無く自動導入する場合: このパスワードを superuser に**設定**する。
+
+.PARAMETER CheckOnly
+  前提の充足状況を確認して終了するだけ（副作用なし・パスワード不要）。
+  何が導入済みで何が不足かを事前に把握できる。
 
 .EXAMPLE
   # 管理者PowerShellで:
   cd <repo>\plc-dashboard\scripts\windows-service
   .\setup-all.ps1 -PgSuperPassword '＜postgresのパスワード＞'
+
+.EXAMPLE
+  # 前提の下見だけ（導入はしない）:
+  .\setup-all.ps1 -CheckOnly
 #>
-[CmdletBinding()]
+[CmdletBinding(DefaultParameterSetName = 'Run')]
 param(
-  [Parameter(Mandatory = $true)][string]$PgSuperPassword,
+  [Parameter(Mandatory = $true, ParameterSetName = 'Run')][string]$PgSuperPassword,
+  # 前提（PostgreSQL/Python/psql/backend依存）の充足状況を確認するだけで終了する。
+  # 副作用なし・パスワード不要。導入前の下見や自動導入ロジックの確認に使う。
+  [Parameter(ParameterSetName = 'Check')][switch]$CheckOnly,
   [string]$PgSuperUser = 'postgres',
   [int]$PgPort = 5432,
   [string]$BindHost = '0.0.0.0',
@@ -57,35 +71,114 @@ $envFile = Join-Path $progData '.env'
 
 Info "repo(plc-dashboard) = $repo"
 
-# ---- 1. 前提確認 ----
-$admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-if (-not $admin) { Die '管理者権限で実行してください（右クリック→管理者としてPowerShell）。' }
-Ok '管理者権限を確認'
+# ---- winget 前提導入ヘルパー（不足時のみ自動導入） ----
+function Test-Winget { [bool](Get-Command winget -ErrorAction SilentlyContinue) }
 
-if (-not (Get-Service 'postgresql-x64-18' -ErrorAction SilentlyContinue)) {
-  Warn 'postgresql-x64-18 サービスが見つかりません。別バージョンなら -PgPort 等を調整してください。'
+function Find-Psql {
+  (Get-ChildItem 'C:\Program Files\PostgreSQL\*\bin\psql.exe' -ErrorAction SilentlyContinue |
+    Sort-Object FullName -Descending | Select-Object -First 1).FullName
 }
 
-# psql 検出
-$psql = (Get-ChildItem 'C:\Program Files\PostgreSQL\*\bin\psql.exe' -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1).FullName
-if (-not $psql) { Die 'psql.exe が見つかりません（C:\Program Files\PostgreSQL\*\bin）。' }
-Ok "psql = $psql"
+function Find-PgService {
+  # winget導入は最新版を入れるためサービス名のバージョン部は不定（例: postgresql-x64-17）。
+  (Get-Service 'postgresql-x64-*' -ErrorAction SilentlyContinue | Select-Object -First 1).Name
+}
 
-# python 検出
-if (-not $PythonExe) {
+function Find-Python {
+  if ($PythonExe -and (Test-Path $PythonExe)) { return $PythonExe }
   $pc = Get-Command python -ErrorAction SilentlyContinue
-  if ($pc) { $PythonExe = $pc.Source }
-  elseif (Test-Path 'C:\Users\tonto\AppData\Local\Programs\Python\Python312\python.exe') {
-    $PythonExe = 'C:\Users\tonto\AppData\Local\Programs\Python\Python312\python.exe'
+  # WindowsApps の python はストア誘導スタブのことがあるため除外
+  if ($pc -and $pc.Source -and $pc.Source -notlike '*WindowsApps*') { return $pc.Source }
+  foreach ($pat in @(
+      "$env:LOCALAPPDATA\Programs\Python\Python3*\python.exe",
+      "C:\Program Files\Python3*\python.exe")) {
+    $f = Get-ChildItem $pat -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1
+    if ($f) { return $f.FullName }
   }
+  return $null
 }
-if (-not $PythonExe -or -not (Test-Path $PythonExe)) { Die 'python.exe が見つかりません。-PythonExe で明示してください。' }
-Ok "python = $PythonExe"
 
-# backend依存の存在確認
-& $PythonExe -c "import flask, waitress, redis, psycopg2, flask_socketio, flask_migrate" 2>$null
-if ($LASTEXITCODE -ne 0) { Die "backend依存が $PythonExe に無い。`n  cd $backend; & '$PythonExe' -m pip install -r requirements.txt を先に実行してください。" }
-Ok 'backend依存を確認'
+function Install-PostgresIfMissing {
+  if ((Find-PgService) -or (Find-Psql)) { return }
+  if ($SkipInstall) { Die 'PostgreSQL 未検出（-SkipInstall のため自動導入しません）。手動導入するか -SkipInstall を外してください。' }
+  if (-not (Test-Winget)) { Die 'PostgreSQL 未検出かつ winget 不在。PostgreSQL を手動導入してください。' }
+  Info 'PostgreSQL を winget で自動導入中（unattended・superuserパスワードは -PgSuperPassword を設定）...'
+  # EDB版インストーラのサイレント引数。pgAdmin/StackBuilderは不要なので外す。
+  $override = "--mode unattended --unattendedmodeui none --superpassword `"$PgSuperPassword`" " +
+              "--serverport $PgPort --enable-components server,commandlinetools --disable-components pgAdmin,stackbuilder"
+  winget install --id PostgreSQL.PostgreSQL -e --accept-package-agreements --accept-source-agreements --override $override
+  if (-not (Find-Psql)) { Die 'PostgreSQL 導入後も psql.exe を検出できません。winget の出力を確認してください。' }
+  Ok 'PostgreSQL 導入完了（superuser=postgres のパスワードは -PgSuperPassword に設定）'
+}
+
+function Install-PythonIfMissing {
+  if (Find-Python) { return }
+  if ($SkipInstall) { Die 'Python 未検出（-SkipInstall のため自動導入しません）。' }
+  if (-not (Test-Winget)) { Die 'Python 未検出かつ winget 不在。Python を手動導入してください。' }
+  Info 'Python を winget で自動導入中...'
+  winget install --id Python.Python.3.12 -e --accept-package-agreements --accept-source-agreements
+  if (-not (Find-Python)) { Die 'Python 導入後も python.exe を検出できません。新しい管理者PowerShellで再実行してください（PATH反映のため）。' }
+  Ok 'Python 導入完了'
+}
+
+# ---- 1. 前提確認（不足は winget で自動導入） ----
+# -CheckOnly は読み取り専用なので管理者不要。本実行のみ管理者を必須にする。
+$admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $CheckOnly) {
+  if (-not $admin) { Die '管理者権限で実行してください（右クリック→管理者としてPowerShell）。' }
+  Ok '管理者権限を確認'
+}
+
+# PostgreSQL（無ければ winget 導入。-CheckOnly では導入せず不足として報告）
+if (-not $CheckOnly) { Install-PostgresIfMissing }
+$psql = Find-Psql
+$pgService = Find-PgService
+if ($CheckOnly) {
+  if ($psql) { Ok "psql = $psql (service=$pgService)" } else { Warn 'PostgreSQL 未検出（本実行時に winget 導入されます）' }
+} else {
+  if (-not $psql) { Die 'psql.exe が見つかりません（C:\Program Files\PostgreSQL\*\bin）。' }
+  if (-not $pgService) { $pgService = 'postgresql-x64-18'; Warn "postgresサービスが未検出。depend にフォールバック名 $pgService を使います。" }
+  Ok "psql = $psql (service=$pgService)"
+}
+
+# Python（無ければ winget 導入）
+if (-not $CheckOnly) { Install-PythonIfMissing }
+$PythonExe = Find-Python
+if ($CheckOnly) {
+  if ($PythonExe) { Ok "python = $PythonExe" } else { Warn 'Python 未検出（本実行時に winget 導入されます）' }
+} else {
+  if (-not $PythonExe) { Die 'python.exe が見つかりません。-PythonExe で明示してください。' }
+  Ok "python = $PythonExe"
+}
+
+# backend依存の確認（不足時は自動で pip install。-CheckOnly は報告のみ）
+if ($PythonExe) {
+  & $PythonExe -c "import flask, waitress, redis, psycopg2, flask_socketio, flask_migrate" 2>$null
+  if ($LASTEXITCODE -ne 0) {
+    if ($CheckOnly) {
+      Warn 'backend依存が不足（本実行時に pip install -r requirements.txt を実行します）'
+    } elseif ($SkipInstall) {
+      Die "backend依存が無い（-SkipInstall）。`n  cd $backend; & '$PythonExe' -m pip install -r requirements.txt を実行してください。"
+    } else {
+      Info 'backend依存が不足 → pip install -r requirements.txt を実行中...'
+      & $PythonExe -m pip install -r (Join-Path $backend 'requirements.txt')
+      & $PythonExe -c "import flask, waitress, redis, psycopg2, flask_socketio, flask_migrate" 2>$null
+      if ($LASTEXITCODE -ne 0) { Die 'backend依存の自動導入に失敗' }
+      Ok 'backend依存を導入'
+    }
+  } else {
+    Ok 'backend依存を確認'
+  }
+} elseif ($CheckOnly) {
+  Warn 'Python未検出のため backend依存は確認できません'
+}
+
+# -CheckOnly: 前提の下見のみで終了（副作用なし）
+if ($CheckOnly) {
+  Write-Host ''
+  Ok '前提チェック完了（-CheckOnly のためセットアップ本体は実行しません）。'
+  exit 0
+}
 
 # ---- 2. Memurai / Shawl 導入 ----
 if ($SkipInstall) {
@@ -207,8 +300,8 @@ function Register-Service($name, $role, $port) {
   & $shawl add --name $name --cwd $backend --log-dir $logDir --restart -- `
       $PythonExe serve_production.py --role $role --port $port
   if ($LASTEXITCODE -ne 0) { Die "$name のShawl登録に失敗" }
-  # 依存順（postgres→memurai→本サービス）と自動起動
-  & sc.exe config $name depend= postgresql-x64-18/Memurai | Out-Null
+  # 依存順（postgres→memurai→本サービス）と自動起動。postgresサービス名は動的検出値を使う。
+  & sc.exe config $name depend= "$pgService/Memurai" | Out-Null
   & sc.exe config $name start= auto | Out-Null
   Ok "$name を登録（role=$role port=$port 自動起動・自動再起動）"
 }
