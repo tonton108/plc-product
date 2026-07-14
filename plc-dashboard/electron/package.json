@@ -28,6 +28,40 @@
       "preload.js",
       "assets/**/*"
     ],
+    "extraResources": [
+      {
+        "from": "../backend",
+        "to": "server/backend",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/*.pyc",
+          "!.pytest_cache/**",
+          "!.coverage",
+          "!tests/**",
+          "!test_data/**",
+          "!venv/**",
+          "!.venv/**",
+          "!instance/**",
+          "!postgres-portable/**",
+          "!*.log"
+        ]
+      },
+      {
+        "from": "../.output/public",
+        "to": "server/.output/public",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../scripts/windows-service",
+        "to": "server/scripts/windows-service",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "mac": {
       "category": "public.app-category.utilities",
       "icon": "assets/icon.png"

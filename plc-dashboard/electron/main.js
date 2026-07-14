@@ -222,6 +222,9 @@ function updateTrayMenu() {
     { label: 'ブラウザで開く', click: () => shell.openExternal(loadConfig().viewerUrl) },
     { label: 'ログフォルダを開く', click: () => shell.openPath(loadConfig().logDir) },
     { type: 'separator' },
+    { label: '初回サーバーセットアップ（管理者）', click: () => runServerSetup() },
+    { label: 'セットアップフォルダを開く', click: () => shell.openPath(getServerDir()) },
+    { type: 'separator' },
     { label: '終了', click: () => { app.isQuitting = true; app.quit(); } },
   ]);
   tray.setContextMenu(menu);
@@ -242,6 +245,39 @@ function showMainWindow() {
 
 function showNotification(title, body) {
   if (Notification.isSupported()) new Notification({ title, body }).show();
+}
+
+// ── 同梱サーバー資産のパス解決 ──────────────────────────────────────
+// パッケージ時: resources/server/ 配下（extraResourcesで setup-all.ps1 が期待する
+//   相対レイアウト = <server>/{backend,.output/public,scripts/windows-service} を保持）。
+// 開発時: リポジトリ（plc-dashboard/）配下をそのまま使う。
+function getServerDir() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'server', 'scripts', 'windows-service')
+    : path.join(__dirname, '..', 'scripts', 'windows-service');
+}
+
+function setupScriptPath() {
+  return path.join(getServerDir(), 'setup-all.ps1');
+}
+
+// 初回サーバーセットアップ: setup-all.ps1 を管理者権限で対話起動する。
+// -PgSuperPassword が必須パラメータのため、可視ウィンドウ＋-NoExitで起動して
+// プロンプトと結果（生成されたadminパスワード・APIキー）を残す。
+function runServerSetup() {
+  const script = setupScriptPath();
+  if (!fs.existsSync(script)) {
+    showNotification('サーバーセットアップ', 'setup-all.ps1 が見つかりません:\n' + script);
+    return;
+  }
+  // 内側コマンドはBase64(EncodedCommand)で渡し、クォート地獄とロケール差を回避（controlServices同様）。
+  const inner = `Set-Location -LiteralPath '${getServerDir()}'; & '${script}'`;
+  const encoded = Buffer.from(inner, 'utf16le').toString('base64');
+  const outer = `powershell -NoProfile -Command "Start-Process powershell -Verb RunAs -ArgumentList '-NoExit','-NoProfile','-ExecutionPolicy','Bypass','-EncodedCommand','${encoded}'"`;
+  showNotification('サーバーセットアップ', '管理者PowerShellを起動します（UAC許可が必要）。postgresパスワードの入力を求められます。');
+  exec(outer, { windowsHide: true }, (err) => {
+    if (err) showNotification('サーバーセットアップ', '起動に失敗しました（UAC拒否など）:\n' + err.message);
+  });
 }
 
 // ── ログ取得（C:\ProgramData\plc-monitor\logs 配下の各サービスログ）─────

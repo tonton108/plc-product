@@ -10,9 +10,27 @@
 - ✅ システムトレイ常駐（状態を 🟢/🔴 で表示）
 - ✅ ダッシュボード(viewer:5001)をウィンドウに直接表示（SPA再バンドル不要）
 - ✅ 「ブラウザで開く」「ログフォルダを開く」
+- ✅ **初回サーバーセットアップ**: 同梱の `setup-all.ps1` を管理者権限で対話起動（トレイメニュー）
 - ✅ デスクトップ通知
 
 > PostgreSQL(`postgresql-x64-18`) は別管理のため、状態表示のみ（起動/停止対象外）。
+
+### 同梱するサーバー資産（インストーラ配布時）
+
+配布用インストーラ(`.exe`)は、トレイアプリ本体に加えて以下を `resources/server/` 配下へ同梱する
+（段階的アプローチ: コード同梱。PostgreSQL/Python/Memurai は当面インストール前提）:
+
+```
+resources/server/
+├── backend/                     … Flask（serve_production.py / manage.py / migrations 等）
+├── .output/public/              … Nuxt静的SPA（viewerが配信）
+└── scripts/windows-service/     … setup-all.ps1 ほか
+    └── setup-all.ps1            … 初回セットアップ（$PSScriptRoot\..\.. を server/ に解決）
+```
+
+トレイの「初回サーバーセットアップ（管理者）」から `setup-all.ps1` を昇格・対話起動できる
+（`-PgSuperPassword` の入力を求められる）。同梱レイアウトは同スクリプトの相対パス前提
+（`$repo=<server>` / `backend` / `.output\public`）をそのまま満たすため、スクリプトは無改変で流用する。
 
 ## 前提
 
