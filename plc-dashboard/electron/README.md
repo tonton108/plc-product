@@ -38,8 +38,28 @@ npm run build:win     # Windows(nsis)。dist/ に出力
 # 参考: build:mac / build:linux も定義あり
 ```
 
+- 生成物: `dist/PLC-Dashboard-Setup-<version>.exe`（NSISインストーラ）。
+- インストーラ仕様: `oneClick=false`（インストール先を選択可）・`perMachine=true`（全ユーザー向け・要管理者）・
+  デスクトップ/スタートメニューショートカット（名称「PLC監視 中央サーバー」）・インストーラ言語 ja_JP。
+- サービス管理に管理者権限が要るため `perMachine` にしている（インストール時にUAC昇格を要求）。
+
 > ウィンドウは viewer(5001) をリモートロードするため、Nuxtの静的生成（`npm run generate`）の
 > 同梱は不要。本アプリのパッケージには `main.js` / `preload.js` / `assets/` のみを含む。
+
+### ⚠️ ビルド時の既知の落とし穴（winCodeSign のシンボリックリンク）
+
+electron-builder は Windows ビルド時に `winCodeSign` パッケージを展開するが、その中身に mac 用の
+`.dylib` シンボリックリンクが含まれ、**Windows でシンボリックリンクを作るには特権が必要**。
+Developer Mode が無効かつ非管理者だと `7za` の展開が
+`Cannot create symbolic link : クライアントは要求された特権を保有していません` で失敗する。
+
+回避策（いずれか）:
+
+1. **管理者権限でビルドを1回実行**する（`winCodeSign` がキャッシュされれば以降は非管理者でも可）。
+2. Windows の **開発者モードを有効化**する（設定 → プライバシーとセキュリティ → 開発者向け）。
+
+> 署名は行っていないため（社内配布・イントラネット前提）、`winCodeSign` は本来不要だが
+> electron-builder が既定で展開する。上記いずれかで一度キャッシュを作れば解消する。
 
 ## 設定
 
@@ -56,8 +76,8 @@ npm run build:win     # Windows(nsis)。dist/ に出力
 
 ## アイコン
 
-`electron/assets/` に配置：`icon.png`（アプリ・512px推奨）、`tray-icon.png`（トレイ・16/32px）、
-`icon.ico`（Windowsビルド用）。未配置時はフォールバックする。
+`electron/assets/` に配置：`icon.png`（アプリ・256px以上の正方形。electron-builderがWindows用`.ico`を自動生成）、
+`tray-icon.png`（トレイ・16/32px）。空ファイル/未配置でも起動時に埋め込みPNGへフォールバックする（`resolveIcon()`）。
 
 ## トラブルシューティング
 
