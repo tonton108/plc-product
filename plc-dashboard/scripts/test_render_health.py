@@ -56,6 +56,28 @@ def main():
             if not cond:
                 failures.append(label)
 
+        # 要素の出現を最大timeoutミリ秒待って真偽を返す。
+        # 固定 time.sleep では CI 負荷時に遅延描画（v-window の遅延マウント）を取りこぼし
+        # フレーキーになっていたため、明示待機に置き換える。
+        def wait_visible(selector, timeout=10000):
+            try:
+                page.wait_for_selector(selector, state='visible', timeout=timeout)
+                return True
+            except PlaywrightTimeout:
+                return False
+
+        # Vuetifyのv-tabsは、ページ初期化直後の「最初のタブクリック」がコンポーネントの
+        # 対話準備完了前だとv-modelに反映されず、対象タブ内容が非アクティブ(display:none)の
+        # ままになることがある（本テストのフレーキーの主因。standaloneページのErrorLogTableは
+        # 可視なのに詳細タブ側だけ不可視になる現象で確認）。クリック→内容の可視化を待ち、
+        # 反映されなければ再クリックする。
+        def open_tab(tab_text, content_selector, attempts=3, timeout=8000):
+            for _ in range(attempts):
+                page.click(f'.v-tab:has-text("{tab_text}")')
+                if wait_visible(content_selector, timeout=timeout):
+                    return True
+            return False
+
         try:
             # --- ログイン ---
             print("\n[1] login")
@@ -71,35 +93,30 @@ def main():
             print("\n[2] equipment detail -> errors/alarms tab")
             page.goto(f"{BASE}/equipment/{EQUIPMENT_ID}", timeout=20000)
             page.wait_for_selector('.v-tab', timeout=15000)
-            page.click('.v-tab:has-text("エラー・アラーム")')
-            time.sleep(2)
-            check("PLC通信状態カード描画（PLCStatusCards）",
-                  page.locator('text=PLC通信状態').count() >= 1)
+            # タブを開いて内容(先頭カード)の可視化を待つ（クリック未反映なら再クリック）。
+            opened = open_tab("エラー・アラーム", 'text=PLC通信状態')
+            check("PLC通信状態カード描画（PLCStatusCards）", opened)
             check("アラーム履歴カード描画（AlarmHistoryTable）",
-                  page.locator('text=アラーム履歴').count() >= 1)
+                  wait_visible('text=アラーム履歴'))
             check("エラーログカード描画（ErrorLogTable）",
-                  page.locator('text=エラーログ').count() >= 1)
+                  wait_visible('text=エラーログ'))
 
             # --- 設備詳細: インシデント追跡タブ ---
             print("\n[3] equipment detail -> incidents tab")
-            page.click('.v-tab:has-text("インシデント追跡")')
-            time.sleep(2)
             check("インシデント一覧カード描画（IncidentTable）",
-                  page.locator('.v-card-title:has-text("インシデント追跡")').count() >= 1)
+                  open_tab("インシデント追跡", '.v-card-title:has-text("インシデント追跡")'))
 
             # --- /errors-alarms 単体ページ ---
             print("\n[4] /errors-alarms standalone page")
             page.goto(f"{BASE}/errors-alarms", timeout=20000)
-            time.sleep(2)
             try:
+                # click は要素の出現を自動待機するので固定sleepは不要。
                 page.click('div.v-select', timeout=5000)
-                time.sleep(1)
                 page.locator('.v-list-item').first.click(timeout=5000)
-                time.sleep(2)
             except PlaywrightTimeout:
                 print("    (設備選択をスキップ: セレクタ未検出)")
             check("errors-alarmsページでエラーログ描画",
-                  page.locator('text=エラーログ').count() >= 1)
+                  wait_visible('text=エラーログ'))
 
         except Exception as e:
             import traceback
