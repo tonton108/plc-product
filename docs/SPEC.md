@@ -176,7 +176,7 @@
 | 三菱 | MC Protocol (3E) | 実装済み。pymcprotocolの実機テスト済みは3Eのみ。word_order=`low_first` |
 | オムロン | FINS (UDP) | 実装済み。**CP1/CJ系が対象**。NX/NJ系はFINS大幅制限（公式非推奨・CJ互換メモリのみ・要事前設定）のため、本格対応はEtherNet/IP (CIP) ドライバ追加を将来課題とする |
 | キーエンス | MC(SLMP)互換 / Modbus TCP | 実装済み（条件付き）。**MC(SLMP)互換読み取りを第一候補とし、Modbus TCP（KV-XLE02拡張ユニットのサーバ機能）はフォールバック**（2026-07-09決定）。SLMPが実機で読めれば三菱ドライバを流用しキーエンス専用ドライバの保守を削減できる。実機検証はSiemens検証と同時期（Phase 5）に実施 |
-| シーメンス | S7 (python-snap7 3.x) | **スタブ → 実装する**。開発中はSnap7 server demo（無料のソフトウェアサーバ）で検証し、**リリース判定前にS7-1200実機（エントリーモデル）を1台調達して前提条件手順書ごと最終確認**（2026-07-09決定。PUT/GET許可・最適化ブロックアクセス無効化はシミュレータでは再現されないため） |
+| シーメンス | S7 (python-snap7 3.x) | **ドライバ実装済み（開発検証まで完了）**。DB/M/I/Q域のword/dword/float32/bit読み取りに対応（`plc_drivers/siemens.py`）。**Snap7 server demoでの実通信往復検証まで完了**（全データ型一致）。**リリース判定前にS7-1200実機（エントリーモデル）を1台調達して前提条件手順書ごと最終確認**（2026-07-09決定。PUT/GET許可・最適化ブロックアクセス無効化はシミュレータでは再現されないため） |
 
 **シーメンス実装の前提条件（仕様として明記）:**
 - **python-snap7 >=3 を採用（Pure Python。C共有ライブラリ・コンパイラ不要。ARM/Alpine可）**。2026-07-12に一次情報で確認済（v3.0でS7スタックを純Python実装。`<3` はCラッパーなので **`>=3` のバージョンピンを必須**とする）
@@ -209,7 +209,12 @@
 > render-healthフレーキー根治（#51）、**ユーザー管理admin画面**＝API（#52）＋UI（#53）、
 > setup-all.ps1のwinget前提自動導入＋`-CheckOnly`（#54）。
 > **残（Phase 4）**: ①フル同梱インストーラ＝ポータブルPostgres/Python埋め込み（`installer-runtime-bundling.md` 参照。クリーン環境での実インストール検証待ち。当面はwinget前提導入で代替）、②ラズパイSDイメージ＋死活一覧（#17・未着手）、③wsgi.py一本化は `serve_production.py` で実装済み。
-> **残（Phase 5）**: Siemens/キーエンス実機（ハード必須でブロック）、ESLintゲート（棚上げ）。
+>
+> **【2026-07-15 更新】** Phase 5 の **Siemens S7ドライバを実装**（#18）:
+> スタブだった `plc_drivers/siemens.py` にS7アドレス解析（DB/M/I/Q域、DBX/DBW/DBD）・
+> word/dword/float32/bit読み取り・Big-Endian変換（word_order=high_first、既存 `convert_words_to_value` 再利用）を実装。
+> pytest 32件追加＋**Snap7 server demoでの実通信往復検証（全データ型一致）**まで完了。
+> **残（Phase 5）**: Siemens/キーエンスの**実機**最終確認（S7-1200／KV-XLE02。ハード必須でブロック。ドライバ自体は上記で実装済み）、ESLintゲート（棚上げ）。
 
 ### Phase 0: 実害バグの修正（仕様変更なし・即着手可）
 1. 収集ループの一本化（`agent_app.py` の wrapper 廃止 → `plc_agent.py:main_loop` に統合。WebUI起動時に再送が動かない実害の解消）

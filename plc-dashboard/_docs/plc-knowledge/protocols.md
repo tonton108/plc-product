@@ -208,10 +208,16 @@ data = plc.batchread_wordunits(
 | Y | 出力 | Bit |
 | W | リンクレジスタ | Word (16bit) |
 
-## シーメンス（S7 Protocol）— 実装予定
+## シーメンス（S7 Protocol）— 実装済み（実機検証待ち）
 
 ### 実装ファイル
-`plc-dashboard/raspi_agent/plc_drivers/siemens.py`（現状スタブ）
+`plc-dashboard/raspi_agent/plc_drivers/siemens.py`
+
+DB/M/I/Q域のアドレス解析（`DB1.DBX0.3` / `DBW` / `DBD`、`MW`/`MD`/`I0.1`/`Q2.0` 等）と
+word/dword/float32/bit読み取りを実装。32bit値の復元は共通の `convert_words_to_value` を
+再利用し、S7既定の `word_order="high_first"`（先頭バイト=上位）で吸収する。
+**Snap7 server demoでの実通信往復検証（全データ型一致）まで完了**。実機（S7-1200）での
+最終確認のみ残る（SPEC.md §7）。テスト: `tests/test_plc_drivers_siemens.py`（32件）。
 
 ### PLC側の前提条件（2026-07調査で確認済み・実装時に必読）
 
