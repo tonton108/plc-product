@@ -1,36 +1,59 @@
 """
-シーメンスPLC用ドライバー（未実装）
+シーメンスPLC用ドライバー
 
 S7 Protocol を使用したシーメンスPLCとの通信を提供します。
 - ポート: 102
-- エンディアン: Big-Endian
-- ライブラリ: python-snap7
+- エンディアン: Big-Endian（S7のデータ本体。word_order=high_first）
+- ライブラリ: python-snap7 >=3（Pure Python実装。C共有ライブラリ不要）
 
 CLAUDE.md参照: PLCプロトコル基礎知識 - S7 Protocol
+SPEC.md §7 参照: 開発はSnap7 server demoで検証、リリース判定前にS7-1200実機で最終確認
+（PUT/GET許可・最適化ブロックアクセス無効化はシミュレータでは再現されないため）
 
-注意: 現在はスタブ実装です。実際の通信ロジックは未実装です。
+Phase 5: スタブ → 実装。アドレス解析は純粋関数（parse_s7_address）として切り出し、
+snap7非依存でユニットテスト可能にしている。32bit値の復元は共通の
+convert_words_to_value を再利用し、S7既定の word_order=high_first で吸収する。
 """
 
+import re
 import logging
+
 from .base import (
     validate_plc_ip,
     update_error_stats,
     retry_on_failure,
+    convert_words_to_value,
     CONNECTION_TIMEOUT,
 )
 
 logger = logging.getLogger(__name__)
 
+# S7のデータ本体はBig-Endian（先頭バイト=上位）。32bit結合の既定は high_first。
+# SPEC.md §7「S7のデータ本体はBig-Endian（word_order=high_first）」に対応。
+SIEMENS_DEFAULT_WORD_ORDER = "high_first"
+
+# data_type → 読み取りバイト数
+_DATA_TYPE_SIZE = {
+    "bit": 1,
+    "word": 2,
+    "dword": 4,
+    "float32": 4,
+}
+
+# S7メモリ域の先頭文字 → snap7のArea種別キー（DB以外）
+# I(入力)=PE, Q(出力)=PA, M(内部メモリ/フラグ)=MK
+_MEMORY_AREAS = {"M", "I", "Q"}
+
 
 def connect_siemens_plc(ip, rack=0, slot=1, timeout=CONNECTION_TIMEOUT):
     """
-    シーメンスPLC接続（タイムアウト付き）
+    シーメンスPLC接続（リトライ付き）
     CLAUDE.md参照: S7 Protocol, ポート102, Big-Endian
 
     Args:
         ip: PLCのIPアドレス
-        rack: Rack番号（S7-300/400: 0、S7-1200/1500: 0）
-        slot: Slot番号（S7-300/400: 2、S7-1200/1500: 1）
+        rack: Rack番号（S7-300/400/1200/1500 とも通常0）
+        slot: Slot番号（S7-1200/1500: 1、S7-300/400: 2）
         timeout: タイムアウト時間（秒）
 
     Returns:
@@ -45,14 +68,16 @@ def connect_siemens_plc(ip, rack=0, slot=1, timeout=CONNECTION_TIMEOUT):
         import snap7
     except ImportError:
         logger.error(
-            "snap7ライブラリがインストールされていません: pip install python-snap7"
+            "snap7ライブラリがインストールされていません: pip install 'python-snap7>=3'"
         )
         return None
 
     def _connect():
         plc = snap7.client.Client()
-        plc.set_connection_type(3)  # OP接続
+        plc.set_connection_type(3)  # OP接続（PG=1, OP=2, S7Basic=3。汎用のOP相当）
         plc.connect(ip, rack, slot)
+        if not plc.get_connected():
+            raise ConnectionError("S7接続確立に失敗しました")
         logger.info(f"✅ シーメンスPLC接続成功: {ip} (Rack:{rack}, Slot:{slot})")
         return plc
 
@@ -64,47 +89,188 @@ def connect_siemens_plc(ip, rack=0, slot=1, timeout=CONNECTION_TIMEOUT):
         return None
 
 
-def read_siemens_plc(plc, data_points):
+def parse_s7_address(address, data_type="word"):
     """
-    シーメンスPLCからデータを読み取り（未実装）
+    S7アドレス文字列を (area, db_number, byte_offset, bit_offset) に解析する（純粋関数）。
+
+    対応表記:
+        データブロック:
+            DB1.DBX0.3  … DB1のバイト0・ビット3（bit）
+            DB1.DBW10   … DB1のバイト10から2バイト（word）
+            DB1.DBD20   … DB1のバイト20から4バイト（dword/float32）
+            DB1.DBB4    … DB1のバイト4から1バイト（byte）
+        メモリ域（M=内部メモリ, I=入力, Q=出力）:
+            M10.3 / I0.1 / Q2.0  … ビット
+            MW10  / IW0  / QW2   … word（2バイト）
+            MD20  / ID0  / QD4   … dword（4バイト）
+            MB4   / IB0  / QB2   … byte（1バイト）
 
     Args:
-        plc: S7接続オブジェクト
+        address: S7アドレス文字列
+        data_type: データ型（bit / word / dword / float32）。ビット要否の判定に使う
+
+    Returns:
+        tuple: (area, db_number, byte_offset, bit_offset)
+            area       … "DB" / "M" / "I" / "Q"
+            db_number  … DB番号（DB以外は0）
+            byte_offset… バイトオフセット
+            bit_offset … ビット番号（bit以外はNone）
+
+    Raises:
+        ValueError: 未知のアドレス形式、またはビット読み取りでビット番号が欠落している場合
+    """
+    addr = address.upper().strip()
+
+    # --- データブロック: DB<n>.DB[X/W/D/B]<byte>[.<bit>] ---
+    m = re.match(r"^DB(\d+)\.DB([XWDB])(\d+)(?:\.(\d+))?$", addr)
+    if m:
+        db_num = int(m.group(1))
+        size_char = m.group(2)  # X=bit, W=word, D=dword, B=byte
+        byte_offset = int(m.group(3))
+        bit_offset = int(m.group(4)) if m.group(4) is not None else None
+
+        if size_char == "X" or data_type == "bit":
+            if bit_offset is None:
+                raise ValueError(f"ビットアドレスにはビット番号が必要です: {address}")
+            if not 0 <= bit_offset <= 7:
+                raise ValueError(f"ビット番号は0〜7の範囲です: {address}")
+        return ("DB", db_num, byte_offset, bit_offset)
+
+    # --- メモリ域: [M/I/Q][W/D/B?]<byte>[.<bit>] ---
+    m = re.match(r"^([MIQ])([WDB]?)(\d+)(?:\.(\d+))?$", addr)
+    if m:
+        area = m.group(1)
+        byte_offset = int(m.group(3))
+        bit_offset = int(m.group(4)) if m.group(4) is not None else None
+
+        if data_type == "bit":
+            if bit_offset is None:
+                raise ValueError(f"ビットアドレスにはビット番号が必要です: {address}")
+            if not 0 <= bit_offset <= 7:
+                raise ValueError(f"ビット番号は0〜7の範囲です: {address}")
+        return (area, 0, byte_offset, bit_offset)
+
+    raise ValueError(f"不明なS7アドレス形式: {address}")
+
+
+def _resolve_area(area):
+    """メモリ域の先頭文字を snap7 の Area 定数に変換する（I=PE, Q=PA, M=MK）"""
+    from snap7.type import Area
+
+    return {"M": Area.MK, "I": Area.PE, "Q": Area.PA}[area]
+
+
+def _read_s7_bytes(plc, area, db_number, byte_offset, size):
+    """S7から指定バイト数を読み取る（DBは db_read、M/I/Qは read_area）"""
+    if area == "DB":
+        return plc.db_read(db_number, byte_offset, size)
+    return plc.read_area(_resolve_area(area), 0, byte_offset, size)
+
+
+def _bytes_to_value(raw_bytes, data_type, bit_offset, word_order):
+    """読み取ったバイト列を data_type に応じた値へ変換する（S7はBig-Endian）"""
+    if data_type == "bit":
+        return 1 if (raw_bytes[0] >> bit_offset) & 1 else 0
+
+    if data_type in ("dword", "float32"):
+        # 4バイトを上位ワード・下位ワードに分割し、共通変換へ委譲する。
+        # S7は先頭バイト=上位なので既定 word_order=high_first で元の32bit値を復元する。
+        word1 = int.from_bytes(raw_bytes[0:2], "big")
+        word2 = int.from_bytes(raw_bytes[2:4], "big")
+        return convert_words_to_value(word1, word2, data_type, word_order)
+
+    # word（16bit符号なし整数）
+    return int.from_bytes(raw_bytes[0:2], "big")
+
+
+def read_s7_value(plc, address, data_type="word", scale=1, word_order=None):
+    """
+    S7から1項目を読み取り、data_type・scaleを適用した値を返す（mockでテスト可能）。
+
+    Args:
+        plc: snap7クライアント
+        address: S7アドレス（例: DB1.DBD0, MW10, I0.3）
+        data_type: word / dword / float32 / bit
+        scale: スケール係数（>1のとき除算。ビットには適用しない）
+        word_order: 32bitワード順序。Noneのときシーメンス既定（high_first）
+
+    Returns:
+        読み取った値、エラー時はNone
+    """
+    if word_order is None:
+        word_order = SIEMENS_DEFAULT_WORD_ORDER
+
+    try:
+        area, db_number, byte_offset, bit_offset = parse_s7_address(address, data_type)
+        size = _DATA_TYPE_SIZE.get(data_type, 2)
+        raw_bytes = _read_s7_bytes(plc, area, db_number, byte_offset, size)
+
+        if raw_bytes is None or len(raw_bytes) < size:
+            logger.error(
+                f"S7読み取りバイト不足({address}): "
+                f"{len(raw_bytes) if raw_bytes is not None else 0}/{size}"
+            )
+            return None
+
+        value = _bytes_to_value(raw_bytes, data_type, bit_offset, word_order)
+
+        if data_type == "bit":
+            return int(value)
+        if scale and scale > 1:
+            return value / scale
+        return value
+
+    except Exception as e:
+        logger.error(f"S7読み取りエラー({address}): {e}")
+        return None
+
+
+def read_siemens_plc(plc, data_points):
+    """
+    シーメンスPLCからデータを読み取る
+
+    Args:
+        plc: snap7クライアント（接続済み）
         data_points: データ項目の辞書
 
     Returns:
-        dict: 読み取ったデータ（現在は空辞書）
-
-    注意:
-        現在は未実装のため、すべてのデータ項目に対して警告ログを出力します。
-        実装が必要な場合は、snap7 APIを使用してDB、I、Q、Mエリアの読み取りロジックを追加してください。
+        dict: 読み取ったデータ
     """
     data = {}
 
-    # 有効な各データ項目を設定に基づいて読み取り
     for key, setting in data_points.items():
-        if setting.get("enabled", False):
-            address = setting.get("address")
+        if not setting.get("enabled", False):
+            continue
 
-            if address:
-                # シーメンスPLCは現在未実装（snap7 APIの複雑さのため）
-                logger.warning(f"シーメンスPLCの読み取りは現在未実装です: {address}")
+        address = setting.get("address")
+        if not address:
+            continue
 
-                # TODO: snap7を使用した実装例
-                # data_type = setting.get("data_type", "word")
-                # if address.upper().startswith('DB'):
-                #     # データブロックから読み取り
-                #     db_num, byte_addr = parse_db_address(address)
-                #     db_data = plc.db_read(db_num, byte_addr, 2)
-                #     data[key] = int.from_bytes(db_data, byteorder='big')
+        data_type = setting.get("data_type", "word")
+        scale = setting.get("scale", 1)
+        # 32bitワード順序（Phase 2）。シーメンスは先頭バイト=上位のため high_first 既定
+        word_order = setting.get("word_order", SIEMENS_DEFAULT_WORD_ORDER)
 
+        # read_s7_value は内部で例外を捕捉しNoneを返す（キーエンスドライバと同方式）
+        raw_value = read_s7_value(plc, address, data_type, scale, word_order)
+
+        if raw_value is not None:
+            data[key] = raw_value
+            logger.debug(f"  ✅ {key} = {raw_value} ({address}, {data_type})")
+        else:
+            logger.warning(f"⚠️ {key}({address})のデータ取得に失敗")
+
+    # 接続を閉じる
     if plc:
-        plc.disconnect()
+        try:
+            plc.disconnect()
+        except Exception:
+            pass
 
     if data:
         update_error_stats(True)
         logger.info(f"✅ シーメンスPLC データ取得成功: {len(data)}項目")
     else:
-        logger.warning("⚠️ シーメンスPLC: データ取得なし（未実装）")
+        logger.warning("⚠️ シーメンスPLC: データ取得なし")
 
     return data

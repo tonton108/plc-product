@@ -14,7 +14,7 @@
 | **三菱電機** | Q/QnU/iQ-R/iQ-F/FX | MC Protocol (3E/4E) ※1 | pymcprotocol | 5000/5007 ※2 | ✅ 実装済み |
 | **オムロン** | CP1/CJ/NJ/NX ※3 | FINS over TCP/UDP | fins | 9600 | ✅ 実装済み |
 | **キーエンス** | KV ※4 | Modbus TCP（KV-XLE02拡張ユニット必須・サーバ機能のみ）/ MC(SLMP)互換 | pymodbus | 502 | ✅ 実装済み（条件付き） |
-| **シーメンス** | S7-300/400/1200/1500 ※5 | S7 Protocol | python-snap7 (3.x, Pure Python) | 102 | 🚧 未実装 |
+| **シーメンス** | S7-300/400/1200/1500 ※5 | S7 Protocol | python-snap7 (3.x, Pure Python) | 102 | ✅ 実装済み（実機検証待ち） |
 | **Schneider Electric** | Modicon M221/M340/M580 | Modbus TCP | pymodbus | 502 | 🔄 対応可能 |
 | **Rockwell Automation** | CompactLogix/ControlLogix | EtherNet/IP (CIP) | pycomm3 | 44818 | 🔄 対応可能 |
 | **ABB** | AC500/AC500-eCo | Modbus TCP | pymodbus | 502 | 🔄 対応可能 |
@@ -38,7 +38,7 @@
 ## 凡例
 
 - ✅ **実装済み**: 現在のシステムで動作確認済み（三菱、オムロン、キーエンス）
-- 🚧 **未実装**: ドライバー構造は作成済みだが機能未実装（シーメンス）
+- ✅ **実装済み（実機検証待ち）**: ドライバー実装＋Snap7 server demoでの実通信検証済み。実機（S7-1200）での最終確認のみ残る（シーメンス。SPEC.md §7）
 - 🔄 **対応可能**: ライブラリまたはプロトコル仕様が公開されており、実装可能
 
 ## 主要4メーカーの注記（2026-07再調査で確認）
