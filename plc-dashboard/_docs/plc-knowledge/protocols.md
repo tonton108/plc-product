@@ -236,7 +236,7 @@ S7-1200/1500では、**PLC側の設定なしにsnap7からDBを読むことは�
 | S7-200 / LOGO! | rack/slotではなく**TSAP指定**（`SetConnectionParams`）。S7-200はCP243経由のexperimental扱い |
 
 - ポート: TCP 102
-- **バイト順序: S7のデータ本体はBig-Endian**（snap7公式で確認）。2ワード読み → `struct.pack('>HH', word1, word2)` → `struct.unpack('>f')` の既存処理はS7に対しては正しい
+- **バイト順序: S7のデータ本体はBig-Endian**（snap7公式で確認）。実装では snap7 で読んだ4バイトを上位/下位ワードへ分割し、`convert_words_to_value(word1, word2, data_type, word_order="high_first")` で復元する（先頭バイト=上位）。詳細は本ドキュメント末尾「汎用的なデータ型変換ロジック」を参照
 
 ### ライブラリ
 
@@ -245,59 +245,52 @@ S7-1200/1500では、**PLC側の設定なしにsnap7からDBを読むことは�
 
 ## 汎用的なデータ型変換ロジック
 
-すべてのプロトコルで共通のデータ型変換ロジックを使用します。
+すべてのプロトコルで共通の32bit変換ロジック（`convert_words_to_value`）を使用します。
 
-> ⚠️ **既知の問題（2026-07再調査）:** 以下の現行実装は dword/float32 のワード結合を `(word1 << 16) | word2` 固定で行っており、**三菱の実PLCでは値が化ける**（三菱は先頭アドレス=下位ワード）。Phase 2 で設備/項目ごとの `word_order` 設定を導入して修正予定。詳細は `endianness.md` を参照。
+> ✅ **Phase 2で修正済み（2026-07）:** かつては dword/float32 のワード結合を `(word1 << 16) | word2` 固定で行っており、**三菱の実PLCでは値が化けていた**（三菱は先頭アドレス=下位ワード）。設備/項目ごとの `word_order` 設定（`high_first` / `low_first`）を導入して解消済み。詳細は `endianness.md` を参照。
 
 ### 実装場所
-`plc-dashboard/raspi_agent/plc_agent.py:258-320`
+`plc-dashboard/raspi_agent/plc_drivers/converters.py`
+
+各メーカードライバー（mitsubishi/keyence/siemens）が、設定の `word_order` を渡してこの共通関数を呼び出す。既定値はメーカー依存（三菱/キーエンス=`low_first`、シーメンス=`high_first`）。
 
 ### サポートデータ型
 
 ```python
-def convert_plc_data(raw_value, plc_data_type, scale_factor=1.0):
+WORD_ORDER_HIGH_FIRST = "high_first"  # 先頭ワードが上位（シーメンスS7等）
+WORD_ORDER_LOW_FIRST = "low_first"    # 先頭ワードが下位（三菱MELSEC等・システム既定）
+
+
+def _combine_words(word1, word2, word_order):
+    """先に読んだ word1・次の word2 を word_order に従って32bitへ結合する"""
+    if word_order == WORD_ORDER_HIGH_FIRST:
+        return (word1 << 16) | word2      # 先頭アドレス側が上位
+    # low_first（既定・未知値もここへフォールバック）: 先頭アドレス側が下位
+    return (word2 << 16) | word1
+
+
+def convert_words_to_value(word1, word2, data_type="dword", word_order=WORD_ORDER_LOW_FIRST):
+    """2ワードを data_type（float32 / dword）に変換する。
+
+    バイト列の組み立ては常に Big-Endian(">") で統一し、ワード順序差は
+    _combine_words に渡す並び順で吸収する（struct.pack('<HH') やエンディアン
+    未指定は禁止）。
     """
-    PLCデータを変換
-
-    Args:
-        raw_value: 生データ（int or list of ints）
-        plc_data_type: データ型（'word', 'dword', 'float32', 'bit'）
-        scale_factor: スケールファクター（デフォルト1.0）
-
-    Returns:
-        変換後の値
-    """
-    if plc_data_type == 'word':
-        # 16bit整数（0-65535）
-        return int(raw_value) * scale_factor
-
-    elif plc_data_type == 'dword':
-        # 32bit整数（Big-Endian）
-        word1, word2 = raw_value[0], raw_value[1]
-        value = (word1 << 16) | word2  # Big-Endian
-        return value * scale_factor
-
-    elif plc_data_type == 'float32':
-        # IEEE754 浮動小数点（Big-Endian）
-        word1, word2 = raw_value[0], raw_value[1]
-        bytes_data = struct.pack('>HH', word1, word2)
-        value = struct.unpack('>f', bytes_data)[0]
-        return value * scale_factor
-
-    elif plc_data_type == 'bit':
-        # ビット値（0 or 1）
-        return 1 if raw_value else 0
-
-    else:
-        raise ValueError(f"Unknown data type: {plc_data_type}")
+    combined = _combine_words(word1, word2, word_order)
+    if data_type == "float32":
+        return struct.unpack(">f", struct.pack(">I", combined))[0]
+    return combined  # dword
 ```
+
+- **word（16bit）** と **bit** は各ドライバー内で直接扱う（word=Big-Endianの符号なし整数、bit=0/1）。スケール適用（`scale > 1` で除算）もドライバー側で行う。
+- シーメンスは snap7 で読んだ4バイトを上位/下位ワードに分割し、既定 `word_order="high_first"` でこの共通関数に委譲する（`plc_drivers/siemens.py`）。
 
 ## ダミーモード（開発・テスト用）
 
 実PLCがない環境でテストするため、ダミーモードを実装しています。
 
 ### 実装場所
-`plc-dashboard/raspi_agent/plc_agent.py:356-388`
+`plc-dashboard/raspi_agent/plc_drivers/base.py`（`generate_dummy_data`）
 
 ### 使い方
 
