@@ -66,9 +66,9 @@ class TestParseS7Address:
         with pytest.raises(ValueError, match="不一致"):
             parse_s7_address("DB1.DBW0", "float32")  # W(2byte)にfloat32(4byte)
         with pytest.raises(ValueError, match="不一致"):
-            parse_s7_address("DB1.DBB0", "word")     # B(1byte)にword(2byte)
+            parse_s7_address("DB1.DBB0", "word")  # B(1byte)にword(2byte)
         with pytest.raises(ValueError, match="不一致"):
-            parse_s7_address("MB4", "word")          # メモリ域も同様
+            parse_s7_address("MB4", "word")  # メモリ域も同様
 
     @pytest.mark.unit
     def test_db_bit_notation_with_word_type_raises(self):
