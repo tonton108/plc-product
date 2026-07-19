@@ -35,14 +35,41 @@ SIEMENS_DEFAULT_WORD_ORDER = "high_first"
 # data_type → 読み取りバイト数
 _DATA_TYPE_SIZE = {
     "bit": 1,
+    "byte": 1,
     "word": 2,
     "dword": 4,
     "float32": 4,
 }
 
+# アドレス表記のサイズ文字 → 許容するdata_type（DBW/DBD等の幅を検証する）
+# X=bit, B=byte(8bit), W=word(16bit), D=dword/float32(32bit)
+_SIZE_CHAR_DATA_TYPES = {
+    "X": {"bit"},
+    "B": {"byte"},
+    "W": {"word"},
+    "D": {"dword", "float32"},
+}
+
 # S7メモリ域の先頭文字 → snap7のArea種別キー（DB以外）
 # I(入力)=PE, Q(出力)=PA, M(内部メモリ/フラグ)=MK
 _MEMORY_AREAS = {"M", "I", "Q"}
+
+
+def _validate_size_char(size_char, data_type, address):
+    """アドレス表記のサイズ文字とdata_typeの整合を検証する（不一致はValueError）。
+
+    実際の読み取り幅は data_type 側で決まるため、表記の幅（例 DBW=2バイト）と
+    data_type（例 float32=4バイト）が食い違うと、隣接領域を巻き込んだ誤値を
+    黙って返してしまう。表記にサイズ文字がある場合はここで不一致を弾き、
+    read_s7_value 側で None＋エラーログにして設定ミスを表面化させる
+    （S7ドライバのコードレビュー指摘: bit/byte/word幅の取り違え）。
+    """
+    allowed = _SIZE_CHAR_DATA_TYPES.get(size_char)
+    if allowed is not None and data_type not in allowed:
+        raise ValueError(
+            f"アドレス表記({size_char})とdata_type({data_type})が不一致です: {address}"
+            f"（{size_char}が許容するのは {'/'.join(sorted(allowed))}）"
+        )
 
 
 def connect_siemens_plc(ip, rack=0, slot=1, timeout=CONNECTION_TIMEOUT):
@@ -72,9 +99,20 @@ def connect_siemens_plc(ip, rack=0, slot=1, timeout=CONNECTION_TIMEOUT):
         )
         return None
 
+    # snap7のタイムアウトはミリ秒指定。接続前にクライアントへ設定する必要がある。
+    timeout_ms = max(int(timeout * 1000), 1000)
+
     def _connect():
+        from snap7.type import Parameter
+
         plc = snap7.client.Client()
         plc.set_connection_type(3)  # OP接続（PG=1, OP=2, S7Basic=3。汎用のOP相当）
+        # CLAUDE.md ルール4: 受け取ったtimeoutを実際にクライアントへ適用する。
+        # Ping/Send/Recvの各タイムアウトを設定しないと、通信断時にsnap7が
+        # 既定値までブロックしポーリング周期がストールする。
+        plc.set_param(Parameter.PingTimeout, timeout_ms)
+        plc.set_param(Parameter.SendTimeout, timeout_ms)
+        plc.set_param(Parameter.RecvTimeout, timeout_ms)
         plc.connect(ip, rack, slot)
         if not plc.get_connected():
             raise ConnectionError("S7接続確立に失敗しました")
@@ -117,7 +155,8 @@ def parse_s7_address(address, data_type="word"):
             bit_offset … ビット番号（bit以外はNone）
 
     Raises:
-        ValueError: 未知のアドレス形式、またはビット読み取りでビット番号が欠落している場合
+        ValueError: 未知のアドレス形式、ビット読み取りでビット番号が欠落している場合、
+            またはアドレス表記の幅（DBW/DBD/DBB/DBX等）とdata_typeが不一致の場合
     """
     addr = address.upper().strip()
 
@@ -128,6 +167,9 @@ def parse_s7_address(address, data_type="word"):
         size_char = m.group(2)  # X=bit, W=word, D=dword, B=byte
         byte_offset = int(m.group(3))
         bit_offset = int(m.group(4)) if m.group(4) is not None else None
+
+        # 表記の幅（X/B/W/D）とdata_typeの整合を検証する
+        _validate_size_char(size_char, data_type, address)
 
         if size_char == "X" or data_type == "bit":
             if bit_offset is None:
@@ -140,8 +182,18 @@ def parse_s7_address(address, data_type="word"):
     m = re.match(r"^([MIQ])([WDB]?)(\d+)(?:\.(\d+))?$", addr)
     if m:
         area = m.group(1)
+        size_char = m.group(2)  # W/D/B、または空（M10.3のビット表記・裸のM10）
         byte_offset = int(m.group(3))
         bit_offset = int(m.group(4)) if m.group(4) is not None else None
+
+        if size_char:
+            # 明示的なサイズ文字（MW/MD/MB）はdata_typeと整合させる
+            _validate_size_char(size_char, data_type, address)
+        elif bit_offset is not None and data_type != "bit":
+            # M10.3 のようなビット表記はdata_type=bitでなければ不一致
+            raise ValueError(
+                f"ビット表記(.{bit_offset})にはdata_type=bitが必要です: {address}"
+            )
 
         if data_type == "bit":
             if bit_offset is None:
@@ -171,6 +223,9 @@ def _bytes_to_value(raw_bytes, data_type, bit_offset, word_order):
     """読み取ったバイト列を data_type に応じた値へ変換する（S7はBig-Endian）"""
     if data_type == "bit":
         return 1 if (raw_bytes[0] >> bit_offset) & 1 else 0
+
+    if data_type == "byte":
+        return raw_bytes[0]
 
     if data_type in ("dword", "float32"):
         # 4バイトを上位ワード・下位ワードに分割し、共通変換へ委譲する。
