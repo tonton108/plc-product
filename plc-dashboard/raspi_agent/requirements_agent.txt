@@ -8,7 +8,7 @@ flask-migrate
 python-dotenv
 pymcprotocol
 fins
-python-snap7
+python-snap7>=3
 pymodbus
 pandas
 requests

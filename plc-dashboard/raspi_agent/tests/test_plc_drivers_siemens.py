@@ -51,7 +51,36 @@ class TestParseS7Address:
 
     @pytest.mark.unit
     def test_db_byte(self):
-        assert parse_s7_address("DB3.DBB4", "word") == ("DB", 3, 4, None)
+        # DBB表記はdata_type=byteで解析する
+        assert parse_s7_address("DB3.DBB4", "byte") == ("DB", 3, 4, None)
+
+    @pytest.mark.unit
+    def test_dbd_allows_dword_and_float32(self):
+        # D表記はdword/float32どちらも許容
+        assert parse_s7_address("DB1.DBD0", "dword") == ("DB", 1, 0, None)
+        assert parse_s7_address("DB1.DBD0", "float32") == ("DB", 1, 0, None)
+
+    @pytest.mark.unit
+    def test_size_char_mismatch_raises(self):
+        # 表記の幅とdata_typeの不一致は弾く（隣接領域の巻き込み誤読を防止）
+        with pytest.raises(ValueError, match="不一致"):
+            parse_s7_address("DB1.DBW0", "float32")  # W(2byte)にfloat32(4byte)
+        with pytest.raises(ValueError, match="不一致"):
+            parse_s7_address("DB1.DBB0", "word")  # B(1byte)にword(2byte)
+        with pytest.raises(ValueError, match="不一致"):
+            parse_s7_address("MB4", "word")  # メモリ域も同様
+
+    @pytest.mark.unit
+    def test_db_bit_notation_with_word_type_raises(self):
+        # DBX(ビット表記)に既定wordのまま誤設定したら弾く
+        with pytest.raises(ValueError, match="不一致"):
+            parse_s7_address("DB1.DBX0.3", "word")
+
+    @pytest.mark.unit
+    def test_memory_bit_notation_with_word_type_raises(self):
+        # M10.3 のビット表記にwordを指定したら弾く
+        with pytest.raises(ValueError, match="data_type=bit"):
+            parse_s7_address("M10.3", "word")
 
     @pytest.mark.unit
     def test_db_bit_without_bit_number_raises(self):
@@ -152,6 +181,15 @@ class TestReadS7ValueWithMock:
         plc = self._mock_plc_db(bytes([0b00001000]))
         value = read_s7_value(plc, "DB1.DBX0.2", "bit")
         assert value == 0
+
+    @pytest.mark.unit
+    def test_byte_read(self):
+        # DBB4をbyteで読む → 1バイト読み取り、隣接バイトを巻き込まない
+        plc = Mock()
+        plc.db_read.return_value = bytearray(b"\x2a\xff")  # 先頭0x2a=42のみ採用
+        value = read_s7_value(plc, "DB1.DBB4", "byte")
+        assert value == 42
+        plc.db_read.assert_called_once_with(1, 4, 1)
 
     @pytest.mark.unit
     def test_scale_applied_to_word(self):
@@ -269,6 +307,30 @@ class TestReadSiemensPLC:
     def test_default_word_order_constant(self):
         # SPEC.md §7: S7のデータ本体はBig-Endian（high_first）
         assert SIEMENS_DEFAULT_WORD_ORDER == "high_first"
+
+
+class TestConnectTimeout:
+    """接続時のタイムアウト適用（CLAUDE.md ルール4）"""
+
+    @pytest.mark.unit
+    def test_connect_applies_timeout_params(self, monkeypatch):
+        # 受け取ったtimeoutがsnap7のPing/Send/Recvタイムアウトへ適用されること
+        import snap7
+        from snap7.type import Parameter
+        from plc_drivers.siemens import connect_siemens_plc
+
+        mock_client = Mock()
+        mock_client.get_connected.return_value = True
+        monkeypatch.setattr(snap7.client, "Client", lambda: mock_client)
+
+        plc = connect_siemens_plc("192.168.0.10", timeout=5)
+
+        assert plc is mock_client
+        applied = {c.args for c in mock_client.set_param.call_args_list}
+        assert (Parameter.PingTimeout, 5000) in applied
+        assert (Parameter.SendTimeout, 5000) in applied
+        assert (Parameter.RecvTimeout, 5000) in applied
+        mock_client.connect.assert_called_once_with("192.168.0.10", 0, 1)
 
 
 if __name__ == "__main__":
