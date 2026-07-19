@@ -47,6 +47,10 @@ def connect_omron_plc(ip, timeout=CONNECTION_TIMEOUT):
     def _connect():
         fins_client = fins.udp.UDPFinsConnection()
         fins_client.connect(ip)
+        # CLAUDE.md ルール4: finsライブラリのconnect()はソケットタイムアウトを
+        # 1.0秒固定で設定するため、受け取ったtimeout(秒)で上書きする。
+        # これを怠ると通信断時に1秒でしか待たず、逆に設定値が無視される。
+        fins_client.fins_socket.settimeout(timeout)
         fins_client.dest_node_add = 1
         fins_client.srce_node_add = 25
         logger.info(f"✅ オムロンPLC接続成功: {ip}")

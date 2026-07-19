@@ -47,7 +47,12 @@ def connect_mitsubishi_plc(ip, port, timeout=CONNECTION_TIMEOUT):
 
     def _connect():
         plc = Type3E()
-        plc.setaccessopt(commtype="binary")  # バイナリモード（高速）
+        # CLAUDE.md ルール4: timer_secを指定しないと監視タイマ1秒/ソケット2秒の
+        # 既定のままになる。受け取ったtimeout(秒)を監視タイマへ適用する
+        # （pymcprotocolはtimer_sec×250msを監視タイマ、+1秒をソケットタイムアウトに設定）。
+        plc.setaccessopt(
+            commtype="binary", timer_sec=timeout
+        )  # バイナリモード（高速）＋timeout適用
         plc.connect(ip, port)
         logger.info(f"✅ 三菱PLC接続成功: {ip}:{port}")
         return plc

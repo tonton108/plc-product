@@ -242,5 +242,22 @@ class TestOmronFloat32DwordAddressing:
         assert len(addr_bytes) == 3
 
 
+class TestOmronConnectTimeout:
+    """接続時のタイムアウト適用（CLAUDE.md ルール4）"""
+
+    @pytest.mark.unit
+    def test_connect_overrides_socket_timeout(self):
+        # finsライブラリのconnect()は1.0秒固定でsettimeoutするため、
+        # 受け取ったtimeoutで上書きすること（未上書きだと設定値が無視される）。
+        from plc_drivers.omron import connect_omron_plc
+
+        mock_client = MagicMock()
+        with patch("fins.udp.UDPFinsConnection", return_value=mock_client):
+            client = connect_omron_plc("192.168.0.10", timeout=5)
+
+        assert client is mock_client
+        mock_client.fins_socket.settimeout.assert_called_once_with(5)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

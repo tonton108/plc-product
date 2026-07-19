@@ -318,5 +318,24 @@ class TestPymcprotocolCompatibility:
         assert device_address == "Y10", "PyPI公式例と一致すること"
 
 
+class TestMitsubishiConnectTimeout:
+    """接続時のタイムアウト適用（CLAUDE.md ルール4）"""
+
+    @pytest.mark.unit
+    def test_connect_applies_timer_sec(self):
+        # 受け取ったtimeoutがsetaccessopt(timer_sec=...)へ渡ること。
+        # 未適用だと監視タイマ1秒/ソケット2秒の既定のままになる。
+        from plc_drivers.mitsubishi import connect_mitsubishi_plc
+
+        mock_plc = MagicMock()
+        with patch("pymcprotocol.Type3E", return_value=mock_plc):
+            plc = connect_mitsubishi_plc("192.168.0.10", 5007, timeout=5)
+
+        assert plc is mock_plc
+        _, kwargs = mock_plc.setaccessopt.call_args
+        assert kwargs.get("timer_sec") == 5
+        mock_plc.connect.assert_called_once_with("192.168.0.10", 5007)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
