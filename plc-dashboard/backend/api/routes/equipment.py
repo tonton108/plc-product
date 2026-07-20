@@ -88,6 +88,9 @@ def api_register() -> Tuple[Response, int]:
     timeout = data.get("timeout", 5000)
     retry_count = data.get("retry_count", 3)
     retry_interval = data.get("retry_interval", 1000)
+    # Siemens S7用 Rack/Slot（Issue #58）。既定は S7-1200/1500 の rack=0/slot=1
+    rack = data.get("rack", 0)
+    slot = data.get("slot", 1)
 
     if equipment:
         # 既存設備の更新
@@ -107,6 +110,8 @@ def api_register() -> Tuple[Response, int]:
         equipment.timeout = timeout
         equipment.retry_count = retry_count
         equipment.retry_interval = retry_interval
+        equipment.rack = rack
+        equipment.slot = slot
         equipment.setup_status = SetupStatus.BASIC_INFO_REGISTERED
     else:
         # 新規作成
@@ -127,6 +132,8 @@ def api_register() -> Tuple[Response, int]:
             timeout=timeout,
             retry_count=retry_count,
             retry_interval=retry_interval,
+            rack=rack,
+            slot=slot,
             setup_status=SetupStatus.BASIC_INFO_REGISTERED,
             operational_status=OperationalStatus.NOT_STARTED
         )
@@ -242,6 +249,8 @@ def save_equipment_config(equipment_id: str) -> Tuple[Response, int]:
                 plc_ip=data.get("plc_ip"),
                 port=data.get("plc_port"),
                 modbus_port=data.get("modbus_port", DEFAULT_MODBUS_PORT),
+                rack=data.get("rack", 0),
+                slot=data.get("slot", 1),
                 interval=data.get("interval"),
                 mac_address=data.get("mac_address"),
                 cpu_serial_number=cpu_serial_number,
@@ -258,6 +267,8 @@ def save_equipment_config(equipment_id: str) -> Tuple[Response, int]:
         equipment.plc_ip = data.get("plc_ip", equipment.plc_ip)
         equipment.port = data.get("plc_port", equipment.port)
         equipment.modbus_port = data.get("modbus_port", equipment.modbus_port)
+        equipment.rack = data.get("rack", equipment.rack)
+        equipment.slot = data.get("slot", equipment.slot)
         equipment.interval = data.get("interval", equipment.interval)
         equipment.mac_address = data.get("mac_address", equipment.mac_address)
         equipment.cpu_serial_number = data.get("cpu_serial_number", equipment.cpu_serial_number)

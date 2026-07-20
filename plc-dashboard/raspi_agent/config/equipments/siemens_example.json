@@ -1,0 +1,71 @@
+{
+  "equipment_id": "S7-1",
+  "plc_ip": "192.168.1.106",
+  "plc_port": 102,
+  "manufacturer": "シーメンス",
+  "series": "S7-1500",
+  "rack": 0,
+  "slot": 1,
+  "interval": 1000,
+  "central_server_ip": "192.168.1.100",
+  "central_server_port": 5000,
+  "data_points": {
+    "production_count": {
+      "address": "DB1.DBD0",
+      "data_type": "dword",
+      "scale": 1,
+      "enabled": true,
+      "comment": "生産カウンタ（DB1 バイト0から32bit整数）"
+    },
+    "current": {
+      "address": "DB1.DBW4",
+      "data_type": "word",
+      "scale": 10,
+      "enabled": true,
+      "comment": "電流値（DB1 バイト4から16bit、スケール1/10）"
+    },
+    "temperature": {
+      "address": "DB1.DBD6",
+      "data_type": "float32",
+      "scale": 1,
+      "enabled": true,
+      "comment": "温度（DB1 バイト6から32bit浮動小数点）"
+    },
+    "pressure": {
+      "address": "MW10",
+      "data_type": "word",
+      "scale": 100,
+      "enabled": true,
+      "comment": "圧力（内部メモリ MW10、スケール1/100）"
+    },
+    "motor_running": {
+      "address": "DB1.DBX10.0",
+      "data_type": "bit",
+      "scale": 1,
+      "enabled": true,
+      "comment": "モーター運転状態（DB1 バイト10 ビット0）"
+    },
+    "alarm_active": {
+      "address": "M20.3",
+      "data_type": "bit",
+      "scale": 1,
+      "enabled": true,
+      "comment": "アラーム状態（内部メモリ M20 ビット3）"
+    }
+  },
+  "siemens_s7_settings": {
+    "note": "シーメンスS7 PLCのRack/Slot設定について（Issue #58）",
+    "rack_slot": "rack/slot は機種で異なる。S7-1200/1500 は rack=0 / slot=1、S7-300/400 は rack=0 / slot=2 が必須。",
+    "connection": "python-snap7 の OP接続（connection_type=3）で接続。PUT/GET通信の許可と最適化ブロックアクセスの無効化が必要。",
+    "port": 102,
+    "endianness": "S7のデータ本体はBig-Endian（word_order=high_first が既定）",
+    "address_format": {
+      "DB1.DBX0.3": "DB1 バイト0 ビット3（bit）",
+      "DB1.DBW10": "DB1 バイト10から2バイト（word）",
+      "DB1.DBD20": "DB1 バイト20から4バイト（dword/float32）",
+      "DB1.DBB4": "DB1 バイト4から1バイト（byte）",
+      "MW10 / MD20 / M10.3": "内部メモリ（word / dword / bit）",
+      "IW0 / QW2": "入力(I=PE) / 出力(Q=PA)"
+    }
+  }
+}

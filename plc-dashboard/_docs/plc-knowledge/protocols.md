@@ -235,6 +235,7 @@ S7-1200/1500では、**PLC側の設定なしにsnap7からDBを読むことは�
 | S7-400 | ハードウェア構成に依存 |
 | S7-200 / LOGO! | rack/slotではなく**TSAP指定**（`SetConnectionParams`）。S7-200はCP243経由のexperimental扱い |
 
+- **rack/slotは設備ごとに設定可能（Issue #58で配線）**: `equipments.rack`（0〜7）/ `equipments.slot`（0〜31）に保持し、エージェントが `connect_siemens_plc(ip, rack=..., slot=...)` へ渡す。既定は rack=0 / slot=1（S7-1200/1500）。**S7-300/400は slot=2 を設定しないと接続できない**。設定編集UIへの項目追加は実機統合フェーズで実施予定（サンプル: `raspi_agent/config/equipments/siemens_example.json`）
 - ポート: TCP 102
 - **バイト順序: S7のデータ本体はBig-Endian**（snap7公式で確認）。実装では snap7 で読んだ4バイトを上位/下位ワードへ分割し、`convert_words_to_value(word1, word2, data_type, word_order="high_first")` で復元する（先頭バイト=上位）。詳細は本ドキュメント末尾「汎用的なデータ型変換ロジック」を参照
 
