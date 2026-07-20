@@ -9,6 +9,8 @@ python-dotenv
 pymcprotocol
 fins
 python-snap7>=3
-pymodbus
+# pymodbus 3.x を対象（count はキーワード専用、unit= は device_id へ改名・既定1）。
+# 2.x では read_*(addr, count, unit=) のAPIが異なりドライバが動かないため下限を固定。
+pymodbus>=3,<4
 pandas
 requests

@@ -148,7 +148,8 @@ def read_keyence_modbus(
         if data_type == "bit":
             # ビット読み取り
             if register_type == "coil":
-                result = client.read_coils(modbus_addr, 1)
+                # pymodbus 3.x では count はキーワード専用引数（位置引数はTypeError）
+                result = client.read_coils(modbus_addr, count=1)
                 if not result.isError():
                     return 1 if result.bits[0] else 0
                 else:
@@ -159,7 +160,7 @@ def read_keyence_modbus(
         elif data_type in ("float32", "dword"):
             # 32bitデータ (2レジスタ) - float32またはdword
             if register_type == "holding":
-                result = client.read_holding_registers(modbus_addr, 2)
+                result = client.read_holding_registers(modbus_addr, count=2)
                 if not result.isError():
                     # 共通関数でfloat32/dwordに変換（word_orderで順序を指定）
                     return convert_words_to_value(
@@ -173,13 +174,13 @@ def read_keyence_modbus(
         else:
             # 16bit word
             if register_type == "holding":
-                result = client.read_holding_registers(modbus_addr, 1)
+                result = client.read_holding_registers(modbus_addr, count=1)
                 if not result.isError():
                     return result.registers[0]
                 else:
                     raise Exception(f"Holding Register読み取りエラー: {result}")
             elif register_type == "coil":
-                result = client.read_coils(modbus_addr, 16)  # 16ビット分
+                result = client.read_coils(modbus_addr, count=16)  # 16ビット分
                 if not result.isError():
                     # 16ビットを整数に変換
                     value = 0
@@ -221,17 +222,15 @@ def read_keyence_plc(client, data_points, modbus_port=DEFAULT_MODBUS_PORT):
             if count == 1:
                 # 単独アドレス → 個別読み取り
                 logger.debug(f"📖 単独読み取り: DM{start_addr}")
-                result = client.read_holding_registers(
-                    address=start_addr, count=1, unit=1
-                )
+                # pymodbus 3.x では unit= は廃止（device_id へ改名、既定1）。
+                # スレーブID=1で読むため引数は省略し既定に委ねる。
+                result = client.read_holding_registers(address=start_addr, count=1)
             else:
                 # 連続アドレス → バッチ読み取り（最適化）
                 logger.info(
                     f"🚀 バッチ読み取り: DM{start_addr}-DM{start_addr + count - 1} ({count}ワード)"
                 )
-                result = client.read_holding_registers(
-                    address=start_addr, count=count, unit=1
-                )
+                result = client.read_holding_registers(address=start_addr, count=count)
 
             # 読み取った値を各項目に割り当て
             if not result.isError():
@@ -259,9 +258,7 @@ def read_keyence_plc(client, data_points, modbus_port=DEFAULT_MODBUS_PORT):
                 setting = group["settings"][i]
                 addr_num = group["start_address"] + i
                 try:
-                    result = client.read_holding_registers(
-                        address=addr_num, count=1, unit=1
-                    )
+                    result = client.read_holding_registers(address=addr_num, count=1)
                     if not result.isError():
                         raw_value = result.registers[0]
                         scale = setting.get("scale", 1)

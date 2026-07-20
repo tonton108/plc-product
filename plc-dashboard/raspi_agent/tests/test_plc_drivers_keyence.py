@@ -10,7 +10,7 @@
 import pytest
 import sys
 import os
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, MagicMock, patch, create_autospec
 
 # テスト対象のモジュールをインポート可能にする
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -140,27 +140,23 @@ class TestKeyencePLCReadWithMock:
         # 実際の関数をインポートして実行
         from plc_drivers.keyence import read_keyence_plc
 
-        try:
-            result = read_keyence_plc(mock_client, data_points)
+        # ※ 例外をpytest.skipで握りつぶすと不具合を見逃すため、直接検証する
+        read_keyence_plc(mock_client, data_points)
 
-            # read_holding_registersが正しいパラメータで呼ばれたか検証
-            call_args = mock_client.read_holding_registers.call_args_list[0]
-            kwargs = call_args[1]
+        # read_holding_registersが正しいパラメータで呼ばれたか検証
+        call_args = mock_client.read_holding_registers.call_args_list[0]
+        kwargs = call_args[1]
 
-            # アドレスパラメータの確認
-            address = kwargs.get("address")
-            assert address == 100, f"アドレスが不正: expected 100, got {address}"
+        # アドレスパラメータの確認
+        address = kwargs.get("address")
+        assert address == 100, f"アドレスが不正: expected 100, got {address}"
 
-            # countパラメータの確認
-            count = kwargs.get("count")
-            assert count == 1, f"読み取りサイズが不正: {count}"
+        # countパラメータの確認
+        count = kwargs.get("count")
+        assert count == 1, f"読み取りサイズが不正: {count}"
 
-            # unitパラメータの確認（Modbusスレーブ ID）
-            unit = kwargs.get("unit")
-            assert unit == 1, f"unitパラメータが不正: {unit}"
-
-        except Exception as e:
-            pytest.skip(f"テスト実行エラー（実環境依存）: {e}")
+        # pymodbus 3.xで廃止された unit= を使っていないこと（device_id既定1を使用）
+        assert "unit" not in kwargs, "廃止されたunit=を使用している"
 
     @pytest.mark.unit
     def test_batch_read_multiple_dm_addresses(self):
@@ -246,14 +242,14 @@ class TestKeyenceModbusStandardCompliance:
     """Modbus TCP標準準拠のテスト"""
 
     @pytest.mark.unit
-    def test_pymodbus_unit_parameter_usage(self):
+    def test_pymodbus_no_deprecated_unit_parameter(self):
         """
-        pymodbusのunit parameter使用法の検証
+        pymodbus 3.xのスレーブID指定法の検証
 
-        Modbus標準: unit (slave ID)パラメータは必須
-        キーエンス実装例: unit=1
+        pymodbus 3.xでは unit= が廃止され device_id（既定1）へ改名された。
+        ドライバは廃止された unit= を使わず、既定のスレーブID=1で読むこと。
+        （旧テストは unit=1 を必須としていたが、実pymodbusではTypeErrorになる誤り）
         """
-        # 現在の実装がunit=1を使用していることを確認
         from plc_drivers.keyence import read_keyence_plc
 
         mock_client = Mock()
@@ -272,15 +268,11 @@ class TestKeyenceModbusStandardCompliance:
             }
         }
 
-        try:
-            read_keyence_plc(mock_client, data_points)
+        read_keyence_plc(mock_client, data_points)
 
-            # unit=1が指定されていることを確認
-            call_kwargs = mock_client.read_holding_registers.call_args_list[0][1]
-            assert call_kwargs.get("unit") == 1, "unitパラメータは1であるべき"
-
-        except Exception as e:
-            pytest.skip(f"テスト実行エラー: {e}")
+        # 廃止された unit= を渡していないこと
+        call_kwargs = mock_client.read_holding_registers.call_args_list[0][1]
+        assert "unit" not in call_kwargs, "廃止されたunit=を使用している"
 
     @pytest.mark.unit
     def test_modbus_address_range_validity(self):
@@ -447,6 +439,76 @@ class TestKeyenceConnectTimeout:
         _, kwargs = mock_ctor.call_args
         assert kwargs.get("timeout") == 5
         assert kwargs.get("port") == 502
+
+
+class TestKeyencePymodbusApiCompatibility:
+    """pymodbus実APIとの引数互換（Mockでは検知できなかった欠陥の回帰防止）
+
+    pymodbus 3.x では read_holding_registers/read_coils の `count` はキーワード専用、
+    スレーブ指定は `unit=` 廃止→`device_id`（既定1）。従来テストは素の Mock() を
+    使っていたためシグネチャ違反（count位置引数・unit=）を検知できず、実機/実pymodbus
+    では全read呼び出しが TypeError で失敗していた。ここでは create_autospec で
+    実シグネチャを強制し、ドライバの呼び出しがAPI適合であることを保証する。
+    """
+
+    def _autospec_client(self):
+        from pymodbus.client import ModbusTcpClient
+
+        client = create_autospec(ModbusTcpClient, instance=True)
+        resp = MagicMock()
+        resp.isError.return_value = False
+        resp.registers = [0x0001, 0x4000]  # 2ワード分
+        resp.bits = [True] + [False] * 15
+        client.read_holding_registers.return_value = resp
+        client.read_coils.return_value = resp
+        return client
+
+    @pytest.mark.unit
+    def test_word_read_signature(self):
+        # word読み取り: read_holding_registers(addr, count=1) が実APIに適合すること
+        from plc_drivers.keyence import read_keyence_modbus
+
+        client = self._autospec_client()
+        value = read_keyence_modbus(client, "DM100", "word")
+        assert value == 0x0001  # 失敗するなら呼び出しがTypeError→None
+        _, kwargs = client.read_holding_registers.call_args
+        assert kwargs.get("count") == 1
+        assert "unit" not in kwargs
+
+    @pytest.mark.unit
+    def test_float32_read_signature(self):
+        from plc_drivers.keyence import read_keyence_modbus
+
+        client = self._autospec_client()
+        value = read_keyence_modbus(client, "DM100", "float32", word_order="low_first")
+        assert value is not None
+        _, kwargs = client.read_holding_registers.call_args
+        assert kwargs.get("count") == 2
+
+    @pytest.mark.unit
+    def test_bit_read_signature(self):
+        from plc_drivers.keyence import read_keyence_modbus
+
+        client = self._autospec_client()
+        value = read_keyence_modbus(client, "R100.0", "bit")
+        assert value == 1
+        _, kwargs = client.read_coils.call_args
+        assert kwargs.get("count") == 1
+
+    @pytest.mark.unit
+    def test_batch_read_signature_no_unit_kwarg(self):
+        # バッチ読み取り経路が unit= を使わず実APIに適合すること
+        from plc_drivers.keyence import read_keyence_plc
+
+        client = self._autospec_client()
+        data_points = {
+            "a": {"enabled": True, "data_type": "word", "address": "DM100", "scale": 1},
+            "b": {"enabled": True, "data_type": "word", "address": "DM101", "scale": 1},
+        }
+        result = read_keyence_plc(client, data_points)
+        assert result  # 値が取得できている（TypeErrorなら空）
+        _, kwargs = client.read_holding_registers.call_args
+        assert "unit" not in kwargs
 
 
 if __name__ == "__main__":
