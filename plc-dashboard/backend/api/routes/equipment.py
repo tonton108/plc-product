@@ -7,7 +7,6 @@ Phase 16: 型ヒント追加
 """
 
 from flask import Blueprint, request, jsonify, Response
-from sqlalchemy import or_
 from datetime import datetime, timezone
 from typing import Tuple, Union
 import logging
@@ -70,16 +69,29 @@ def api_register() -> Tuple[Response, int]:
         logger.warning(f"設備登録バリデーションエラー: {error_msg}")
         return jsonify({"error": error_msg}), 400
 
-    # 既存レコード検索（cpu_serial_number > mac_address > equipment_id の優先順）
-    search_conditions = []
+    # 既存レコードは不変識別子（cpu_serial_number > mac_address）でのみ特定する。
+    # equipment_id は可変・衝突しうるため識別子に使わない。使うと、別デバイスが
+    # 同じ equipment_id で登録しただけで既存レコードの cpu_serial/mac を上書き
+    # ＝乗っ取りが起きる（helpers.get_equipment_by_device_info と同じ優先順に統一）。
+    equipment = None
     if cpu_serial_number:
-        search_conditions.append(Equipment.cpu_serial_number == cpu_serial_number)
-    search_conditions.extend([
-        Equipment.mac_address == mac_address,
-        Equipment.equipment_id == equipment_id
-    ])
+        equipment = Equipment.query.filter_by(
+            cpu_serial_number=cpu_serial_number
+        ).first()
+    if not equipment and mac_address:
+        equipment = Equipment.query.filter_by(mac_address=mac_address).first()
 
-    equipment = Equipment.query.filter(or_(*search_conditions)).first()
+    # equipment_id は一意。要求値が「別の設備」に既に使われていれば衝突として拒否する
+    # （新規作成時の一意制約違反による500や、既存設備のID付け替え衝突を明示的に防ぐ）。
+    id_owner = Equipment.query.filter_by(equipment_id=equipment_id).first()
+    if id_owner is not None and (equipment is None or id_owner.id != equipment.id):
+        logger.warning(f"equipment_id衝突: {equipment_id} は別設備で使用中")
+        return (
+            jsonify(
+                {"error": f"equipment_id '{equipment_id}' は既に別の設備で使用されています"}
+            ),
+            409,
+        )
 
     # PLC通信設定のデフォルト値を計算
     manufacturer = data.get("manufacturer", "")
