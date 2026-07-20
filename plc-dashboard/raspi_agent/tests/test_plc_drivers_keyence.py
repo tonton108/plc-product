@@ -10,7 +10,7 @@
 import pytest
 import sys
 import os
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock, MagicMock, patch
 
 # テスト対象のモジュールをインポート可能にする
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -420,6 +420,33 @@ class TestKeyenceDwordFloat32Handling:
         assert (
             abs(value - 100.5) < 0.01
         ), f"high_first float32変換が不正: expected ~100.5, got {value}"
+
+
+class TestKeyenceConnectTimeout:
+    """接続時のタイムアウト適用（CLAUDE.md ルール4・回帰防止）
+
+    キーエンスは元から ModbusTcpClient(timeout=) で適用済みだが、
+    他3ドライバ（三菱/オムロン/シーメンス）で timeout 未適用の欠陥が
+    見つかったため、唯一無防備だったキーエンスにも回帰防止テストを置く。
+    """
+
+    @pytest.mark.unit
+    def test_connect_passes_timeout_to_client(self):
+        # 受け取った timeout(秒) が ModbusTcpClient へ渡ること。
+        from plc_drivers.keyence import connect_keyence_plc
+
+        mock_client = MagicMock()
+        mock_client.connect.return_value = True
+
+        with patch(
+            "pymodbus.client.ModbusTcpClient", return_value=mock_client
+        ) as mock_ctor:
+            client = connect_keyence_plc("192.168.0.10", port=502, timeout=5)
+
+        assert client is mock_client
+        _, kwargs = mock_ctor.call_args
+        assert kwargs.get("timeout") == 5
+        assert kwargs.get("port") == 502
 
 
 if __name__ == "__main__":
