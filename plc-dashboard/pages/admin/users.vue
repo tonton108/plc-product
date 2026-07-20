@@ -155,7 +155,7 @@
     <!-- 確認ダイアログ -->
     <v-dialog v-model="confirmDialog" max-width="460">
       <v-card>
-        <v-card-title>{{ $t('common.ok') }}</v-card-title>
+        <v-card-title>{{ $t('common.confirm') }}</v-card-title>
         <v-card-text>{{ confirmMessage }}</v-card-text>
         <v-card-actions>
           <v-spacer />

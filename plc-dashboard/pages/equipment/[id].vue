@@ -103,7 +103,7 @@
             <v-card variant="outlined">
               <v-data-table
                 :headers="headers"
-                :items="filteredLogs"
+                :items="tableRows"
                 density="comfortable"
                 :items-per-page="15"
                 class="elevation-0"
@@ -651,6 +651,23 @@ const logValue = (log, config) => {
   }
   return log[config.data_type] ?? null
 }
+
+// テーブル表示用に filteredLogs を正規化する。
+// v-data-table は headers の value（timestamp / config.data_type）で item を引くが、
+// daily_summaries(7d/30d) は date / <data_type>_avg キーを持つため、そのまま渡すと
+// 日時列を含む全列が空欄になる。logValue と同じ規則でキーを揃え、グラフと一致させる。
+const tableRows = computed(() => {
+  const isDaily = dataSource.value === 'daily_summaries'
+  return filteredLogs.value.map((log) => {
+    const row = { timestamp: isDaily ? log.date : log.timestamp }
+    plcConfigs.value.forEach((config) => {
+      if (config.enabled) {
+        row[config.data_type] = logValue(log, config)
+      }
+    })
+    return row
+  })
+})
 
 // 動的チャートデータ生成
 const updateChart = () => {

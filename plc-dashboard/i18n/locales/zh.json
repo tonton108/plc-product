@@ -10,7 +10,8 @@
     "actions": "操作",
     "cancel": "取消",
     "ok": "确定",
-    "close": "关闭"
+    "close": "关闭",
+    "confirm": "确认"
   },
   "nav": {
     "errorsAlarms": "错误与报警"
