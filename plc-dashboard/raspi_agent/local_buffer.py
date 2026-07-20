@@ -106,6 +106,14 @@ class LocalBuffer:
     def get_pending(self, limit: int = 100) -> List[Tuple[int, str, Dict]]:
         """未送信データを取得
 
+        再試行回数では除外しない。サーバー障害が長引いた場合でも、データは
+        送信成功するか、日数ベースのクリーンアップ（cleanup_old_data）で
+        期限切れになるまで再送対象であり続ける。
+        以前は WHERE retry_count < max_retry で除外していたが、これだと
+        約10分（retry_interval 60秒 × max_retry 10回）を超える障害で未配信
+        データが再送対象から外れ、その後 cleanup_max_retry_exceeded で恒久削除
+        されていた（バッファの「障害時データ保全」目的を損なう欠損バグ）。
+
         Args:
             limit: 取得する最大件数
 
@@ -116,10 +124,9 @@ class LocalBuffer:
             cursor = self.conn.execute(
                 '''SELECT id, equipment_id, data
                    FROM pending_data
-                   WHERE retry_count < ?
                    ORDER BY created_at
                    LIMIT ?''',
-                (self.max_retry, limit)
+                (limit,)
             )
 
             results = []
@@ -206,6 +213,12 @@ class LocalBuffer:
 
     def cleanup_max_retry_exceeded(self) -> int:
         """最大再試行回数を超えたデータを削除
+
+        ⚠️ このメソッドは配信成否・経過日数を問わず retry_count>=max_retry の
+        レコードを削除するため、未配信データの恒久欠損を招く。自動クリーンアップ
+        （cleanup_buffer）からは呼ばれない（保持ポリシーは cleanup_old_data の
+        日数ベースに一本化した）。明示的に「諦めて捨てる」運用が必要な場合のみ
+        手動で使うこと。
 
         Returns:
             削除されたレコード数

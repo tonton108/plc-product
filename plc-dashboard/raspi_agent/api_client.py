@@ -377,24 +377,25 @@ class DatabaseAPI:
     def cleanup_buffer(self, days: int = 30) -> int:
         """古いバッファデータをクリーンアップ
 
+        保持ポリシーは日数ベースに一本化。未配信データは経過日数（days）を
+        超えた場合にのみ削除する。以前は cleanup_max_retry_exceeded も呼んで
+        いたが、これは retry_count>=max_retry のデータを配信成否・経過日数を
+        問わず削除するため、約10分を超える障害で未配信データが恒久欠損して
+        いた。再送は retry_count に関わらず継続される（get_pending 参照）。
+
         Args:
             days: 保存期間（日数、デフォルト30日）
 
         Returns:
             削除されたレコード数
         """
-        # 古いデータを削除
+        # 古いデータのみを削除（未配信でも days を超えたら破棄）
         deleted_old = self.buffer.cleanup_old_data(days=days)
 
-        # 再試行上限を超えたデータを削除
-        deleted_max_retry = self.buffer.cleanup_max_retry_exceeded()
+        if deleted_old > 0:
+            logger.info(f"バッファクリーンアップ完了: {deleted_old}件削除")
 
-        total_deleted = deleted_old + deleted_max_retry
-
-        if total_deleted > 0:
-            logger.info(f"バッファクリーンアップ完了: {total_deleted}件削除")
-
-        return total_deleted
+        return deleted_old
 
     def get_buffer_stats(self) -> dict:
         """バッファの統計情報を取得・表示"""
