@@ -42,6 +42,16 @@ class Equipment(db.Model):
     updated_at = db.Column(db.DateTime)
 ```
 
+> 注: 上記は簡略版。実モデルには `modbus_port`（キーエンス用）と、PLC通信設定カラム
+> `protocol` / `communication_mode` / `timeout` / `retry_count` / `retry_interval`、
+> および Siemens S7用の `rack` / `slot` がある（`backend/db/models/equipment.py`）。
+
+**Siemens Rack/Slot（Issue #58、マイグレーション `n4o5p6q7r8s9`）:**
+S7の接続には rack/slot 指定が必要で、機種で異なる（S7-1200/1500 は rack=0・slot=1、
+S7-300/400 は slot=2）。設備ごとに `rack`（0〜7）/ `slot`（0〜31）を保持し、
+エージェントが `connect_siemens_plc(ip, rack=..., slot=...)` へ配線する。既定は rack=0 / slot=1。
+他メーカーでは未使用（既定値のまま）。
+
 **識別優先順位:**
 1. `cpu_serial_number`（Raspberry PiのCPUシリアル番号、不変識別子）
 2. `mac_address`（MACアドレス、準不変）

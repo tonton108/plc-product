@@ -37,6 +37,10 @@ class Equipment(db.Model):
     timeout = db.Column(db.Integer, nullable=False, default=5000)  # ミリ秒
     retry_count = db.Column(db.Integer, nullable=False, default=3)
     retry_interval = db.Column(db.Integer, nullable=False, default=1000)  # ミリ秒
+    # Siemens S7用 Rack/Slot（Issue #58）。S7-1200/1500は rack=0/slot=1、
+    # S7-300/400は slot=2 が必須。他メーカーでは未使用（既定値のまま）。
+    rack = db.Column(db.Integer, nullable=False, default=0)
+    slot = db.Column(db.Integer, nullable=False, default=1)
 
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -62,7 +66,9 @@ class Equipment(db.Model):
         communication_mode: str = "TCP",
         timeout: int = 5000,
         retry_count: int = 3,
-        retry_interval: int = 1000
+        retry_interval: int = 1000,
+        rack: int = 0,
+        slot: int = 1
     ):
         self.equipment_id = equipment_id
         self.manufacturer = manufacturer
@@ -82,6 +88,8 @@ class Equipment(db.Model):
         self.timeout = timeout
         self.retry_count = retry_count
         self.retry_interval = retry_interval
+        self.rack = rack
+        self.slot = slot
 
 
 class PLCDataConfig(db.Model):

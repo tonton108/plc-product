@@ -106,6 +106,9 @@ class ConfigManager:
                 "plc_ip": equipment_config.get("ip"),
                 "plc_port": equipment_config.get("port"),
                 "modbus_port": equipment_config.get("modbus_port", DEFAULT_MODBUS_PORT),  # Modbusポート追加
+                # Siemens S7用 Rack/Slot（Issue #58）。既定 rack=0/slot=1（S7-1200/1500）
+                "rack": equipment_config.get("rack", 0),
+                "slot": equipment_config.get("slot", 1),
                 "manufacturer": equipment_config.get("manufacturer"),
                 "series": equipment_config.get("series"),
                 "interval": equipment_config.get("interval"),
@@ -189,6 +192,9 @@ class ConfigManager:
             "plc_ip": config_data.get("plc_ip"),              # PLCのIPアドレス（新しいplc_ipフィールド）
             "port": config_data.get("plc_port"),              # PLCのポート
             "modbus_port": config_data.get("modbus_port", DEFAULT_MODBUS_PORT),  # Modbusポート追加
+            # Siemens S7用 Rack/Slot（Issue #58）
+            "rack": config_data.get("rack", 0),
+            "slot": config_data.get("slot", 1),
             "interval": config_data.get("interval"),
             # ラズパイのデバイス情報も保存
             "mac_address": config_data.get("mac_address"),

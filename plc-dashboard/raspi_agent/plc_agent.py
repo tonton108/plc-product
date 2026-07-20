@@ -201,12 +201,18 @@ def read_from_real_plc(config, ip, port, manufacturer, data_points):
             return read_keyence_plc(client, data_points, modbus_port)
 
         elif manufacturer.lower() in ["siemens", "シーメンス"]:
-            plc = connect_siemens_plc(ip)
+            # Issue #58: Rack/Slotを設定から渡す。既定は S7-1200/1500 の rack=0/slot=1。
+            # S7-300/400 は slot=2 が必須で、これを渡さないと接続できない。
+            rack = config.get("rack", 0)
+            slot = config.get("slot", 1)
+            plc = connect_siemens_plc(ip, rack=rack, slot=slot)
             if not plc:
-                logger.error("シーメンスPLC接続に失敗しました")
+                logger.error(
+                    f"シーメンスPLC接続に失敗しました (Rack:{rack}, Slot:{slot})"
+                )
                 report_error(
                     error_type="PROTOCOL_ERROR",
-                    error_message=f"シーメンスPLC接続失敗: {ip}",
+                    error_message=f"シーメンスPLC接続失敗: {ip} (Rack:{rack}, Slot:{slot})",
                     plc_ip=ip,
                     protocol="S7"
                 )

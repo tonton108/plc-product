@@ -44,6 +44,10 @@ class EquipmentSerializer:
             "plc_ip": getattr(equipment, "plc_ip", ""),
             "port": equipment.port,
             "modbus_port": getattr(equipment, "modbus_port", DEFAULT_MODBUS_PORT),
+            # Siemens S7用 Rack/Slot（Issue #58）。エージェントが基底dictから読むため
+            # include_plc_config ではなくここに含める（modbus_portと同じ扱い）。
+            "rack": getattr(equipment, "rack", 0),
+            "slot": getattr(equipment, "slot", 1),
             "interval": equipment.interval,
             "hostname": equipment.hostname,
             "mac_address": equipment.mac_address,

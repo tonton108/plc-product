@@ -256,6 +256,15 @@ def validate_equipment_config(data: Dict[str, Any]) -> Tuple[bool, str]:
     if "modbus_port" in data and data["modbus_port"] is not None and not validate_port(data["modbus_port"]):
         return False, "Invalid modbus_port number (must be 1-65535)"
 
+    # Siemens S7の Rack/Slot（存在する場合のみ）。rack=0〜7、slot=0〜31（Issue #58）
+    if "rack" in data and data["rack"] is not None:
+        if not isinstance(data["rack"], int) or isinstance(data["rack"], bool) or not 0 <= data["rack"] <= 7:
+            return False, "Invalid rack number (must be 0-7)"
+
+    if "slot" in data and data["slot"] is not None:
+        if not isinstance(data["slot"], int) or isinstance(data["slot"], bool) or not 0 <= data["slot"] <= 31:
+            return False, "Invalid slot number (must be 0-31)"
+
     # MACアドレスのチェック（存在する場合のみ）
     if "mac_address" in data and data["mac_address"] and not validate_mac_address(data["mac_address"]):
         return False, "Invalid mac_address format (must be XX:XX:XX:XX:XX:XX or XX-XX-XX-XX-XX-XX)"
