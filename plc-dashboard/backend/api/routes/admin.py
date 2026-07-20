@@ -13,6 +13,7 @@ import logging
 
 from db import db
 from db.models import Equipment, Log, DailyLogSummary, MonthlyLogSummary
+from api.serializers import iso_utc
 from api.scheduler import (
     cleanup_old_logs,
     backfill_incident_aftermath,
@@ -107,8 +108,8 @@ def get_database_stats():
             "total_equipments": total_equipments,
             "total_daily_summaries": total_daily_summaries,
             "total_monthly_summaries": total_monthly_summaries,
-            "oldest_log": oldest_log.timestamp.isoformat() if oldest_log else None,
-            "newest_log": newest_log.timestamp.isoformat() if newest_log else None,
+            "oldest_log": iso_utc(oldest_log.timestamp) if oldest_log else None,
+            "newest_log": iso_utc(newest_log.timestamp) if newest_log else None,
             "equipment_stats": equipment_stats,
             "retention_config": DATA_RETENTION_CONFIG
         }), 200
