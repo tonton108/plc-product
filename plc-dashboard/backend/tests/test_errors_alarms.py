@@ -177,11 +177,21 @@ class TestPLCStatus:
         body = resp.get_json()
         assert body["consecutive_errors"] == 2
 
-    def test_get_plc_status_not_found(self, client, sample_equipment):
-        """設備はあるがPLC状態未作成なら404"""
+    def test_get_plc_status_never_reported_returns_default(self, client, sample_equipment):
+        """設備はあるがPLC状態未作成なら、404ではなく200＋既定ステータス。
+
+        「未報告」は正常系でありリソース不在ではない。兄弟API（alarms/error_logs）が
+        空データで200を返すのと整合させる。never_reported=True で実報告と区別できる。
+        """
         resp = client.get(f"/api/equipment/{EQ}/plc_status")
-        assert resp.status_code == 404
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["is_online"] is False
+        assert body["consecutive_errors"] == 0
+        assert body["never_reported"] is True
+        assert body["equipment_id"] == EQ
 
     def test_get_plc_status_equipment_not_found(self, client):
+        """設備自体が存在しない場合は依然404（未報告の正常系と区別される）"""
         resp = client.get("/api/equipment/NOPE/plc_status")
         assert resp.status_code == 404

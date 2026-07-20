@@ -352,3 +352,23 @@ class PLCStatusSerializer:
             "last_communication_at": plc_status.last_communication_at.isoformat() if plc_status.last_communication_at else None,
             "uptime_seconds": plc_status.uptime_seconds
         }
+
+    @staticmethod
+    def default_dict(equipment_id: str) -> dict:
+        """PLCStatus未登録（未報告）設備の既定ステータスを返す。
+
+        「まだ通信報告が無い」は正常状態であり、リソース不在(404)ではない。
+        兄弟API（alarms/error_logs/incidents）が空データで200を返すのと整合させ、
+        モデル既定（is_online=False, consecutive_errors=0, uptime_seconds=0）を反映する。
+        never_reported=True で「実報告」と区別できるようにする（未使用クライアントは無視可）。
+        """
+        return {
+            "equipment_id": equipment_id,
+            "is_online": False,
+            "consecutive_errors": 0,
+            "last_error_type": None,
+            "last_error_message": None,
+            "last_communication_at": None,
+            "uptime_seconds": 0,
+            "never_reported": True,
+        }
