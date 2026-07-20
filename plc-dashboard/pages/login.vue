@@ -111,6 +111,9 @@ const rules = {
 const auth = useAuth()
 
 const login = async () => {
+  // 多重送信防止: Enter連打はネイティブsubmitを都度発火しボタンのloading状態を
+  // 経由しないため、関数側でリエントランシーガードを設ける。
+  if (loading.value) return
   // バリデーション
   if (!username.value || !password.value) {
     errorMessage.value = t('login.error')

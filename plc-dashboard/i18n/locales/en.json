@@ -10,7 +10,8 @@
     "actions": "Actions",
     "cancel": "Cancel",
     "ok": "OK",
-    "close": "Close"
+    "close": "Close",
+    "confirm": "Confirm"
   },
   "nav": {
     "errorsAlarms": "Errors & Alarms"

@@ -10,7 +10,8 @@
     "actions": "操作",
     "cancel": "キャンセル",
     "ok": "OK",
-    "close": "閉じる"
+    "close": "閉じる",
+    "confirm": "確認"
   },
   "nav": {
     "errorsAlarms": "エラー・アラーム"

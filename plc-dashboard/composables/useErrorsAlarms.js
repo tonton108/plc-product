@@ -45,6 +45,18 @@ export const useErrorsAlarms = (equipmentIdRef) => {
     if (!equipmentId) return
 
     loading.value = true
+    // 設備切替時、新しい取得が失敗（rejected）しても前設備のデータが残らないよう、
+    // 取得前にリセットする。allSettledは失敗分岐で値を更新しないため、リセットしないと
+    // 別設備のアラーム/エラーが「この設備のもの」であるかのように残留する。
+    alarms.value = []
+    errorLogs.value = []
+    plcStatus.value = {
+      is_online: false,
+      consecutive_errors: 0,
+      last_communication_at: null,
+      last_error_type: null,
+      last_error_message: null
+    }
     try {
       // 並列でデータ取得（個別のエラーは無視し、成功した項目のみ反映する）
       // 例: PLCステータス未登録時は404が返るが、これは正常系（データ未登録）として扱う
