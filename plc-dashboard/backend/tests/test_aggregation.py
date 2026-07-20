@@ -147,3 +147,55 @@ class TestCreateMonthlySummary:
         """対象月の日次集計が無ければ月次は作られない"""
         create_monthly_summary(2026, 6)
         assert MonthlyLogSummary.query.count() == 0
+
+
+class TestDailyLogSummarySerializerGraphContract:
+    """日次集計シリアライザが 7d/30d グラフ契約（<data_type>_avg）を満たすか。
+
+    フロント(pages/equipment/[id].vue の logValue)は daily_summaries 期間で
+    必ず `<data_type>_avg` を参照する。固定カラム production_count / cycle_time /
+    error_code の系列が7d/30dで空になっていた不具合の回帰防止。
+    """
+
+    def test_avg_aliases_present_for_fixed_columns(self, session, sample_equipment):
+        from api.serializers import DailyLogSummarySerializer
+
+        s = DailyLogSummary(equipment_id=sample_equipment.id, date=DAY)
+        s.production_count_total = 200
+        s.current_avg = 20.0
+        s.temperature_avg = 110.0
+        s.pressure_avg = 2.0
+        s.pressure_max = 3.0
+        s.pressure_min = 1.0
+        s.cycle_time_avg = 7.0
+        s.error_count = 2
+        s.data_count = 3
+        session.add(s)
+        session.commit()
+
+        d = DailyLogSummarySerializer.to_dict(s)
+
+        # グラフが参照する <data_type>_avg キーが全固定カラムで存在すること
+        for key in ("current_avg", "temperature_avg", "pressure_avg",
+                    "production_count_avg", "cycle_time_avg", "error_code_avg"):
+            assert key in d, f"グラフ契約キー欠落: {key}"
+
+        # 別名の値が元カラムと一致
+        assert d["production_count_avg"] == 200
+        assert d["cycle_time_avg"] == 7.0
+        assert d["error_code_avg"] == 2
+        # max/min の欠落補完（current/temperatureと同様にpressureも）
+        assert d["pressure_max"] == 3.0 and d["pressure_min"] == 1.0
+
+    def test_dynamic_avg_keys_still_merged(self, session, sample_equipment):
+        """動的項目の <key>_avg も引き続きマージされる"""
+        from api.serializers import DailyLogSummarySerializer
+
+        s = DailyLogSummary(equipment_id=sample_equipment.id, date=DAY)
+        s.data_count = 1
+        s.data_summary = {"sensor_x_avg": 50, "sensor_x_max": 60, "sensor_x_min": 40}
+        session.add(s)
+        session.commit()
+
+        d = DailyLogSummarySerializer.to_dict(s)
+        assert d["sensor_x_avg"] == 50

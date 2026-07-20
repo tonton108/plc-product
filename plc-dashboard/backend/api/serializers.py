@@ -249,8 +249,17 @@ class DailyLogSummarySerializer:
             "temperature_max": summary.temperature_max,
             "temperature_min": summary.temperature_min,
             "pressure_avg": summary.pressure_avg,
+            "pressure_max": summary.pressure_max,
+            "pressure_min": summary.pressure_min,
+            "cycle_time_avg": summary.cycle_time_avg,
             "error_count": summary.error_count,
-            "data_count": summary.data_count
+            "data_count": summary.data_count,
+            # フロント(pages/equipment/[id].vue の logValue)は7d/30d(daily_summaries)で
+            # 必ず `<data_type>_avg` を参照する。固定カラム production_count / cycle_time /
+            # error_code はキー名が上記と不一致で7d/30dグラフの系列が空になっていたため、
+            # current/temperature/pressure と同様に `<data_type>_avg` 別名を提供する。
+            "production_count_avg": summary.production_count_total,
+            "error_code_avg": summary.error_count,
         }
 
         # 動的項目の集計（data_summary）をマージ（Phase 2）
