@@ -260,6 +260,9 @@ def initial_setup():
             "plc_ip": request.form["plc_ip"],
             "plc_port": int(request.form["plc_port"]),
             "modbus_port": int(request.form.get("modbus_port", DEFAULT_MODBUS_PORT)),  # Modbusポート追加
+            # Siemens S7用 Rack/Slot（Issue #58）。既定 rack=0/slot=1（S7-1200/1500）
+            "rack": int(request.form.get("rack", 0)),
+            "slot": int(request.form.get("slot", 1)),
             "manufacturer": request.form["manufacturer"],
             "series": request.form["series"],
             "interval": int(request.form["interval"]),
@@ -328,6 +331,8 @@ def initial_setup():
                 "hostname": plc_data["hostname"],
                 "port": plc_data["plc_port"],
                 "modbus_port": plc_data["modbus_port"],
+                "rack": plc_data["rack"],  # Siemens Rack（Issue #58）
+                "slot": plc_data["slot"],  # Siemens Slot（Issue #58）
                 "interval": plc_data["interval"]
             }
 
@@ -386,6 +391,8 @@ def initial_setup():
     current.setdefault("central_server_ip", config.central_server_ip)
     current.setdefault("central_server_port", config.central_server_port)
     current.setdefault("modbus_port", DEFAULT_MODBUS_PORT)  # Modbusポートのデフォルト値
+    current.setdefault("rack", 0)  # Siemens Rack既定（Issue #58）
+    current.setdefault("slot", 1)  # Siemens Slot既定（Issue #58）
     
     # data_pointsのデフォルト値を設定（初回アクセス時）
     if "data_points" not in current:

@@ -185,3 +185,9 @@ msgstr "キーエンス用 (デフォルト: 502)"
 
 msgid "Complete Setup"
 msgstr "設定完了"
+
+msgid "Rack / Slot:"
+msgstr "ラック / スロット:"
+
+msgid "For Siemens PLC only (S7-1200/1500: Slot 1, S7-300/400: Slot 2)"
+msgstr "シーメンスPLC使用時のみ（S7-1200/1500: スロット1、S7-300/400: スロット2）"
