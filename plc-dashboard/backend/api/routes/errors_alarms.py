@@ -87,7 +87,9 @@ def capture_incident_context(equipment, event_type, event_ref_id, event_time):
 def save_error_log(equipment_id):
     """PLC通信エラーを記録（Raspberry Piエージェントから呼び出し）"""
     try:
-        data = request.get_json()
+        # silent=True: Content-Type不正/不正JSONでも例外を投げずNoneを返し、
+        # 下の not data チェックで400にする（従来は例外→except→500になっていた）。
+        data = request.get_json(silent=True)
         if not data:
             return jsonify({"error": "No JSON data provided"}), 400
 
@@ -193,7 +195,9 @@ def resolve_error_log(equipment_id, error_log_id):
 def save_alarm(equipment_id):
     """アラームを記録（Raspberry Piエージェントから呼び出し）"""
     try:
-        data = request.get_json()
+        # silent=True: Content-Type不正/不正JSONでも例外を投げずNoneを返し、
+        # 下の not data チェックで400にする（従来は例外→except→500になっていた）。
+        data = request.get_json(silent=True)
         if not data:
             return jsonify({"error": "No JSON data provided"}), 400
 

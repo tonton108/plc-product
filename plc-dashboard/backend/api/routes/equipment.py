@@ -229,6 +229,18 @@ def save_equipment_config(equipment_id: str) -> Tuple[Response, int]:
             logger.warning(f"設備設定バリデーションエラー: {error_msg}")
             return jsonify({"error": error_msg}), 400
 
+        # NOT NULL列に明示的な null が来たら400で弾く（キー省略は既存値保持で許容）。
+        # 更新分岐は data.get(key, equipment.key) を使うが、キーがpresentで値がNoneの
+        # 場合はNoneが代入されIntegrityError→500になるため、ここで明示nullを拒否する。
+        # 空文字("")はNOT NULLを満たすため許容（自己登録プレースホルダ運用）。
+        non_nullable_keys = (
+            "manufacturer", "series", "plc_ip", "plc_port", "interval", "cpu_serial_number"
+        )
+        for key in non_nullable_keys:
+            if key in data and data[key] is None:
+                logger.warning(f"設備設定のNOT NULL列にnull: {key}")
+                return jsonify({"error": f"{key} must not be null"}), 400
+
         # CPUシリアル番号で既存設備を検索
         cpu_serial_number = data.get("cpu_serial_number")
         equipment = None

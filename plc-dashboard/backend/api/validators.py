@@ -286,13 +286,16 @@ def validate_plc_config(config: Dict[str, Any]) -> Tuple[bool, str]:
     Returns:
         tuple[bool, str]: (検証結果, エラーメッセージ)
     """
-    # data_typeのチェック
-    if "data_type" in config and config["data_type"]:
-        if not validate_data_type(config["data_type"]):
-            return False, f"Invalid data_type: {config['data_type']}"
-        # 予約語（固定カラム・メタキー）は項目名に使えない
-        if config["data_type"] in RESERVED_DATA_TYPE_NAMES:
-            return False, f"data_type '{config['data_type']}' is reserved and cannot be used as an item name"
+    # data_typeは必須（PLCDataConfig.data_type は NOT NULL）。
+    # 欠落/null/空は400で弾く。従来は検証をスキップし None がDBに渡って
+    # IntegrityError→500 になっていた。
+    if not config.get("data_type"):
+        return False, "data_type is required"
+    if not validate_data_type(config["data_type"]):
+        return False, f"Invalid data_type: {config['data_type']}"
+    # 予約語（固定カラム・メタキー）は項目名に使えない
+    if config["data_type"] in RESERVED_DATA_TYPE_NAMES:
+        return False, f"data_type '{config['data_type']}' is reserved and cannot be used as an item name"
 
     # word_orderのチェック（不正値は無言でhigh_first扱いになり32bit値が化けるため弾く）
     if "word_order" in config and config["word_order"] not in VALID_WORD_ORDERS:

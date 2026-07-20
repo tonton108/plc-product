@@ -125,6 +125,15 @@ class TestPLCConfigAPI:
                              content_type='application/json')
         assert response.status_code == 200
 
+    def test_save_plc_configs_missing_data_type_returns_400(self, client, sample_equipment):
+        """data_type欠落のconfigは500ではなく400（NOT NULL違反の事前検知）"""
+        data = [{"name": "x", "enabled": True, "address": "D100"}]  # data_type無し
+        response = client.put(
+            f'/api/equipment/{sample_equipment.equipment_id}/plc_configs',
+            data=json.dumps(data), content_type='application/json')
+        assert response.status_code == 400
+        assert "data_type" in response.get_json().get("error", "")
+
 
 class TestLogAPI:
     """ログAPIのテスト"""

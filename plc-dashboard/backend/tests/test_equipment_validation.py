@@ -126,3 +126,17 @@ class TestPutEquipmentRequiredKeys:
         }
         resp = _put_equipment(client, sample_equipment.equipment_id, payload)
         assert resp.status_code == 200
+
+    def test_update_existing_explicit_null_returns_400(self, client, session, sample_equipment):
+        """既存設備の更新でNOT NULL列に明示nullを送ると500ではなく400。
+
+        キー省略（既存値保持）は許容されるが、明示的なnullはNoneが代入され
+        IntegrityError→500になっていた。事前に400で弾く。
+        """
+        resp = _put_equipment(
+            client,
+            sample_equipment.equipment_id,
+            {"cpu_serial_number": sample_equipment.cpu_serial_number, "plc_ip": None},
+        )
+        assert resp.status_code == 400
+        assert "plc_ip" in resp.get_json()["error"]

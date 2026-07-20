@@ -30,6 +30,15 @@ class TestErrorLogs:
         assert logs[0].error_type == ErrorTypes.TIMEOUT
         assert logs[0].retry_count == 3
 
+    def test_save_error_log_wrong_content_type_returns_400(self, client, sample_equipment):
+        """Content-Type不正/非JSONボディでも500ではなく400（get_json silent=True）"""
+        resp = client.post(
+            f"/api/equipment/{EQ}/error_logs",
+            data="error_type=timeout",  # JSONではない
+            content_type="text/plain",
+        )
+        assert resp.status_code == 400
+
     def test_save_error_log_increments_plc_status(self, client, session, sample_equipment):
         """既存PLC状態があれば連続エラー数が増えオフラインになる"""
         status = PLCStatus(equipment_id=sample_equipment.id)
