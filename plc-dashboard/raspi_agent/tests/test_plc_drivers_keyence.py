@@ -191,23 +191,20 @@ class TestKeyencePLCReadWithMock:
 
         from plc_drivers.keyence import read_keyence_plc
 
-        try:
-            result = read_keyence_plc(mock_client, data_points)
+        # ※ 例外をpytest.skipで握りつぶすと不具合を見逃すため、直接検証する
+        read_keyence_plc(mock_client, data_points)
 
-            # バッチ読み取りで正しいパラメータが指定されているか
-            call_args = mock_client.read_holding_registers.call_args_list[0]
-            kwargs = call_args[1]
+        # バッチ読み取りで正しいパラメータが指定されているか
+        call_args = mock_client.read_holding_registers.call_args_list[0]
+        kwargs = call_args[1]
 
-            # 開始アドレスがDM100（address=100）
-            address = kwargs.get("address")
-            assert address == 100, f"バッチ読み取り開始アドレスが不正: {address}"
+        # 開始アドレスがDM100（address=100）
+        address = kwargs.get("address")
+        assert address == 100, f"バッチ読み取り開始アドレスが不正: {address}"
 
-            # 読み取りサイズが3ワード
-            count = kwargs.get("count")
-            assert count == 3, f"バッチ読み取りサイズが不正: {count}"
-
-        except Exception as e:
-            pytest.skip(f"テスト実行エラー（実環境依存）: {e}")
+        # 読み取りサイズが3ワード
+        count = kwargs.get("count")
+        assert count == 3, f"バッチ読み取りサイズが不正: {count}"
 
     @pytest.mark.unit
     def test_read_float32_high_first_word_order(self):

@@ -140,24 +140,21 @@ class TestMitsubishiPLCReadWithMock:
         # 実際の関数をインポートして実行
         from plc_drivers.mitsubishi import read_mitsubishi_plc
 
-        try:
-            result = read_mitsubishi_plc(mock_plc, data_points)
+        # ※ 例外をpytest.skipで握りつぶすと不具合を見逃すため、直接検証する
+        read_mitsubishi_plc(mock_plc, data_points)
 
-            # batchread_wordunitsが正しいパラメータで呼ばれたか検証
-            call_args = mock_plc.batchread_wordunits.call_args_list[0]
-            kwargs = call_args[1]
+        # batchread_wordunitsが正しいパラメータで呼ばれたか検証
+        call_args = mock_plc.batchread_wordunits.call_args_list[0]
+        kwargs = call_args[1]
 
-            # headdeviceパラメータの確認
-            headdevice = kwargs.get("headdevice")
-            assert (
-                headdevice == "D100"
-            ), f"デバイスアドレス形式が不正: expected 'D100', got '{headdevice}'"
+        # headdeviceパラメータの確認
+        headdevice = kwargs.get("headdevice")
+        assert (
+            headdevice == "D100"
+        ), f"デバイスアドレス形式が不正: expected 'D100', got '{headdevice}'"
 
-            # 16進数フォーマットでないことを確認
-            assert headdevice != "D0064", "16進数フォーマットは使用すべきでない"
-
-        except Exception as e:
-            pytest.skip(f"テスト実行エラー（実環境依存）: {e}")
+        # 16進数フォーマットでないことを確認
+        assert headdevice != "D0064", "16進数フォーマットは使用すべきでない"
 
     @pytest.mark.unit
     def test_batchread_bitunits_device_format(self):
@@ -171,25 +168,22 @@ class TestMitsubishiPLCReadWithMock:
 
         from plc_drivers.mitsubishi import read_mitsubishi_plc
 
-        try:
-            result = read_mitsubishi_plc(mock_plc, data_points)
+        # ※ 例外をpytest.skipで握りつぶすと不具合を見逃すため、直接検証する
+        read_mitsubishi_plc(mock_plc, data_points)
 
-            # batchread_bitunitsが呼ばれた場合
-            if mock_plc.batchread_bitunits.called:
-                call_args = mock_plc.batchread_bitunits.call_args_list[0]
-                kwargs = call_args[1]
+        # batchread_bitunitsが呼ばれた場合
+        if mock_plc.batchread_bitunits.called:
+            call_args = mock_plc.batchread_bitunits.call_args_list[0]
+            kwargs = call_args[1]
 
-                headdevice = kwargs.get("headdevice")
-                # シンプルな文字列形式であることを確認
-                assert (
-                    headdevice == "M100"
-                ), f"ビットデバイス形式が不正: expected 'M100', got '{headdevice}'"
+            headdevice = kwargs.get("headdevice")
+            # シンプルな文字列形式であることを確認
+            assert (
+                headdevice == "M100"
+            ), f"ビットデバイス形式が不正: expected 'M100', got '{headdevice}'"
 
-                # 16進数フォーマットでないことを確認
-                assert headdevice != "M0064", "16進数フォーマットは使用すべきでない"
-
-        except Exception as e:
-            pytest.skip(f"テスト実行エラー（実環境依存）: {e}")
+            # 16進数フォーマットでないことを確認
+            assert headdevice != "M0064", "16進数フォーマットは使用すべきでない"
 
     @pytest.mark.unit
     def test_batch_read_multiple_devices(self):
@@ -220,26 +214,21 @@ class TestMitsubishiPLCReadWithMock:
 
         from plc_drivers.mitsubishi import read_mitsubishi_plc
 
-        try:
-            result = read_mitsubishi_plc(mock_plc, data_points)
+        # ※ 例外をpytest.skipで握りつぶすと不具合を見逃すため、直接検証する
+        read_mitsubishi_plc(mock_plc, data_points)
 
-            # バッチ読み取りで正しいデバイスとサイズが指定されているか
-            call_args = mock_plc.batchread_wordunits.call_args_list[0]
-            kwargs = call_args[1]
+        # バッチ読み取りで正しいデバイスとサイズが指定されているか
+        call_args = mock_plc.batchread_wordunits.call_args_list[0]
+        kwargs = call_args[1]
 
-            headdevice = kwargs.get("headdevice")
-            readsize = kwargs.get("readsize")
+        headdevice = kwargs.get("headdevice")
+        readsize = kwargs.get("readsize")
 
-            # 開始デバイスがD100
-            assert (
-                headdevice == "D100"
-            ), f"バッチ読み取り開始デバイスが不正: {headdevice}"
+        # 開始デバイスがD100
+        assert headdevice == "D100", f"バッチ読み取り開始デバイスが不正: {headdevice}"
 
-            # 読み取りサイズが3
-            assert readsize == 3, f"バッチ読み取りサイズが不正: {readsize}"
-
-        except Exception as e:
-            pytest.skip(f"テスト実行エラー（実環境依存）: {e}")
+        # 読み取りサイズが3
+        assert readsize == 3, f"バッチ読み取りサイズが不正: {readsize}"
 
 
 class TestMitsubishiDeviceTypeHandling:
