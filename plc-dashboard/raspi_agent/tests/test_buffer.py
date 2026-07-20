@@ -146,16 +146,16 @@ def test_retry_logic():
         buffer.increment_retry(record_id, f"テストエラー {i+1}回目")
         print(f"  試行 {i+1}回目: retry_count={i+1}")
 
-    print("\n📋 ステップ3: 未送信データを取得（max_retry=3を超えたデータは除外）")
+    print("\n📋 ステップ3: 未送信データを取得（再送回数では除外しない）")
     pending = buffer.get_pending(limit=10)
     print(f"  取得されたデータ: {len(pending)}件")
 
-    if len(pending) == 0:
-        print("  ✅ 正しく動作: 再試行上限を超えたデータは取得されない")
+    if len(pending) > 0:
+        print("  ✅ 正しく動作: 上限超過でも再送対象であり続ける（日数で期限切れ）")
 
-    print("\n🗑️ ステップ4: 再試行上限を超えたデータを削除")
-    deleted = buffer.cleanup_max_retry_exceeded()
-    print(f"  削除されたデータ: {deleted}件")
+    print("\n🗑️ ステップ4: 日数ベースのクリーンアップ（本日データは残る）")
+    deleted = buffer.cleanup_old_data(days=7)
+    print(f"  削除されたデータ: {deleted}件（本日データのため0件）")
 
     buffer.close()
     print("\n✅ 再試行ロジックテスト完了")
