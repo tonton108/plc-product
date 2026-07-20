@@ -136,36 +136,29 @@ class TestOmronPLCReadWithMock:
         # 実際の関数をインポートして実行
         from plc_drivers.omron import read_omron_plc
 
-        try:
-            result = read_omron_plc(mock_fins, data_points)
+        # ※ 例外をpytest.skipで握りつぶすと不具合を見逃すため、直接検証する
+        read_omron_plc(mock_fins, data_points)
 
-            # memory_area_readが正しいパラメータで呼ばれたか検証
-            # 最初の呼び出しを確認（バッチ読み取り）
-            call_args = mock_fins.memory_area_read.call_args_list[0]
+        # memory_area_readが正しいパラメータで呼ばれたか検証（最初の呼び出し）
+        call_args = mock_fins.memory_area_read.call_args_list[0]
+        args, kwargs = call_args
+        memory_area_code = args[0]
+        addr_bytes = args[1]
+        read_count = args[2]
 
-            # 引数を取得
-            args, kwargs = call_args
-            memory_area_code = args[0]
-            addr_bytes = args[1]
-            read_count = args[2]
+        # DMエリアコード（0x82）の確認
+        assert (
+            memory_area_code == b"\x82"
+        ), f"メモリエリアコードが不正: {memory_area_code.hex()}"
 
-            # DMエリアコード（0x82）の確認
-            assert (
-                memory_area_code == b"\x82"
-            ), f"メモリエリアコードが不正: {memory_area_code.hex()}"
+        # アドレスバイト列が正しいことを確認
+        expected_addr = b"\x00\x64\x00"  # DM100
+        assert (
+            addr_bytes == expected_addr
+        ), f"アドレスバイトが不正: expected {expected_addr.hex()}, got {addr_bytes.hex()}"
 
-            # アドレスバイト列が正しいことを確認
-            expected_addr = b"\x00\x64\x00"  # DM100
-            assert (
-                addr_bytes == expected_addr
-            ), f"アドレスバイトが不正: expected {expected_addr.hex()}, got {addr_bytes.hex()}"
-
-            # 読み取りサイズの確認
-            assert read_count == 1, f"読み取りサイズが不正: {read_count}"
-
-        except Exception as e:
-            # baseモジュールの関数がインポートできない場合などのエラーハンドリング
-            pytest.skip(f"テスト実行エラー（実環境依存）: {e}")
+        # 読み取りサイズの確認
+        assert read_count == 1, f"読み取りサイズが不正: {read_count}"
 
     @pytest.mark.unit
     def test_multiple_address_batch_read(self):
@@ -197,25 +190,28 @@ class TestOmronPLCReadWithMock:
 
         from plc_drivers.omron import read_omron_plc
 
-        try:
-            result = read_omron_plc(mock_fins, data_points)
+        # ※ 連続する"D100/101/102"は1回のバッチ読み取り（count=3）にまとまるべき。
+        #   device_type="DM"のバグ時はグループ化されず個別3回になり、この検証が
+        #   pytest.skipで握りつぶされていた（O1修正で解消）。
+        read_omron_plc(mock_fins, data_points)
 
-            # バッチ読み取りで正しいアドレスとサイズが指定されているか
-            call_args = mock_fins.memory_area_read.call_args_list[0]
-            args, kwargs = call_args
-            addr_bytes = args[1]
-            read_count = args[2]
+        # バッチ読み取りで正しいアドレスとサイズが指定されているか
+        call_args = mock_fins.memory_area_read.call_args_list[0]
+        args, kwargs = call_args
+        addr_bytes = args[1]
+        read_count = args[2]
 
-            # 開始アドレスがDM100（b'\x00\x64\x00'）
-            assert (
-                addr_bytes == b"\x00\x64\x00"
-            ), f"バッチ読み取り開始アドレスが不正: {addr_bytes.hex()}"
+        # 開始アドレスがDM100（b'\x00\x64\x00'）
+        assert (
+            addr_bytes == b"\x00\x64\x00"
+        ), f"バッチ読み取り開始アドレスが不正: {addr_bytes.hex()}"
 
-            # 読み取りサイズが3ワード
-            assert read_count == 3, f"バッチ読み取りサイズが不正: {read_count}"
-
-        except Exception as e:
-            pytest.skip(f"テスト実行エラー（実環境依存）: {e}")
+        # 読み取りサイズが3ワード（＝バッチが発動している証拠）
+        assert read_count == 3, f"バッチ読み取りサイズが不正: {read_count}"
+        # 個別3回ではなく1回のバッチ呼び出しであること
+        assert (
+            mock_fins.memory_area_read.call_count == 1
+        ), f"バッチ最適化が効いていない（呼び出し回数={mock_fins.memory_area_read.call_count}）"
 
 
 class TestOmronFloat32DwordAddressing:

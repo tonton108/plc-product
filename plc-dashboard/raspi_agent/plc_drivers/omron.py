@@ -78,7 +78,10 @@ def read_omron_plc(fins_client, data_points):
     data = {}
 
     # バッチ読み取り最適化: 連続したwordアドレスをグループ化
-    word_groups = group_continuous_word_addresses(data_points, device_type="DM")
+    # device_type="D" とすることで "D100"（既定設定）も "DM100" も対象になる
+    # （"DM100".startswith("D") は真。"DM"限定だと既定の"D"始まりアドレスで
+    # バッチが一切発動せず個別読みに退化していた）。番号抽出はプレフィックス非依存。
+    word_groups = group_continuous_word_addresses(data_points, device_type="D")
 
     # グループ化されたwordアドレスを一括読み取り
     for group in word_groups:
@@ -211,15 +214,17 @@ def read_omron_plc(fins_client, data_points):
                             )
 
                     else:
-                        # 従来の16bitワード読み取り
-                        if address.upper().startswith(
-                            "DM"
-                        ) or address.upper().startswith("D"):
-                            # DM エリア用のメモリエリアコード（0x82）
-                            if address.upper().startswith("DM"):
-                                addr_num = int(address[2:])
-                            else:
-                                addr_num = int(address[1:])
+                        # 従来の16bitワード読み取り（DM エリア: 0x82）
+                        if address.upper().startswith("DM"):
+                            addr_num = int(address[2:])
+                        elif address.upper().startswith("D"):
+                            addr_num = int(address[1:])
+                        else:
+                            # D/DM以外（CIO/WR/HR等）はword直読み未対応。
+                            # 未定義のaddr_numを参照する前にここで弾く
+                            # （従来は UnboundLocalError が safe_plc_read に握りつぶされ、
+                            #   紛らわしいエラーで静かに欠落していた）。
+                            raise ValueError(f"不明なアドレス形式: {address}")
 
                         # アドレスをバイト形式に変換
                         addr_bytes = addr_num.to_bytes(2, byteorder="big") + b"\x00"
