@@ -111,15 +111,11 @@ def read_from_plc(config):
             logger.error("[ERROR] PLC接続失敗 - ダミーモードにフォールバック")
             update_error_stats(False, "connection", response_time_ms)
 
-            # Phase 4: エラーを中央サーバーに報告
-            report_error(
-                error_type="CONNECTION_FAILED",
-                error_message=f"PLC接続失敗: {ip}:{port} ({manufacturer})",
-                retry_count=0,
-                plc_ip=ip,
-                protocol=manufacturer
-            )
-
+            # ここではエラー報告しない。read_from_real_plc が None を返す全経路
+            # （接続失敗=PROTOCOL_ERROR / 読取例外=READ_ERROR / 不明メーカー=
+            # CONFIGURATION_ERROR）で既にプロトコル固有の詳細付きで report_error
+            # 済みのため。ここで再度 report_error すると1回の失敗が2件記録され、
+            # サーバー側の consecutive_errors が2倍に膨れる。
             return generate_dummy_data(data_points)
         else:
             logger.info("[SUCCESS] PLC接続成功")
@@ -228,7 +224,9 @@ def read_from_real_plc(config, ip, port, manufacturer, data_points):
                 plc_ip=ip,
                 protocol=manufacturer
             )
-            raise ValueError(f"[ERROR] {error_msg}")
+            # 報告済みなので None を返す。以前は raise していたが直下の except で
+            # 再捕捉されて READ_ERROR が二重報告されていた。
+            return None
 
     except Exception as e:
         logger.error(f"[ERROR] PLC読取エラー: {e}")
@@ -371,7 +369,12 @@ def main_loop(stop_event=None):
                 logger.warning("データ取得失敗。")
 
             # 設定された間隔で待機
-            interval = config.get("interval", INTERVAL)
+            # DBのinterval列がNULLだと config.get はキー有り=None を返すため、
+            # 第2引数のデフォルトは効かない。None/0 のときは or で INTERVAL に
+            # フォールバックする（未対応だと None/1000.0 が TypeError となり、
+            # データ取得・送信は成功しているのに毎周期 main_loop の except に落ち、
+            # 誤解を招く例外ログが出て常に固定5秒間隔で動作し続ける）。
+            interval = config.get("interval") or INTERVAL
             stop_event.wait(interval / 1000.0)
 
             # カウンター更新
