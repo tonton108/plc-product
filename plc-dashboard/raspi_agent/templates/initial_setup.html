@@ -79,6 +79,17 @@
             <input type="number" name="modbus_port" value="{{ equipment.modbus_port or 502 }}"
                    placeholder="{{ _('For Keyence (Default: 502)') }}">
           </div>
+
+          <!-- Siemens S7用 Rack/Slot（Issue #58）。メーカー=シーメンス選択時のみ表示 -->
+          <div class="form-group" id="siemens-settings" style="display: none;">
+            <label><strong>🔧 {{ _('Rack / Slot:') }}</strong> <small style="color: #666;">※{{ _('For Siemens PLC only (S7-1200/1500: Slot 1, S7-300/400: Slot 2)') }}</small></label>
+            <div style="display: flex; gap: 12px;">
+              <input type="number" name="rack" value="{{ equipment.rack }}" min="0" max="7"
+                     placeholder="Rack (0-7)" style="flex: 1;" data-testid="rack-input">
+              <input type="number" name="slot" value="{{ equipment.slot }}" min="0" max="31"
+                     placeholder="Slot (1 or 2)" style="flex: 1;" data-testid="slot-input">
+            </div>
+          </div>
         </div>
       </div>
 
@@ -356,7 +367,18 @@ body.dark .plc-item-grid select {
     }
 
     manufacturerSelect.addEventListener('change', updateSeries);
+    manufacturerSelect.addEventListener('change', toggleSiemensSettings);
     updateSeries();
+    toggleSiemensSettings();
+  }
+
+  // Siemens選択時のみ Rack/Slot 入力を表示（Issue #58）
+  function toggleSiemensSettings() {
+    const isSiemens = document.getElementById('manufacturer').value === 'シーメンス';
+    const box = document.getElementById('siemens-settings');
+    if (box) {
+      box.style.display = isSiemens ? 'block' : 'none';
+    }
   }
 
   // フォーム送信時にPLC設定をJSON形式でhidden inputに格納

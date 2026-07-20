@@ -185,3 +185,9 @@ msgstr "基恩士用 (默认: 502)"
 
 msgid "Complete Setup"
 msgstr "完成设置"
+
+msgid "Rack / Slot:"
+msgstr "机架 / 插槽:"
+
+msgid "For Siemens PLC only (S7-1200/1500: Slot 1, S7-300/400: Slot 2)"
+msgstr "仅西门子PLC使用（S7-1200/1500: 插槽1，S7-300/400: 插槽2）"

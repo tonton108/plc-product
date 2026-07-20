@@ -185,3 +185,9 @@ msgstr "For Keyence (Default: 502)"
 
 msgid "Complete Setup"
 msgstr "Complete Setup"
+
+msgid "Rack / Slot:"
+msgstr "Rack / Slot:"
+
+msgid "For Siemens PLC only (S7-1200/1500: Slot 1, S7-300/400: Slot 2)"
+msgstr "For Siemens PLC only (S7-1200/1500: Slot 1, S7-300/400: Slot 2)"
