@@ -317,6 +317,10 @@ def main_loop(stop_event=None):
     retry_interval = 60  # 再送信間隔（秒）: 60秒ごと
     cleanup_interval = 3600  # クリーンアップ間隔（秒）: 1時間ごと
 
+    # 直近に報告済みのアラームコード（重複送信の抑止用）。
+    # 同一アラームの継続中はポーリング毎に再送せず、状態遷移時のみ送信する。
+    last_alarm_code = None
+
     logger.info("📦 バッファリング機能有効:")
     logger.info(f"  - 再送信間隔: {retry_interval}秒ごと")
     logger.info(f"  - クリーンアップ間隔: {cleanup_interval}秒ごと（7日以上前のデータを削除）")
@@ -349,21 +353,32 @@ def main_loop(stop_event=None):
             if values:
                 # Phase 4: アラーム検出とAPI送信
                 error_code = values.get("error_code")
-                if error_code and error_code > 0:
+                if error_code and int(error_code) > 0:
                     # スケール適用でfloatになり得るため書式化前にintへ正規化
                     error_code = int(error_code)
-                    # エラーコードが0以外の場合、アラームとして報告
-                    alarm_level = "WARNING" if error_code == 1 else "ERROR"
-                    report_alarm(
-                        alarm_code=f"E{error_code:03d}",
-                        alarm_level=alarm_level,
-                        alarm_message=f"PLCアラーム検出: エラーコード {error_code}",
-                        alarm_data={
-                            "error_code": error_code,
-                            "plc_values": values
-                        }
-                    )
-                    logger.warning(f"⚠️ アラーム検出: E{error_code:03d} ({alarm_level})")
+                    alarm_code = f"E{error_code:03d}"
+                    # 同一アラームの継続中は再送しない。バックエンドはアラームを
+                    # 重複排除せず、POSTごとに新規AlarmHistory行の作成＋高コストな
+                    # インシデント文脈保全（発生前後の生ログ長期保存）を行うため、
+                    # PLCが同じエラーコードを出し続けるとポーリング毎にそれらが
+                    # 積み上がる（1秒間隔なら1時間で約3600行）。状態遷移（新規発生
+                    # またはコード変化）時のみ送信する。
+                    if alarm_code != last_alarm_code:
+                        alarm_level = "WARNING" if error_code == 1 else "ERROR"
+                        report_alarm(
+                            alarm_code=alarm_code,
+                            alarm_level=alarm_level,
+                            alarm_message=f"PLCアラーム検出: エラーコード {error_code}",
+                            alarm_data={
+                                "error_code": error_code,
+                                "plc_values": values
+                            }
+                        )
+                        logger.warning(f"⚠️ アラーム検出: {alarm_code} ({alarm_level})")
+                        last_alarm_code = alarm_code
+                else:
+                    # アラーム解消（error_code=0/None）→ 再発時に再送できるよう解除
+                    last_alarm_code = None
 
                 # DB APIを使用してログデータを送信（バッファリング対応）
                 success = db_api.send_log_data(equipment_id, values)
