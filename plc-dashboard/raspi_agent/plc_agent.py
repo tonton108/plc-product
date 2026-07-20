@@ -165,9 +165,16 @@ def read_from_real_plc(config, ip, port, manufacturer, data_points):
                     protocol="MC_PROTOCOL_3E"
                 )
                 return None
-            data = read_mitsubishi_plc(plc, data_points)
-            plc.close()
-            return data
+            # read_mitsubishi_plc は内部のアドレスグループ化（try外）で例外を
+            # 送出し得る。その場合でも接続を確実に閉じるため try/finally で囲む。
+            # 従来は close() が read の後ろに素で置かれており、例外時に
+            # read_from_real_plc の except へ伝播して close() がスキップされ、
+            # ソケットがリークしていた（キーエンス/シーメンスは read 関数内で
+            # close/disconnect 済み）。
+            try:
+                return read_mitsubishi_plc(plc, data_points)
+            finally:
+                plc.close()
 
         elif manufacturer.lower() in ["omron", "オムロン"]:
             fins_client = connect_omron_plc(ip)
