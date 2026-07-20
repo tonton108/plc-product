@@ -15,8 +15,29 @@
 """
 
 from typing import List, Optional, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from .constants import DEFAULT_MODBUS_PORT
+
+
+def iso_utc(dt):
+    """datetime/date を ISO8601 文字列にする（タイムゾーンを明示）。
+
+    背景: DBのDateTime列はnaive（UTCの壁時計値を格納）で、従来は素の
+    isoformat() を返していた（例 "2026-07-20T10:00:00"）。これをフロントの
+    new Date() がローカル時刻と誤解釈し、全時刻表示・時間フィルタがブラウザの
+    TZオフセット分ズレていた（JSTなら9時間）。
+    - naive datetime … UTCとみなして末尾に "Z" を付ける
+    - aware datetime … UTCへ変換して "Z" 付き
+    - date（時刻なし）… そのまま（tzの概念なし）
+    - None … None
+    """
+    if dt is None:
+        return None
+    if not isinstance(dt, datetime):
+        return dt.isoformat()
+    if dt.tzinfo is None:
+        return dt.isoformat() + "Z"
+    return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 class EquipmentSerializer:
@@ -52,7 +73,7 @@ class EquipmentSerializer:
             "hostname": equipment.hostname,
             "mac_address": equipment.mac_address,
             "cpu_serial_number": getattr(equipment, "cpu_serial_number", ""),
-            "updated_at": equipment.updated_at.isoformat() if equipment.updated_at else None
+            "updated_at": iso_utc(equipment.updated_at)
         }
 
         if include_status:
@@ -168,7 +189,7 @@ class LogSerializer:
             dict: シリアライズされたログデータ
         """
         data = {
-            "timestamp": log.timestamp.isoformat(),
+            "timestamp": iso_utc(log.timestamp),
             "production_count": log.production_count,
             "current": log.current,
             "temperature": log.temperature,
@@ -207,7 +228,7 @@ class LogSerializer:
         """
         realtime = {
             "equipment_id": equipment_id,
-            "timestamp": log.timestamp.isoformat(),
+            "timestamp": iso_utc(log.timestamp),
             "production_count": log.production_count,
             "current": log.current,
             "temperature": log.temperature,
@@ -296,8 +317,8 @@ class CommunicationErrorLogSerializer:
             "retry_count": log.retry_count,
             "plc_ip": log.plc_ip,
             "protocol": log.protocol,
-            "occurred_at": log.occurred_at.isoformat(),
-            "resolved_at": log.resolved_at.isoformat() if log.resolved_at else None
+            "occurred_at": iso_utc(log.occurred_at),
+            "resolved_at": iso_utc(log.resolved_at)
         }
 
     @staticmethod
@@ -326,8 +347,8 @@ class AlarmHistorySerializer:
             "alarm_level": alarm.alarm_level,
             "alarm_message": alarm.alarm_message,
             "alarm_data": alarm.alarm_data,
-            "occurred_at": alarm.occurred_at.isoformat(),
-            "cleared_at": alarm.cleared_at.isoformat() if alarm.cleared_at else None,
+            "occurred_at": iso_utc(alarm.occurred_at),
+            "cleared_at": iso_utc(alarm.cleared_at),
             "acknowledged": alarm.acknowledged
         }
 
@@ -358,7 +379,7 @@ class PLCStatusSerializer:
             "consecutive_errors": plc_status.consecutive_errors,
             "last_error_type": plc_status.last_error_type,
             "last_error_message": plc_status.last_error_message,
-            "last_communication_at": plc_status.last_communication_at.isoformat() if plc_status.last_communication_at else None,
+            "last_communication_at": iso_utc(plc_status.last_communication_at),
             "uptime_seconds": plc_status.uptime_seconds
         }
 

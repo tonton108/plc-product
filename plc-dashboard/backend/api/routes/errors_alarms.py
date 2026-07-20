@@ -18,7 +18,8 @@ from api.serializers import (
     CommunicationErrorLogSerializer,
     AlarmHistorySerializer,
     PLCStatusSerializer,
-    LogSerializer
+    LogSerializer,
+    iso_utc,
 )
 from api.auth_service import require_user, require_api_key
 
@@ -358,12 +359,12 @@ def _incident_to_dict(inc, include_context=False):
         "id": inc.id,
         "event_type": inc.event_type,
         "event_ref_id": inc.event_ref_id,
-        "event_time": inc.event_time.isoformat() if inc.event_time else None,
-        "window_start": inc.window_start.isoformat() if inc.window_start else None,
-        "window_end": inc.window_end.isoformat() if inc.window_end else None,
+        "event_time": iso_utc(inc.event_time),
+        "window_start": iso_utc(inc.window_start),
+        "window_end": iso_utc(inc.window_end),
         "log_count": inc.log_count,
         # 発生後（アフターマス）ウィンドウの捕捉状況
-        "after_window_end": inc.after_window_end.isoformat() if inc.after_window_end else None,
+        "after_window_end": iso_utc(inc.after_window_end),
         "after_captured": inc.after_captured_at is not None,
         "after_log_count": inc.after_log_count or 0,
     }

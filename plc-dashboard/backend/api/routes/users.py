@@ -13,6 +13,7 @@ from flask import Blueprint, request, jsonify, g
 from db import db
 from db.models import User, UserRoles
 from api.auth_service import require_user
+from api.serializers import iso_utc
 
 users_bp = Blueprint('admin_users', __name__, url_prefix='/api/admin/users')
 
@@ -31,7 +32,7 @@ def _revoke_tokens(user: User) -> None:
 def _user_dict(user: User) -> dict:
     """管理画面用のユーザー表現（password_hashは含めない。created_atを付与）"""
     data = user.to_dict()
-    data["created_at"] = user.created_at.isoformat() if user.created_at else None
+    data["created_at"] = iso_utc(user.created_at)
     return data
 
 
