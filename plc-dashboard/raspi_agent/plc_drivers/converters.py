@@ -31,16 +31,25 @@ def _combine_words(word1, word2, word_order):
     未知の値（typo等）はシステム既定の low_first にフォールバックし警告する。
     バックエンドのバリデーションで弾いているが、二重の防御として
     「無言で逆順にならない」ことを保証する。
+
+    各ワードは & 0xFFFF で符号なし16bitに正規化してから結合する。
+    pymcprotocol の batchread_wordunits は符号あり16bit（-32768〜32767）で
+    値を返すため、実バイトパターンが 0x8000 以上のワードは負数になる。
+    負数のままビット結合すると Python の無限精度2の補数により結果が負値となり、
+    後段の struct.pack(">I", combined) が範囲外エラーで例外を送出し、
+    その項目がサイレントに欠落する（float32では高頻度で発生）。
     """
+    w1 = word1 & 0xFFFF
+    w2 = word2 & 0xFFFF
     if word_order == WORD_ORDER_HIGH_FIRST:
         # 先頭アドレス側（word1）が上位ワード（シーメンス等）
-        return (word1 << 16) | word2
+        return (w1 << 16) | w2
     if word_order != WORD_ORDER_LOW_FIRST:
         logger.warning(
             f"未知のword_order '{word_order}' を既定の low_first として扱います"
         )
     # low_first（既定）: 先頭アドレス側（word1）が下位ワード（三菱等）
-    return (word2 << 16) | word1
+    return (w2 << 16) | w1
 
 
 def convert_words_to_float32(word1, word2, word_order=WORD_ORDER_LOW_FIRST):
