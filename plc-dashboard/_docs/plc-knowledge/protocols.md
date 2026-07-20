@@ -86,10 +86,12 @@ client.connect()
 
 ```python
 # Holding Registers (D領域) を読み取り
+# ⚠️ pymodbus 3.x では count はキーワード専用。スレーブID指定は
+#    unit= / slave= が廃止され device_id（既定1）へ改名された。
+#    省略時は device_id=1 で読む（キーエンスの標準スレーブID）。
 result = client.read_holding_registers(
     address=100,  # D100
-    count=10,     # 10ワード
-    slave=1
+    count=10,     # 10ワード（キーワード必須）
 )
 
 if not result.isError():
