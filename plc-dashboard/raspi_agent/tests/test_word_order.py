@@ -81,3 +81,47 @@ class TestFloat32WordOrder:
         upper, lower = self._split_float(100.5)
         # low_first既定なので、先頭に下位(lower)・次に上位(upper)を渡すと復元される
         assert abs(convert_words_to_float32(lower, upper) - 100.5) < 0.001
+
+
+class TestSignedWordInput:
+    """符号あり16bit入力の回帰テスト（三菱の符号バグ）
+
+    pymcprotocol の batchread_wordunits は isSigned=True で復号するため、
+    0x8000 以上のワードは符号あり負数（-32768〜-1）で返る。旧実装は各ワードを
+    符号なし前提でビット結合していたため、負数ワードで struct.pack('>I', ...) が
+    範囲外エラーとなり、その項目がサイレント欠落していた（float32では高頻度）。
+    _combine_words の & 0xFFFF 正規化で解消。
+    """
+
+    @staticmethod
+    def _signed16(unsigned):
+        """符号なし16bit値を、pymcprotocolが返す符号あり16bitに変換"""
+        return struct.unpack(">h", struct.pack(">H", unsigned))[0]
+
+    def test_float32_low_first_with_signed_words(self):
+        """float32=3.14 (40 48 f5 c3)。下位ワード0xf5c3は符号ありで-2621"""
+        # 三菱 low_first: word1=下位(0xf5c3), word2=上位(0x4048)
+        w1 = self._signed16(0xF5C3)  # -2621
+        w2 = self._signed16(0x4048)  # 16456
+        assert w1 < 0  # 前提: 負数で返る
+        value = convert_words_to_value(w1, w2, "float32", "low_first")
+        assert abs(value - 3.14) < 0.001
+
+    def test_float32_high_first_with_signed_words(self):
+        """シーメンス high_first でも符号あり入力で正しく復元"""
+        w1 = self._signed16(0x4048)  # 上位
+        w2 = self._signed16(0xF5C3)  # 下位（-2621）
+        value = convert_words_to_value(w1, w2, "float32", "high_first")
+        assert abs(value - 3.14) < 0.001
+
+    def test_dword_all_bits_set_with_signed_words(self):
+        """全ビット1（両ワード-1）→ 0xFFFFFFFF = 4294967295"""
+        w = self._signed16(0xFFFF)  # -1
+        assert w == -1
+        assert convert_words_to_value(w, w, "dword", "low_first") == 0xFFFFFFFF
+
+    def test_dword_high_word_negative(self):
+        """上位ワードのみ0x8000以上（符号あり負数）でも正しく結合"""
+        # low_first: word1=下位0x0000, word2=上位0x8000(-32768)
+        w2 = self._signed16(0x8000)  # -32768
+        assert convert_words_to_value(0x0000, w2, "dword", "low_first") == 0x80000000
