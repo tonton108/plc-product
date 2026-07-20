@@ -334,7 +334,9 @@ def get_plc_status(equipment_id):
 
         plc_status = PLCStatus.query.filter_by(equipment_id=equipment.id).first()
         if not plc_status:
-            return jsonify({"error": "PLC status not found"}), 404
+            # 未報告は正常系（リソース不在ではない）。404ではなく既定ステータスを
+            # 200で返す。兄弟API（alarms/error_logs）が空データで200を返すのと整合。
+            return jsonify(PLCStatusSerializer.default_dict(equipment_id)), 200
 
         return jsonify(PLCStatusSerializer.to_dict(plc_status, equipment_id)), 200
 
