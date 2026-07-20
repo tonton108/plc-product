@@ -847,10 +847,17 @@ def start_plc_agent():
     if plc_agent_thread and plc_agent_thread.is_alive():
         safe_print("⚠️ PLCエージェントは既に起動中です")
         return
-    
-    # 停止イベントをリセット
-    plc_agent_stop_event.clear()
-    
+
+    # スレッドごとに独立した停止イベントを新規生成する。
+    # 共有イベントを clear() で使い回すと、stop_plc_agent の join が
+    # タイムアウトした後もまだ生存している旧スレッド（PLC接続リトライ中など
+    # 停止フラグを見ていない区間。最悪18秒程度ブロックし得るのに join は5秒）
+    # が停止信号を見失い、永久に動き続ける。結果、新旧2スレッドが同一設備を
+    # 並行ポーリングし、ロック無しのグローバル統計へ同時書き込みする。
+    # 新イベントを割り当てても旧スレッドは自身が握るイベント（set済みのまま）を
+    # 見て次のチェックで正常終了できる。
+    plc_agent_stop_event = threading.Event()
+
     # PLCエージェントをスレッドで起動
     # plc_agent.main_loop に一本化（再送・バッファクリーンアップを含むフル機能版。
     # 旧 plc_agent_wrapper はこれらを持たず、未送信バッファが溜まり続ける実害があった）
