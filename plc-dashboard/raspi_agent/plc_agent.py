@@ -365,7 +365,7 @@ def main_loop(stop_event=None):
                     # またはコード変化）時のみ送信する。
                     if alarm_code != last_alarm_code:
                         alarm_level = "WARNING" if error_code == 1 else "ERROR"
-                        report_alarm(
+                        sent = report_alarm(
                             alarm_code=alarm_code,
                             alarm_level=alarm_level,
                             alarm_message=f"PLCアラーム検出: エラーコード {error_code}",
@@ -374,8 +374,18 @@ def main_loop(stop_event=None):
                                 "plc_values": values
                             }
                         )
-                        logger.warning(f"⚠️ アラーム検出: {alarm_code} ({alarm_level})")
-                        last_alarm_code = alarm_code
+                        # 送信成功時のみ「報告済み」として記録する。中央サーバーが
+                        # 一時的に到達不能な場合に last_alarm_code を先に更新すると、
+                        # アラーム継続中は二度と再送されず、復旧後もそのアラームが
+                        # 永久に欠落する（error_reporterは送信失敗をバッファしない）。
+                        # 失敗時は据え置き、次周期で再送を試みる（配信成功まで再試行）。
+                        if sent:
+                            logger.warning(f"⚠️ アラーム検出: {alarm_code} ({alarm_level})")
+                            last_alarm_code = alarm_code
+                        else:
+                            logger.error(
+                                f"❌ アラーム送信失敗、次周期で再試行します: {alarm_code}"
+                            )
                 else:
                     # アラーム解消（error_code=0/None）→ 再発時に再送できるよう解除
                     last_alarm_code = None

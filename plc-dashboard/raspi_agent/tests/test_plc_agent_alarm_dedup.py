@@ -41,17 +41,25 @@ class _FakeStopEvent:
         return False
 
 
-def _run_main_loop_with_values(values_sequence):
+def _run_main_loop_with_values(values_sequence, send_results=None):
     """与えた値列を read_from_plc が順に返すよう差し替えて main_loop を回す。
+
+    Args:
+        values_sequence: read_from_plc が順に返す値の列
+        send_results: report_alarm の戻り値（送信成否）を順に指定するリスト。
+            None の場合は常に True（送信成功）とみなす。
 
     Returns:
         報告された alarm_code のリスト（report_alarm 呼び出し順）
     """
     reported = []
+    results_iter = iter(send_results) if send_results is not None else None
 
     def fake_report_alarm(alarm_code, **kwargs):
         reported.append(alarm_code)
-        return True
+        if results_iter is None:
+            return True
+        return next(results_iter)
 
     stop_event = _FakeStopEvent(stop_after=len(values_sequence))
 
@@ -119,6 +127,24 @@ class TestAlarmDedup:
             ]
         )
         assert reported == []
+
+    @pytest.mark.unit
+    def test_retries_when_send_fails(self):
+        """送信失敗（サーバー到達不能）時は last_alarm_code を据え置き、次周期で再送する。
+
+        送信成否を無視して last_alarm_code を先に更新すると、アラーム継続中の
+        一時的なサーバー障害でそのアラームが永久欠落する。1周期目False→2周期目Trueで
+        両周期とも report_alarm が呼ばれ、成功後は重複排除されることを検証する。
+        """
+        reported = _run_main_loop_with_values(
+            [
+                {"error_code": 5},  # 送信失敗
+                {"error_code": 5},  # 再試行して成功
+                {"error_code": 5},  # 成功済みなので抑止
+            ],
+            send_results=[False, True, True],
+        )
+        assert reported == ["E005", "E005"]
 
 
 if __name__ == "__main__":
