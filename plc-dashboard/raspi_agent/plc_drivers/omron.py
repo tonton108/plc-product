@@ -253,7 +253,9 @@ def read_omron_plc(fins_client, data_points):
                 else:
                     logger.warning(f"⚠️ {key}({address})のデータ取得に失敗")
 
-    # 接続は自動でクローズされるため明示的な切断処理は不要
+    # ソケットのクローズは呼び出し側（read_from_real_plc）が担う。
+    # UDPFinsConnection には close/disconnect メソッドが無いため、呼び出し側で
+    # fins_socket を明示的に閉じている（例外時も確実に解放するため try/finally）。
 
     if data:
         update_error_stats(True)
