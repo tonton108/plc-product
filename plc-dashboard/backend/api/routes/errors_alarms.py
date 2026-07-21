@@ -119,8 +119,12 @@ def save_error_log(equipment_id):
             plc_status.consecutive_errors += 1
             plc_status.last_error_type = error_log.error_type
             plc_status.last_error_message = error_log.error_message
+            # 状態変更時刻はオンライン→オフラインの遷移時のみ更新する。
+            # 従来はエラーPOSTのたびに更新され、「状態が最後に変化した時刻」ではなく
+            # 「最後にエラーを受けた時刻」になっていた（復旧経路も無く常に更新され続けた）。
+            if plc_status.is_online:
+                plc_status.last_status_change_at = datetime.now(timezone.utc)
             plc_status.is_online = False
-            plc_status.last_status_change_at = datetime.now(timezone.utc)
 
         db.session.commit()
 

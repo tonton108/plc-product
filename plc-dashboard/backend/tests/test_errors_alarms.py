@@ -9,6 +9,8 @@ Phase 2-7 のエラーログ/アラーム/PLC状態エンドポイントを検�
 admin Bearer と エージェントAPIキーの両方を付与するため、require_user /
 require_api_key のどちらのエンドポイントも叩ける。
 """
+from datetime import datetime, timezone
+
 from db.models import CommunicationErrorLog, AlarmHistory, PLCStatus, ErrorTypes, AlarmLevels
 
 EQ = "TEST_001"  # sample_equipment の equipment_id
@@ -204,3 +206,88 @@ class TestPLCStatus:
         """設備自体が存在しない場合は依然404（未報告の正常系と区別される）"""
         resp = client.get("/api/equipment/NOPE/plc_status")
         assert resp.status_code == 404
+
+
+class TestPLCStatusRecovery:
+    """データPOST成功時のPLC通信状態の回復（logs.save_log_data）。
+
+    従来はエラー時に is_online=False / consecutive_errors++ する一方、成功時に
+    戻す経路が本番コードに一切なく、一度でも通信エラーが起きた設備は復旧後も
+    永久にオフライン表示・エラー数累積のままだった（last_communication_at も
+    常にNULL）。
+    """
+
+    def _post_log(self, client, extra=None):
+        payload = {"equipment_id": EQ, "temperature": 25.0}
+        if extra:
+            payload.update(extra)
+        return client.post("/api/logs", json=payload)
+
+    def test_log_post_recovers_offline_status(self, client, session, sample_equipment):
+        """オフライン・エラー累積中の設備がデータPOST成功でオンラインに回復する"""
+        old_change = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        status = PLCStatus(equipment_id=sample_equipment.id)
+        status.is_online = False
+        status.consecutive_errors = 5
+        status.last_status_change_at = old_change
+        session.add(status)
+        session.commit()
+
+        resp = self._post_log(client)
+        assert resp.status_code == 200
+
+        refreshed = PLCStatus.query.filter_by(equipment_id=sample_equipment.id).first()
+        assert refreshed.is_online is True
+        assert refreshed.consecutive_errors == 0
+        assert refreshed.last_communication_at is not None
+        # オフライン→オンラインの遷移なので状態変更時刻が更新される
+        assert refreshed.last_status_change_at is not None
+        assert refreshed.last_status_change_at.replace(tzinfo=timezone.utc) > old_change
+
+    def test_log_post_when_already_online_keeps_change_time(
+        self, client, session, sample_equipment
+    ):
+        """既にオンラインなら状態変更時刻は据え置き、通信時刻のみ更新される"""
+        t0 = datetime(2021, 6, 1, tzinfo=timezone.utc)
+        status = PLCStatus(equipment_id=sample_equipment.id)
+        status.is_online = True
+        status.consecutive_errors = 0
+        status.last_status_change_at = t0
+        session.add(status)
+        session.commit()
+
+        resp = self._post_log(client)
+        assert resp.status_code == 200
+
+        refreshed = PLCStatus.query.filter_by(equipment_id=sample_equipment.id).first()
+        assert refreshed.is_online is True
+        assert refreshed.last_communication_at is not None
+        # 遷移していないので状態変更時刻は変わらない
+        assert refreshed.last_status_change_at.replace(tzinfo=timezone.utc) == t0
+
+    def test_second_error_does_not_bump_change_time(
+        self, client, session, sample_equipment
+    ):
+        """既にオフラインの設備への追加エラーでは状態変更時刻を更新しない"""
+        status = PLCStatus(equipment_id=sample_equipment.id)
+        status.is_online = True
+        status.consecutive_errors = 0
+        session.add(status)
+        session.commit()
+
+        # 1回目: オンライン→オフラインの遷移で状態変更時刻が入る
+        client.post(f"/api/equipment/{EQ}/error_logs", json={
+            "error_type": ErrorTypes.CONNECTION_FAILED, "error_message": "x",
+        })
+        first = PLCStatus.query.filter_by(equipment_id=sample_equipment.id).first()
+        assert first.is_online is False
+        change_after_first = first.last_status_change_at
+        assert change_after_first is not None
+
+        # 2回目: 既にオフラインなので状態変更時刻は据え置き、エラー数のみ増える
+        client.post(f"/api/equipment/{EQ}/error_logs", json={
+            "error_type": ErrorTypes.CONNECTION_FAILED, "error_message": "y",
+        })
+        second = PLCStatus.query.filter_by(equipment_id=sample_equipment.id).first()
+        assert second.consecutive_errors == 2
+        assert second.last_status_change_at == change_after_first
