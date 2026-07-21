@@ -187,7 +187,20 @@ def read_from_real_plc(config, ip, port, manufacturer, data_points):
                     protocol="FINS"
                 )
                 return None
-            return read_omron_plc(fins_client, data_points)
+            # UDPFinsConnection には close/disconnect メソッドが無く、保持する
+            # fins_socket(UDPソケット)を明示的に閉じないと GC(__del__)頼みになる。
+            # 他メーカー同様、読取例外時もソケットを確実に解放するため try/finally
+            # で囲む（従来は明示クローズが皆無で、参照滞留時やCPython以外の実装で
+            # fdが解放されない非対称があった）。
+            try:
+                return read_omron_plc(fins_client, data_points)
+            finally:
+                sock = getattr(fins_client, "fins_socket", None)
+                if sock is not None:
+                    try:
+                        sock.close()
+                    except Exception:
+                        pass
 
         elif manufacturer.lower() in ["keyence", "キーエンス"]:
             modbus_port = config.get("modbus_port", DEFAULT_MODBUS_PORT)

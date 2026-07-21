@@ -211,7 +211,19 @@ def read_keyence_plc(client, data_points, modbus_port=DEFAULT_MODBUS_PORT):
     data = {}
 
     # バッチ読み取り最適化: 連続したwordアドレスをグループ化（DMアドレスのみ）
-    word_groups = group_continuous_word_addresses(data_points, device_type="DM")
+    # group_continuous_word_addresses は data_points の設定が非dict等の場合に
+    # 例外を送出し得る。ここで例外が漏れると関数末尾の client.close() がスキップ
+    # されソケットがリークするため（#76の三菱と同クラス）、失敗時は接続を確実に
+    # 閉じてから送出する。以降のバッチ／個別読み取りループは内部で例外を捕捉する
+    # ため、正常系では末尾の close に確実に到達する。
+    try:
+        word_groups = group_continuous_word_addresses(data_points, device_type="DM")
+    except Exception:
+        try:
+            client.close()
+        except Exception:
+            pass
+        raise
 
     # グループ化されたwordアドレスを一括読み取り
     for group in word_groups:
