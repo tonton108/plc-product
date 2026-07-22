@@ -22,6 +22,7 @@ from api.serializers import (
     iso_utc,
 )
 from api.auth_service import require_user, require_api_key
+from api.helpers import get_or_create_plc_status
 
 logger = logging.getLogger(__name__)
 
@@ -113,18 +114,19 @@ def save_error_log(equipment_id):
         # インシデント文脈を保全（発生前ウィンドウの生ログを長期保存）
         capture_incident_context(equipment, "error", error_log.id, error_log.occurred_at)
 
-        # PLC状態を更新
-        plc_status = PLCStatus.query.filter_by(equipment_id=equipment.id).first()
-        if plc_status:
-            plc_status.consecutive_errors += 1
-            plc_status.last_error_type = error_log.error_type
-            plc_status.last_error_message = error_log.error_message
-            # 状態変更時刻はオンライン→オフラインの遷移時のみ更新する。
-            # 従来はエラーPOSTのたびに更新され、「状態が最後に変化した時刻」ではなく
-            # 「最後にエラーを受けた時刻」になっていた（復旧経路も無く常に更新され続けた）。
-            if plc_status.is_online:
-                plc_status.last_status_change_at = datetime.now(timezone.utc)
-            plc_status.is_online = False
+        # PLC状態を更新（無ければ作成。従来は作成経路が本番に無くテーブルが常に空で、
+        # このエラー計上ブロック自体が `if plc_status:` で常にスキップされていた）。
+        plc_status = get_or_create_plc_status(equipment.id)
+        plc_status.consecutive_errors += 1
+        plc_status.last_error_type = error_log.error_type
+        plc_status.last_error_message = error_log.error_message
+        # 状態変更時刻はオンライン→オフラインの遷移時のみ更新する。
+        # 従来はエラーPOSTのたびに更新され、「状態が最後に変化した時刻」ではなく
+        # 「最後にエラーを受けた時刻」になっていた（復旧経路も無く常に更新され続けた）。
+        # 新規作成時は初期状態がオフラインのため遷移とみなさず、時刻は据え置く。
+        if plc_status.is_online:
+            plc_status.last_status_change_at = datetime.now(timezone.utc)
+        plc_status.is_online = False
 
         db.session.commit()
 

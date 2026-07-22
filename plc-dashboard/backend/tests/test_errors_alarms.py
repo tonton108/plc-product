@@ -57,6 +57,27 @@ class TestErrorLogs:
         assert refreshed.consecutive_errors == 1
         assert refreshed.is_online is False
 
+    def test_save_error_log_creates_plc_status_when_absent(self, client, sample_equipment):
+        """PLC状態が未作成でもエラーPOSTでレコードを新規作成し計上する。
+
+        従来はPLCStatusの作成経路が本番に無くテーブルが常に空で、エラー計上が
+        `if plc_status:` で握り潰されていた（連続エラー数が一度も記録されなかった）。
+        """
+        assert PLCStatus.query.filter_by(equipment_id=sample_equipment.id).first() is None
+
+        resp = client.post(f"/api/equipment/{EQ}/error_logs", json={
+            "error_type": ErrorTypes.CONNECTION_FAILED, "error_message": "x",
+        })
+        assert resp.status_code == 200
+
+        created = PLCStatus.query.filter_by(equipment_id=sample_equipment.id).first()
+        assert created is not None
+        assert created.consecutive_errors == 1
+        assert created.is_online is False
+        assert created.last_error_type == ErrorTypes.CONNECTION_FAILED
+        # 初期状態オフラインからの遷移ではないため状態変更時刻は据え置き（None）
+        assert created.last_status_change_at is None
+
     def test_save_error_log_equipment_not_found(self, client):
         """存在しない設備IDは404"""
         resp = client.post("/api/equipment/NOPE/error_logs", json={"error_type": ErrorTypes.UNKNOWN})
@@ -222,6 +243,25 @@ class TestPLCStatusRecovery:
         if extra:
             payload.update(extra)
         return client.post("/api/logs", json=payload)
+
+    def test_log_post_creates_plc_status_when_absent(self, client, sample_equipment):
+        """PLC状態が未作成でもデータPOST成功でオンライン状態のレコードを新規作成する。
+
+        従来はPLCStatusの作成経路が本番に無く、回復ブロックが `if plc_status:` で
+        常にスキップされ、通信状態が一度も永続化されなかった。
+        """
+        assert PLCStatus.query.filter_by(equipment_id=sample_equipment.id).first() is None
+
+        resp = self._post_log(client)
+        assert resp.status_code == 200
+
+        created = PLCStatus.query.filter_by(equipment_id=sample_equipment.id).first()
+        assert created is not None
+        assert created.is_online is True
+        assert created.consecutive_errors == 0
+        assert created.last_communication_at is not None
+        # 初期状態オフライン→オンラインの遷移として状態変更時刻が記録される
+        assert created.last_status_change_at is not None
 
     def test_log_post_recovers_offline_status(self, client, session, sample_equipment):
         """オフライン・エラー累積中の設備がデータPOST成功でオンラインに回復する"""

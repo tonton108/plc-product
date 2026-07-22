@@ -14,7 +14,7 @@ from flask import jsonify
 import logging
 
 from db import db
-from db.models import Equipment
+from db.models import Equipment, PLCStatus
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +101,33 @@ def get_equipment_by_device_info(cpu_serial_number=None, mac_address=None, ip_ad
         equipment = Equipment.query.filter_by(ip=ip_address).first()
 
     return equipment
+
+
+def get_or_create_plc_status(equipment_internal_id):
+    """PLC通信状態レコードを取得し、無ければ作成してsessionに追加する。
+
+    PLCStatusは設備登録時には作られず、最初の通信イベント（データPOST/エラーPOST）
+    で初めて必要になる。従来はどの本番経路にもPLCStatusの作成処理が無かったため、
+    テーブルが常に空で、`PLCStatus.query...first()` は常にNoneを返していた。結果、
+    save_log_data / save_error_log の状態更新は全て `if plc_status:` で握り潰され、
+    is_online・consecutive_errors・last_communication_at が一度も永続化されず、
+    PLC通信状態監視（オンライン/オフライン・連続エラー数）が実質無効化されていた。
+
+    新規作成時は __init__ により is_online=False / consecutive_errors=0 /
+    uptime_seconds=0 の初期状態になる。オンライン化・エラー計上などの状態設定は
+    呼び出し側が行う（db.session.commit も呼び出し側の責務）。
+
+    Args:
+        equipment_internal_id: Equipment.id（内部整数ID。equipment_id文字列ではない）
+
+    Returns:
+        PLCStatus: 既存または新規作成したレコード
+    """
+    plc_status = PLCStatus.query.filter_by(equipment_id=equipment_internal_id).first()
+    if plc_status is None:
+        plc_status = PLCStatus(equipment_id=equipment_internal_id)
+        db.session.add(plc_status)
+    return plc_status
 
 
 def handle_api_errors(f):

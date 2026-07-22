@@ -12,10 +12,10 @@ from datetime import datetime, timedelta, timezone
 import logging
 
 from db import db
-from db.models import Equipment, Log, DailyLogSummary, SetupStatus, OperationalStatus, PLCStatus
+from db.models import Equipment, Log, DailyLogSummary, SetupStatus, OperationalStatus
 from db.models.logs import FIXED_LOG_FIELDS, LOG_META_FIELDS
 from api.serializers import LogSerializer, DailyLogSummarySerializer
-from api.helpers import get_equipment_or_404, handle_api_errors
+from api.helpers import get_equipment_or_404, handle_api_errors, get_or_create_plc_status
 from api.auth_service import require_user, require_api_key
 
 logger = logging.getLogger(__name__)
@@ -100,17 +100,16 @@ def save_log_data():
             # PLC通信状態を「オンライン」に回復する。データPOST成功＝PLCと通信でき
             # ている証左のため、last_communication_at を更新し、エラー経路(save_error_log)
             # で False にされた is_online と累積した consecutive_errors をリセットする。
-            # 従来はこの回復経路が本番コードに一切存在せず、一度でも通信エラーが起きた
-            # 設備は復旧後も永久にオフライン表示・エラー数累積のままで、
-            # last_communication_at も常にNULLだった。状態変更時刻はオフライン→
-            # オンラインの遷移時のみ更新する（毎POSTでの無意味な更新を避ける）。
-            plc_status = PLCStatus.query.filter_by(equipment_id=equipment.id).first()
-            if plc_status:
-                if not plc_status.is_online:
-                    plc_status.last_status_change_at = now
-                plc_status.is_online = True
-                plc_status.consecutive_errors = 0
-                plc_status.last_communication_at = now
+            # PLCStatusは設備登録時には作られないため、無ければここで作成する
+            # （get_or_create。従来は作成経路が本番に無くテーブルが常に空だった）。
+            # 状態変更時刻はオフライン→オンラインの遷移時のみ更新する（毎POSTでの
+            # 無意味な更新を避ける。新規作成時は初期状態オフラインからの遷移として記録）。
+            plc_status = get_or_create_plc_status(equipment.id)
+            if not plc_status.is_online:
+                plc_status.last_status_change_at = now
+            plc_status.is_online = True
+            plc_status.consecutive_errors = 0
+            plc_status.last_communication_at = now
 
             db.session.commit()
 
